@@ -492,8 +492,9 @@
 `);
       GM_addStyle(`
     /* \u8FD9\u91CC\u53EA\u5217\u9875\u9762\u5185\u8054\u89C6\u56FE\u7528\u5F97\u5230\u7684\u89C4\u5219\uFF1A\u9762\u677F\u4E13\u5C5E\u6837\u5F0F\uFF08#intschool-grade-panel-modal\u3001
-       #intschool-custom-grade-btn\u3001.editable-score/-exam/-pstar \u7B49\uFF09\u5DF2\u5220\uFF0C
-       \u9700\u8981\u65F6\u89C1 archives/legacy-panel/ \u7684\u4E24\u4EFD\u6E90\u7801\u3002 */
+       #intschool-custom-grade-btn\u3001.editable-score/-exam/-pstar \u7B49\uFF09\u968F"\u5220\u9762\u677F\u3001\u6539\u7A97\u53E3\u58F3"
+       \u4E00\u5E76\u53BB\u6389\u4E86 \u2014\u2014 \u5B83\u4EEC\u9009\u62E9\u7684\u662F\u65E7\u9762\u677F\u7684 DOM\uFF0C\u7167\u7740\u7559\u7740\u53EA\u4F1A\u8BEF\u5BFC\u540E\u6765\u7684\u4EBA\u3002
+       \u9700\u8981\u90A3\u6279\u5916\u89C2\u65F6\u6309\u7A97\u53E3\u58F3\u7684\u7C7B\u540D\uFF08.ints-win*\uFF09\u91CD\u5199\uFF0C\u4E0D\u8981\u518D\u4ECE\u65E7\u9762\u677F\u7167\u6284\u3002 */
     .subject-detail-modal .editable-star-cat:hover { background: #ffe7ba; }
     /* ====================== \u901A\u7528\u7A97\u53E3\u58F3 ======================
        \u70B9\u6210\u7EE9\u683C\u6253\u5F00\u7684\u5355\u79D1\u7A97\u53E3\u3001\u4EE5\u53CA\u5B83\u7684\u300C\u79D1\u76EE\u660E\u7EC6\u300D\uFF0C\u5171\u7528\u8FD9\u4E00\u5957\u5916\u89C2\u3002
@@ -726,6 +727,7 @@
       localStorage.setItem(STORAGE_KEY_VTID, String(S.virtualTaskIdCounter));
       if (S.lastSelectedYearKey !== null) localStorage.setItem(STORAGE_KEY_LAST_YEAR, S.lastSelectedYearKey);
       localStorage.setItem(STORAGE_KEY_LAST_FILTER, S.lastSelectedFilter);
+      localStorage.setItem(STORAGE_KEY_COLS, S.colsExpanded ? "1" : "0");
       if (S.targetUWGPA !== null) localStorage.setItem(STORAGE_KEY_TARGET_UW, String(S.targetUWGPA));
       else localStorage.removeItem(STORAGE_KEY_TARGET_UW);
       if (S.targetWGPA !== null) localStorage.setItem(STORAGE_KEY_TARGET_W, String(S.targetWGPA));
@@ -788,6 +790,7 @@
       if (lfStr) {
         S.lastSelectedFilter = lfStr;
       }
+      S.colsExpanded = localStorage.getItem(STORAGE_KEY_COLS) === "1";
       const tuwStr = localStorage.getItem(STORAGE_KEY_TARGET_UW);
       if (tuwStr) {
         S.targetUWGPA = parseFloat(tuwStr);
@@ -809,7 +812,7 @@
     S._storageLoaded = true;
     loadFromLocalStorage();
   }
-  var BASE_URL, BUTTON_ID, DEADLINE_CACHE_TTL, CACHE_TTL, COLUMN_KEY_MAPPING, STORAGE_KEY_TASK_TOGGLES, STORAGE_KEY_TASK_MARKS, STORAGE_KEY_CACHE, STORAGE_KEY_USER, STORAGE_KEY_OVERRIDES, STORAGE_KEY_VTID, STORAGE_KEY_CALIB, STORAGE_KEY_LAST_YEAR, STORAGE_KEY_LAST_FILTER, STORAGE_KEY_TARGET_UW, STORAGE_KEY_TARGET_W, STORAGE_KEY_TARGET_MODE, S;
+  var BASE_URL, BUTTON_ID, DEADLINE_CACHE_TTL, CACHE_TTL, COLUMN_KEY_MAPPING, STORAGE_KEY_TASK_TOGGLES, STORAGE_KEY_TASK_MARKS, STORAGE_KEY_CACHE, STORAGE_KEY_USER, STORAGE_KEY_OVERRIDES, STORAGE_KEY_VTID, STORAGE_KEY_CALIB, STORAGE_KEY_LAST_YEAR, STORAGE_KEY_LAST_FILTER, STORAGE_KEY_COLS, STORAGE_KEY_TARGET_UW, STORAGE_KEY_TARGET_W, STORAGE_KEY_TARGET_MODE, S;
   var init_state = __esm({
     "v8.30/state.js"() {
       BASE_URL = "https://shc.intschool.cn/api";
@@ -828,6 +831,7 @@
       STORAGE_KEY_CALIB = "ints_calib_excluded";
       STORAGE_KEY_LAST_YEAR = "ints_gs_lastYear";
       STORAGE_KEY_LAST_FILTER = "ints_gs_lastFilter";
+      STORAGE_KEY_COLS = "ints_gs_colsExpanded";
       STORAGE_KEY_TARGET_UW = "ints_gs_targetUW";
       STORAGE_KEY_TARGET_W = "ints_gs_targetW";
       STORAGE_KEY_TARGET_MODE = "ints_gs_targetMode";
@@ -872,6 +876,10 @@
         currentAbortController: null,
         lastSelectedYearKey: null,
         lastSelectedFilter: "all",
+        // 「详情」（显示全部成绩列）的展开态：和学期筛选一样是**用户自己点出来的视图状态**，
+        // 所以一起落盘、下次进 /points 照旧生效。那几列不是站点自己发布的，是我们改它组件数据
+        // 换出来的；不记住的话每次刷新都会把它收回原样，用户得重新点一遍。
+        colsExpanded: false,
         targetUWGPA: null,
         targetWGPA: null,
         targetGPAMode: "subject",
@@ -928,7 +936,7 @@
     }, options.headers);
     const signal = options.signal || (S.currentAbortController ? S.currentAbortController.signal : null);
     const response = await fetch(url, __spreadProps(__spreadValues({}, options), { headers, credentials: "include", signal }));
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status} @ ${url}`);
     return response.json();
   }
   async function promiseLimit(promises, limit = 5) {
@@ -1697,17 +1705,16 @@
   function parseYearlyReport(content) {
     const customCols = content.customColumns || [];
     let eoyColumnId = null;
-    if (customCols.length > 0) {
-      const lastCol = customCols[customCols.length - 1];
-      if (lastCol && lastCol.customColumnId) eoyColumnId = lastCol.customColumnId;
-    }
-    if (eoyColumnId === null) {
-      for (let col of customCols) {
-        if (col && col.customColumnName && col.customColumnName.trim() === "EOY") {
-          eoyColumnId = col.customColumnId;
-          break;
-        }
+    for (let col of customCols) {
+      if (col && col.customColumnName && String(col.customColumnName).trim().toUpperCase() === "EOY") {
+        eoyColumnId = col.customColumnId;
+        break;
       }
+    }
+    if (eoyColumnId === null && customCols.length > 0) {
+      const lastCol = customCols[customCols.length - 1];
+      const lastName = lastCol && lastCol.customColumnName ? String(lastCol.customColumnName).trim().toUpperCase() : "";
+      if (lastCol && lastCol.customColumnId && !TERM_COLUMN_NAMES[lastName]) eoyColumnId = lastCol.customColumnId;
     }
     const colMap = /* @__PURE__ */ new Map();
     for (let col of customCols) {
@@ -1890,6 +1897,7 @@
     const gradeData = await getGradeBookData(yearKey);
     const colMap = buildColumnMap(gradeData, yearValue);
     const items = gradeData.gradeBookItems || [];
+    if (!S.creditMap) S.creditMap = /* @__PURE__ */ new Map();
     const creditMapEmpty = S.creditMap.size === 0;
     console.log(`[\u5F53\u524D\u5B66\u5E74] grade-book \u8FD4\u56DE: items=${items.length} customColumns=${(gradeData.customColumns || []).length} creditMap=${S.creditMap.size} \u6761`);
     if (creditMapEmpty && items.length) console.warn("[\u5F53\u524D\u5B66\u5E74] creditMap \u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u533A\u5206\u96F6\u5B66\u5206\u8BFE\u7A0B\uFF1B\u7F3A\u7701\u5B66\u5206\u6682\u6309 1 \u5904\u7406\uFF08\u51C6\u786E\u5B66\u5206\u4F9D\u8D56 schedule \u6570\u636E\uFF09");
@@ -2008,12 +2016,14 @@
     }
     return validCourses;
   }
+  var TERM_COLUMN_NAMES;
   var init_courses = __esm({
     "v8.30/courses.js"() {
       init_state();
       init_utils();
       init_api();
       init_deadline();
+      TERM_COLUMN_NAMES = { S1P: 1, S1E: 1, S1F: 1, S2P: 1, S2E: 1, S2F: 1 };
     }
   });
 
@@ -2255,9 +2265,16 @@
     if (hasS2) return "S2";
     return null;
   }
+  function hasAnyPData() {
+    for (let course of S.simCourses) {
+      if (course.simGrades.s1p !== null || course.simGrades.s2p !== null) return true;
+    }
+    return false;
+  }
   function maxGPAHintText() {
     const m = computeOverallMaxGPA();
-    return m ? t("\u6700\u9AD8\u53EF\u8FBE", "Maximum") + " UW " + m.uw.toFixed(2) + " W " + m.w.toFixed(2) : "";
+    if (!m) return null;
+    return t("\u6700\u9AD8\u53EF\u8FBE", "Maximum") + " UW " + m.uw.toFixed(2) + " W " + m.w.toFixed(2);
   }
   function buildTargetGPAControlsHTML(rowStyle) {
     let html = '<div style="' + (rowStyle || "display:flex;align-items:center;flex-wrap:wrap;gap:6px;") + '">';
@@ -2300,7 +2317,7 @@
     if (S.targetGPAMode === "exam") {
       const focusSem = getExamFocusSemester();
       if (focusSem === null) {
-        return '<div style="color:#d4380d;font-size:11px;margin-top:4px;">' + t("\u6240\u6709\u671F\u672B\u8003\u8BD5\u5747\u5DF2\u7ED3\u675F\uFF0C\u65E0\u6CD5\u8FDB\u884C\u671F\u672B\u6A21\u62DF", "All final exams completed \u2014 exam simulation unavailable") + "</div>";
+        return hasAnyPData() ? '<div style="color:#d4380d;font-size:11px;margin-top:4px;">' + t("\u6240\u6709\u671F\u672B\u8003\u8BD5\u5747\u5DF2\u7ED3\u675F\uFF0C\u65E0\u6CD5\u8FDB\u884C\u671F\u672B\u6A21\u62DF", "All final exams completed \u2014 exam simulation unavailable") + "</div>" : '<div style="color:#888;font-size:11px;margin-top:4px;">' + t("\u6682\u65E0\u671F\u672B\u6210\u7EE9\uFF0C\u65E0\u6CD5\u63A8\u7B97", "No final exam data \u2014 cannot calculate") + "</div>";
       }
       for (let course of S.simCourses) {
         const dg = getExamDisplayGap(course, focusSem === "S1" ? "s1" : "s2");
@@ -2419,7 +2436,7 @@
     if (S.targetGPAMode === "exam") {
       const focusSem = getExamFocusSemester();
       if (focusSem === null) {
-        summaryDiv.innerHTML = '<span style="color:#d4380d;">' + t("\u6240\u6709\u671F\u672B\u8003\u8BD5\u5747\u5DF2\u7ED3\u675F\uFF0C\u65E0\u6CD5\u8FDB\u884C\u671F\u672B\u6A21\u62DF", "All final exams completed \u2014 exam simulation unavailable") + "</span>";
+        summaryDiv.innerHTML = hasAnyPData() ? '<span style="color:#d4380d;">' + t("\u6240\u6709\u671F\u672B\u8003\u8BD5\u5747\u5DF2\u7ED3\u675F\uFF0C\u65E0\u6CD5\u8FDB\u884C\u671F\u672B\u6A21\u62DF", "All final exams completed \u2014 exam simulation unavailable") + "</span>" : '<span style="color:#888;">' + t("\u6682\u65E0\u671F\u672B\u6210\u7EE9\uFF0C\u65E0\u6CD5\u63A8\u7B97", "No final exam data \u2014 cannot calculate") + "</span>";
       } else {
         const otherSem = focusSem === "S1" ? "S2" : "S1";
         const lockedGPA = computeSemesterCreditGPA(otherSem);
@@ -2657,8 +2674,22 @@
       simCourses: (S.simCourses || []).length
     };
   }
+  function _inlineSnapshot() {
+    const absent = { colsExpanded: "\u672A\u68C0\u6D4B", synthCols: "-" };
+    try {
+      const fn = window.__INTS_DEBUG && window.__INTS_DEBUG.getInlineStats;
+      const st = typeof fn === "function" ? fn() : null;
+      if (!st || typeof st !== "object") return absent;
+      return {
+        colsExpanded: typeof st.colsExpanded === "boolean" ? st.colsExpanded ? "\u5C55\u5F00" : "\u6536\u8D77" : absent.colsExpanded,
+        synthCols: typeof st.synthCols === "number" && isFinite(st.synthCols) ? st.synthCols : absent.synthCols
+      };
+    } catch (e) {
+      return absent;
+    }
+  }
   async function _apiSnapshot() {
-    const out = { gradeBook: "\u672A\u68C0\u6D4B", customColumns: "\u2014", columns: "\u2014", yearList: "\u672A\u68C0\u6D4B", schedule: "\u672A\u68C0\u6D4B" };
+    const out = { gradeBook: "\u672A\u68C0\u6D4B", customColumns: "\u2014", columns: "\u2014", yearList: "\u672A\u68C0\u6D4B" };
     try {
       const years = await fetchSchoolYearList();
       out.yearList = years.length + " \u6761 [" + years.map((y) => y.value).join(", ") + "]";
@@ -2710,6 +2741,7 @@
       })()
     };
     const data = _dataSnapshot();
+    const inline = _inlineSnapshot();
     const api = await _apiSnapshot();
     const errors = S._errors.slice(-5).map((e) => "  \xB7 [" + _fmtTs(e.ts) + "] " + e.label + ": " + e.msg);
     const lines = [];
@@ -2735,6 +2767,7 @@
     lines.push("  \u624B\u52A8\u6807\u8BB0: " + data.marks + (data.markIds ? " [" + data.markIds + "]" : ""));
     lines.push("  DDL: \u5168\u90E8 " + data.ddlAll + " / \u68C0\u6D4B\u5230 " + data.ddlDetected + " / \u6807\u8BB0 " + data.ddlMarked + "    \u7F13\u5B58\u5E74\u9F84: " + data.ddlCacheAge);
     lines.push("  \u7F13\u5B58: \u5B66\u5E74 " + data.yearCache + " \u6761    \u6A21\u62DF\u8BFE\u7A0B " + data.simCourses + " \u95E8");
+    lines.push("  /points \u5185\u8054: \u8BE6\u60C5\uFF1A" + inline.colsExpanded + "    \u5408\u6210\u5217\u6570\uFF1A" + inline.synthCols);
     lines.push("");
     lines.push("[\u5F02\u5E38\u8BB0\u5F55] " + S._errors.length + " \u6761" + (errors.length ? "\n" + errors.join("\n") : "\uFF08\u65E0\uFF09"));
     lines.push("");
@@ -2989,7 +3022,17 @@
     if (i < 0) return;
     const win = _wins.splice(i, 1)[0];
     _wins.push(win);
-    win.el.style.zIndex = String(++_z > Z_WIN_MAX ? _z = Z_WIN_BASE + 1 : _z);
+    const zOfWin = (w) => parseInt(w.el.style.zIndex, 10) || 0;
+    let next = Math.max.apply(null, [Z_WIN_BASE].concat(_wins.map(zOfWin))) + 1;
+    if (next > Z_WIN_MAX) {
+      const ordered = _wins.slice().sort((a, b) => zOfWin(a) - zOfWin(b));
+      ordered.forEach((w, k) => {
+        w.el.style.zIndex = String(Z_WIN_BASE + 1 + k);
+      });
+      next = Math.max.apply(null, [Z_WIN_BASE].concat(_wins.map(zOfWin))) + 1;
+    }
+    win.el.style.zIndex = String(next);
+    _z = next;
   }
   function setWindowAnchor(key, anchorEl) {
     const win = getWindow(key);
@@ -3298,9 +3341,11 @@
       if (g) allAnnuals.push(g);
     }
     if (allAnnuals.length > 0) {
-      let avgUW = allAnnuals.reduce((s, g) => s + g.uw, 0) / allAnnuals.length;
-      let avgW = allAnnuals.reduce((s, g) => s + g.w, 0) / allAnnuals.length;
-      html += `<div id="multi-year-avg-gpa" style="margin-top:12px;font-size:13px;"><strong>${t("\u5E73\u5747GPA", "Average GPA")}:</strong> UW: ${avgUW.toFixed(2)} W: ${avgW.toFixed(2)}</div>`;
+      let uwList = allAnnuals.map((g) => g.uw).filter((v) => v !== null && v !== void 0 && !isNaN(v));
+      let wList = allAnnuals.map((g) => g.w).filter((v) => v !== null && v !== void 0 && !isNaN(v));
+      let avgUW = uwList.length ? (uwList.reduce((s, v) => s + v, 0) / uwList.length).toFixed(2) : "\u2014";
+      let avgW = wList.length ? (wList.reduce((s, v) => s + v, 0) / wList.length).toFixed(2) : "\u2014";
+      html += `<div id="multi-year-avg-gpa" style="margin-top:12px;font-size:13px;"><strong>${t("\u5E73\u5747GPA", "Average GPA")}:</strong> UW: ${avgUW} W: ${avgW}</div>`;
     }
     html += `</div>`;
     return html;
@@ -3529,6 +3574,9 @@
   function registerMultiYearHost(el) {
     if (el) _multiYearHosts.add(el);
   }
+  function unregisterMultiYearHost(host) {
+    if (host) _multiYearHosts.delete(host);
+  }
   function renderMultiYearPanel(root) {
     const host = root;
     if (!host) return;
@@ -3598,7 +3646,7 @@
     } else {
       override[type] = newVal;
     }
-    renderMultiYearPanel();
+    renderAllMultiYearHosts();
     markDirty();
     let gradeLabel = grade || "";
     showOverrideWarning(t("\u5DF2\u66F4\u65B0 " + gradeLabel + " " + semester + " " + type.toUpperCase() + " GPA\u8986\u76D6", "Updated " + gradeLabel + " " + semester + " " + type.toUpperCase() + " GPA override"));
@@ -3625,9 +3673,7 @@
   function refreshAllViews() {
     invalidateTargetGapCache();
     notifyAllCoursesChanged();
-    _multiYearHosts.forEach((h) => {
-      if (document.contains(h)) safeRenderMultiYear(h);
-    });
+    renderAllMultiYearHosts();
   }
   function safeRenderMultiYear(h) {
     try {
@@ -3635,6 +3681,11 @@
     } catch (e) {
       console.error("[\u6E32\u67D3] \u591A\u5E74\u7EA7\u89C6\u56FE\u5237\u65B0\u5F02\u5E38\uFF08\u5DF2\u9694\u79BB\uFF09:", e);
     }
+  }
+  function renderAllMultiYearHosts() {
+    _multiYearHosts.forEach((h) => {
+      if (document.contains(h)) safeRenderMultiYear(h);
+    });
   }
   function onTaskScoreChange(courseIdx, taskIdx, newScore) {
     if (!S.isCurrentYear) return;
@@ -4291,7 +4342,7 @@
     }
   }
   async function autoCalibrateStarredCourses() {
-    if (!S.isCurrentYear || S.isMultiYearMode) return;
+    if (!S.isCurrentYear) return;
     if (S.isCalibrating) {
       console.log("[\u81EA\u52A8\u6821\u51C6] \u624B\u52A8\u6821\u51C6\u8FDB\u884C\u4E2D\uFF0C\u8DF3\u8FC7\u672C\u6B21\u81EA\u52A8\u6821\u51C6");
       return;
@@ -4687,6 +4738,40 @@
       console.error(`[\u52A0\u8F7D] \u5931\u8D25: ${err.message}`, err);
     }
   }
+  function _gradeIndexOf(label) {
+    if (!label) return null;
+    const m = /^G\s*(\d{1,2})$/.exec(String(label).trim());
+    if (!m) return null;
+    const n = parseInt(m[1], 10);
+    return n >= 1 && n <= 12 ? n : null;
+  }
+  function _yearStart(value) {
+    const m = /(\d{4})/.exec(String(value || ""));
+    return m ? parseInt(m[1], 10) : null;
+  }
+  function _yearPositions(sortedYears) {
+    const starts = /* @__PURE__ */ new Map();
+    let allNumeric = true;
+    sortedYears.forEach((y, i) => {
+      const s = _yearStart(y.value);
+      if (s === null) allNumeric = false;
+      starts.set(String(y.key), s === null ? i : s);
+    });
+    const idx = /* @__PURE__ */ new Map();
+    sortedYears.forEach((y, i) => idx.set(String(y.key), i));
+    return (keyStr) => allNumeric ? starts.get(String(keyStr)) : idx.get(String(keyStr));
+  }
+  function _putGrade(gradeDataMap, grade, d, chained) {
+    gradeDataMap.set(grade, {
+      yearKey: d.y.key,
+      yearValue: d.y.value,
+      courses: d.courses,
+      isCurr: d.isCurr,
+      annualGPA: d.apiAnnualGPA,
+      cumulativeGPA: d.apiCumulativeGPA,
+      chained: !!chained
+    });
+  }
   async function loadMultiYearData() {
     const navGen = S._navGeneration;
     S.multiYearEntries = [];
@@ -4694,11 +4779,24 @@
     S.loadingRequestCount = 0;
     S.expectedRequestCount = 8;
     let sortedYears = [...S.yearList].sort((a, b) => a.value.localeCompare(b.value));
+    const inProgressKey = S.schoolYearKey !== null && S.schoolYearKey !== void 0 ? String(S.schoolYearKey) : null;
+    const inProgressEntry = inProgressKey ? sortedYears.find((y) => String(y.key) === inProgressKey) : null;
+    const inProgressStart = inProgressEntry ? _yearStart(inProgressEntry.value) : null;
+    if (inProgressStart !== null) {
+      const kept = sortedYears.filter((y) => {
+        const s = _yearStart(y.value);
+        return s === null || s <= inProgressStart;
+      });
+      if (kept.length !== sortedYears.length) {
+        console.log(`[\u591A\u5E74\u7EA7] \u5B66\u5E74\u5217\u8868\u91CC\u6709 ${sortedYears.length - kept.length} \u4E2A\u665A\u4E8E\u5728\u8BFB\u5B66\u5E74\uFF08${inProgressEntry.value}\uFF09\u7684\u6761\u76EE\uFF0C\u5DF2\u6392\u9664\u51FA\u7A97\u53E3\uFF08\u5B83\u4EEC\u4E0D\u53EF\u80FD\u6709\u6210\u7EE9\uFF09`);
+        sortedYears = kept;
+      }
+    }
     if (sortedYears.length > 4) sortedYears = sortedYears.slice(-4);
     const allGrades = ["G9", "G10", "G11", "G12"];
     let gradeDataMap = /* @__PURE__ */ new Map();
-    let excludedYearKeys = /* @__PURE__ */ new Set();
     const studentId = await getStudentId();
+    if (!S.creditMap || !S.creditMap.size) S.creditMap = await loadCreditMap();
     let expectedReqs = 0;
     for (let i = 0; i < sortedYears.length; i++) {
       const keyStr = String(sortedYears[i].key);
@@ -4773,72 +4871,45 @@
     });
     const allYearData = await Promise.all(yearLoadPromises);
     if (S._navGeneration !== navGen) return;
-    for (let { y, keyStr, isCurr, sectionName, apiAnnualGPA, apiCumulativeGPA, courses } of allYearData) {
-      if (sectionName && allGrades.includes(sectionName)) {
-        gradeDataMap.set(sectionName, {
-          yearKey: y.key,
-          yearValue: y.value,
-          courses,
-          isCurr,
-          annualGPA: apiAnnualGPA,
-          cumulativeGPA: apiCumulativeGPA
-        });
-      } else if (sectionName) {
-        console.warn(`[\u591A\u5E74\u7EA7] \u672A\u77E5\u5E74\u7EA7\u6807\u7B7E: ${sectionName}\uFF0C\u5DF2\u6392\u9664`);
-        excludedYearKeys.add(keyStr);
+    const labeled = /* @__PURE__ */ new Map();
+    for (let d of allYearData) {
+      const idx = _gradeIndexOf(d.sectionName);
+      if (idx === null) {
+        if (d.sectionName) console.warn(`[\u591A\u5E74\u7EA7] \u672A\u77E5\u5E74\u7EA7\u6807\u7B7E: ${d.sectionName}\uFF0C\u5DF2\u6392\u9664`);
+        continue;
       }
+      labeled.set(d.keyStr, { gradeIdx: idx, data: d });
+      if (idx < GRADE_MIN || idx > GRADE_MAX) {
+        console.log(`[\u591A\u5E74\u7EA7] ${d.y.value} \u7684\u5E74\u7EA7\u662F G${idx}\uFF08\u4E0D\u5728 G9\u2013G12\uFF09\u21D2 \u4E0D\u8FDB\u8868\uFF0C\u4EC5\u4F5C\u63A8\u7B97\u951A\u70B9`);
+        continue;
+      }
+      _putGrade(gradeDataMap, "G" + idx, d, false);
     }
-    let unmappedYears = [];
-    for (let i = 0; i < sortedYears.length; i++) {
-      const y = sortedYears[i];
-      const keyStr = String(y.key);
-      const isCurr = String(y.key) === String(S.schoolYearKey !== null ? S.schoolYearKey : S.currentYearKey);
-      if (excludedYearKeys.has(keyStr)) continue;
-      let alreadyMapped = false;
-      for (let [grade, data] of gradeDataMap) {
-        if (data.yearKey === y.key) {
-          alreadyMapped = true;
-          break;
-        }
+    const posOf = _yearPositions(sortedYears);
+    for (let d of allYearData) {
+      if (_gradeIndexOf(d.sectionName) !== null) continue;
+      let best = null;
+      for (let [aKey, a] of labeled) {
+        const delta = posOf(d.keyStr) - posOf(aKey);
+        if (delta === null || isNaN(delta)) continue;
+        if (!best || Math.abs(delta) < Math.abs(best.delta)) best = { delta, aKey, a };
       }
-      if (!alreadyMapped) unmappedYears.push({ y, keyStr, isCurr });
-    }
-    if (unmappedYears.length > 0) {
-      let availableGrades = allGrades.filter((g) => !gradeDataMap.has(g));
-      for (let i = 0; i < Math.min(unmappedYears.length, availableGrades.length); i++) {
-        const uy = unmappedYears[i];
-        const grade = availableGrades[i];
-        let courses;
-        if (S.yearDataCache.has(uy.keyStr)) {
-          courses = S.yearDataCache.get(uy.keyStr).originalCourses;
-        } else if (uy.isCurr) {
-          incLoadingCount();
-          courses = await buildCurrentYearCourses(uy.y.key, uy.y.value);
-        } else {
-          incLoadingCount();
-          const result = await buildCoursesFromReports(uy.y.key);
-          courses = result.courses;
-        }
-        const existingCache = S.yearDataCache.get(uy.keyStr) || {};
-        S.yearDataCache.set(uy.keyStr, {
-          originalCourses: courses,
-          sectionName: grade,
-          simCourses: existingCache.simCourses || null,
-          virtualTaskIdCounter: existingCache.virtualTaskIdCounter || null,
-          annualGPA: existingCache.annualGPA || null,
-          cumulativeGPA: existingCache.cumulativeGPA || null,
-          dataTs: existingCache.dataTs || Date.now()
-        });
-        gradeDataMap.set(grade, {
-          yearKey: uy.y.key,
-          yearValue: uy.y.value,
-          courses,
-          isCurr: uy.isCurr,
-          annualGPA: existingCache.annualGPA || null,
-          cumulativeGPA: existingCache.cumulativeGPA || null
-        });
-        console.log(`[\u591A\u5E74\u7EA7] \u63A8\u65AD ${uy.y.value} \u2192 ${grade}`);
+      if (!best) {
+        console.warn(`[\u591A\u5E74\u7EA7] ${d.y.value} \u6CA1\u6709\u5E74\u5EA6\u62A5\u544A\u3001\u4E5F\u6CA1\u6709\u4EFB\u4F55\u5E74\u7EA7\u951A\u70B9 \u21D2 \u4E0D\u8FDB\u8868`);
+        continue;
       }
+      const cand = best.a.gradeIdx + best.delta;
+      if (cand < GRADE_MIN || cand > GRADE_MAX) {
+        console.log(`[\u591A\u5E74\u7EA7] ${d.y.value} \u65E0\u5E74\u5EA6\u62A5\u544A \u21D2 \u7531 ${best.a.data.y.value} \u7684 G${best.a.gradeIdx} \u63A8\u7B97\u51FA G${cand}\uFF08\u4E0D\u5728 G9\u2013G12\uFF09\u21D2 \u4E0D\u8FDB\u8868`);
+        continue;
+      }
+      const grade = "G" + cand;
+      if (gradeDataMap.has(grade)) {
+        console.warn(`[\u591A\u5E74\u7EA7] ${d.y.value} \u63A8\u7B97\u4E3A ${grade}\uFF0C\u4E0E\u5DF2\u786E\u8BA4\u7684 ${gradeDataMap.get(grade).yearValue} \u51B2\u7A81 \u21D2 \u4E0D\u8986\u76D6\uFF0C\u672C\u5E74\u4E0D\u8FDB\u8868`);
+        continue;
+      }
+      _putGrade(gradeDataMap, grade, d, true);
+      console.log(`[\u591A\u5E74\u7EA7] ${d.y.value} \u6CA1\u6709\u5E74\u5EA6\u62A5\u544A \u21D2 \u7531 ${best.a.data.y.value} \u7684 G${best.a.gradeIdx} \u63A8\u7B97\u4E3A ${grade}`);
     }
     if (S._navGeneration !== navGen) return;
     for (let grade of allGrades) {
@@ -4848,7 +4919,10 @@
         if (data.isCurr) {
           const keyStr = String(data.yearKey);
           const cached = S.yearDataCache.get(keyStr);
-          if (cached && cached.simCourses && cached.simCourses.length) {
+          if (S.simCourses && S.simCourses.length && String(S.simYearKey) === keyStr) {
+            simCopy = S.simCourses;
+            if (cached && cached.simCourses !== simCopy) cached.simCourses = simCopy;
+          } else if (cached && cached.simCourses && cached.simCourses.length) {
             simCopy = cached.simCourses;
             console.log(`[\u591A\u5E74\u7EA7] ${grade} \u4F7F\u7528\u7F13\u5B58\u7684\u6A21\u62DF\u6570\u636E`);
           } else {
@@ -4864,7 +4938,9 @@
           originalCourses: data.courses,
           simCourses: simCopy,
           annualGPA: data.annualGPA || null,
-          cumulativeGPA: data.cumulativeGPA || null
+          cumulativeGPA: data.cumulativeGPA || null,
+          // 这一行的年级是推算来的（该年没有年度报告）—— 只作诊断用，界面上不区分
+          chained: !!data.chained
         });
       } else {
         S.multiYearEntries.push({
@@ -4901,6 +4977,7 @@
     S.expectedRequestCount = 0;
     markDirty();
   }
+  var GRADE_MIN, GRADE_MAX;
   var init_year_data = __esm({
     "v8.30/year-data.js"() {
       init_state();
@@ -4910,6 +4987,8 @@
       init_simulation();
       init_ui();
       init_diagnose();
+      GRADE_MIN = 9;
+      GRADE_MAX = 12;
     }
   });
 
@@ -4935,12 +5014,13 @@
   }
   function _rowInfo(tr) {
     const tds = tr.children;
+    const scoreTd = _scoreTdOf(tr);
     return {
       key: tr.getAttribute("data-row-key"),
       subject: _cellText(tds[0]),
       course: _cellText(tds[1]),
-      score: _cellText(tds[2]),
-      scoreTd: tds[2] || null
+      score: _cellText(scoreTd),
+      scoreTd
     };
   }
   function _norm(s) {
@@ -5049,6 +5129,53 @@
     if (el.innerHTML !== html) el.innerHTML = html;
     return true;
   }
+  function td0Text(td) {
+    return td ? String(td.textContent || "").replace(/\s+/g, "").slice(0, 20) : "(no-td)";
+  }
+  function _captureSiteColumns(vm) {
+    const hs = vm && vm.dynamicHeaders || [];
+    if (!hs.length) return;
+    for (const h of hs) {
+      const id = h && h.customColumnId !== void 0 ? String(h.customColumnId) : "";
+      if (id.indexOf(SYNTH_PREFIX) === 0) return;
+    }
+    const ids = hs.map((h) => h && h.customColumnId !== void 0 ? String(h.customColumnId) : "").filter(Boolean);
+    if (!ids.length) return;
+    const sig = ids.slice().sort().join(",");
+    if (_siteColSig === sig) return;
+    if (_siteColSig && _colsExpanded) return;
+    _siteColSig = sig;
+    _siteHeaderIds = hs.map((h) => ({
+      id: h && h.customColumnId !== void 0 ? String(h.customColumnId) : "",
+      field: _headerFieldOf(h)
+    }));
+  }
+  function _schoolColumnId() {
+    for (const c of _siteHeaderIds) {
+      if (c.id && c.field !== "eoy") return c.id;
+    }
+    return null;
+  }
+  function _scoreTdIndex() {
+    const want = _schoolColumnId();
+    if (want === null) return -1;
+    const ths = _synthThs();
+    for (let i = 0; i < ths.length; i++) {
+      if (String(ths[i].getAttribute("key") || "") === want) return i;
+    }
+    const headers = _vm && _vm.dynamicHeaders || [];
+    for (let i = 0; i < headers.length; i++) {
+      if (headers[i] && String(headers[i].customColumnId) === want) return i + 2;
+    }
+    return -1;
+  }
+  function _scoreTdOf(tr) {
+    const i = _scoreTdIndex();
+    return i >= 0 ? tr.children[i] || null : null;
+  }
+  function _markRowDone(tr) {
+    tr.setAttribute(ROW_ATTR, "1");
+  }
   function _siteScoreTextNode(inner) {
     const wrap = inner.querySelector("[" + SCORE_WRAP_ATTR + "]");
     if (wrap) return wrap.firstChild;
@@ -5084,27 +5211,34 @@
     return (v > 0 ? "+" : "") + v.toFixed(2);
   }
   function _renderRow(tr, courseIdx) {
-    const tds = tr.children;
-    const scoreTd = tds[2];
-    if (!scoreTd) return;
     const course = S.simCourses[courseIdx];
     if (!course) return;
     if (!S.isCurrentYear) {
       _clearTaskCells(tr);
-      _restoreScoreCell(scoreTd);
-      if (!_scoreColumnIsField()) {
-        const staleBox = scoreTd.querySelector("[data-ints-sim]");
-        if (staleBox) staleBox.remove();
+      const scoreTdPast = _scoreTdOf(tr);
+      if (scoreTdPast) {
+        _restoreScoreCell(scoreTdPast);
+        if (!_scoreColumnIsField()) {
+          const staleBox = scoreTdPast.querySelector("[data-ints-sim]");
+          if (staleBox) staleBox.remove();
+        }
+        scoreTdPast.setAttribute(INLINE_ATTR, "1");
+        if (scoreTdPast.getAttribute("data-ints-clickable") !== null) scoreTdPast.removeAttribute("data-ints-clickable");
+        if (scoreTdPast.style.cursor) scoreTdPast.style.cursor = "";
+        if (scoreTdPast.getAttribute("title")) scoreTdPast.removeAttribute("title");
       }
-      scoreTd.setAttribute(INLINE_ATTR, "1");
-      if (scoreTd.getAttribute("data-ints-clickable") !== null) scoreTd.removeAttribute("data-ints-clickable");
-      if (scoreTd.style.cursor) scoreTd.style.cursor = "";
-      if (scoreTd.getAttribute("title")) scoreTd.removeAttribute("title");
+      _markRowDone(tr);
       safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx));
       return;
     }
     _renderTaskCells(tr, courseIdx, course);
     _renderVirtualCells(tr, courseIdx, course);
+    const scoreTd = _scoreTdOf(tr);
+    if (!scoreTd) {
+      _markRowDone(tr);
+      safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx));
+      return;
+    }
     const simScore = _courseAnnual(course, "sim");
     const origScore = _courseAnnual(course, "orig");
     const delta = simScore !== null && origScore !== null ? simScore - origScore : null;
@@ -5112,7 +5246,7 @@
     const starred = !!(course.showStar && (course.showStar.s1 || course.showStar.s2));
     const gpaOrig = getGPAForScore(origScore, course.weightBonus);
     const gpaSim = showDelta ? getGPAForScore(simScore, course.weightBonus) : null;
-    const inner = scoreTd.firstElementChild || scoreTd;
+    const inner = _cellInner(scoreTd);
     const foreign = inner.innerHTML.indexOf("UW:") >= 0 && !inner.querySelector("[data-ints-sim]");
     const showGpa = !!gpaOrig && !foreign;
     let box = scoreTd.querySelector("[data-ints-sim]");
@@ -5166,6 +5300,7 @@
     if (!showGpa && !starred) {
       if (box) box.remove();
       scoreTd.setAttribute(INLINE_ATTR, "1");
+      _markRowDone(tr);
       return;
     }
     if (!box) {
@@ -5195,6 +5330,7 @@
     }
     box.innerHTML = html;
     scoreTd.setAttribute(INLINE_ATTR, "1");
+    _markRowDone(tr);
     if (scoreTd.getAttribute("data-ints-clickable") !== "1") {
       scoreTd.setAttribute("data-ints-clickable", "1");
     }
@@ -5204,7 +5340,8 @@
       scoreTd.title = t("\u70B9\u51FB\u7F16\u8F91\u8BE5\u79D1\u76EE\u7684\u6A21\u62DF\u6210\u7EE9", "Click to edit this course simulation");
       scoreTd.addEventListener("click", guardListener("\u5185\u8054\u7F16\u8F91\u7A97\u53E3", (e) => {
         e.stopPropagation();
-        _openEditor(tr, courseIdx);
+        const now = _matchCourseIndex(_rowInfo(tr), /* @__PURE__ */ new Set());
+        _openEditor(tr, now >= 0 ? now : courseIdx);
       }));
     }
   }
@@ -5280,7 +5417,7 @@
       if (box) box.remove();
       return;
     }
-    const inner = td.firstElementChild || td;
+    const inner = _cellInner(td);
     if (box && box.parentElement !== inner) {
       box.remove();
       box = null;
@@ -5301,21 +5438,41 @@
   }
   function _scoreColumnIsField() {
     const ths = _synthThs();
-    const th = ths && ths[2];
+    const i = _scoreTdIndex();
+    const th = i >= 0 ? ths[i] : null;
     return !!(th && _thFieldOf(th));
+  }
+  function _cellInner(td) {
+    for (let n = td.firstElementChild; n; n = n.nextElementSibling) {
+      if (!n.hasAttribute || !n.hasAttribute("data-ints-sim")) return n;
+    }
+    return td;
   }
   function _decorateColumnCells(tr, courseIdx) {
     const course = S.simCourses && S.simCourses[courseIdx];
-    if (!course) return;
+    if (!course) {
+      _colTrace = { stop: "no-course" };
+      return;
+    }
     const ths = _synthThs();
-    if (!ths.length) return;
+    if (!ths.length) {
+      _colTrace = { stop: "no-ths" };
+      return;
+    }
+    const scoreIdx = _scoreTdIndex();
+    const _tr = { ths: ths.length, scoreIdx, items: [] };
+    _colTrace = _tr;
     for (let i = 0; i < ths.length; i++) {
       const f = _thFieldOf(ths[i]);
       if (!f) continue;
       const isSynth = String(ths[i].getAttribute("key") || "").indexOf(SYNTH_PREFIX) === 0;
       if (!isSynth) {
-        if (i === 2 && S.isCurrentYear) continue;
+        if (i === scoreIdx && S.isCurrentYear) {
+          _tr.items.push(i + ":skip-score");
+          continue;
+        }
         _decorateSchoolFieldCell(tr, i, course);
+        _tr.items.push(i + ":school:" + td0Text(tr.children[i]).slice(0, 12));
         continue;
       }
       const td = tr.children[i];
@@ -5324,13 +5481,17 @@
       let box = td.querySelector("[data-ints-sim]");
       if (!want) {
         if (box) box.remove();
+        _tr.items.push(i + ":" + f + ":nowant");
         continue;
       }
       const cell = _findFieldCell(tr, i, want);
-      if (!cell) continue;
+      if (!cell) {
+        _tr.items.push(i + ":" + f + ":nocell");
+        continue;
+      }
       if (cell !== td && cell.querySelector("[data-ints-sim]")) continue;
       box = cell.querySelector("[data-ints-sim]");
-      const inner = cell.firstElementChild || cell;
+      const inner = _cellInner(cell);
       if (box && box.parentElement !== inner) {
         box.remove();
         box = null;
@@ -5345,10 +5506,12 @@
       const g = getGPAForScore(Number(String(want).split("/")[0]), course.weightBonus);
       if (!g) {
         box.remove();
+        _tr.items.push(i + ":" + f + ":nogpa");
         continue;
       }
       const html = '<span title="' + escapeHtml(t("\u672C\u8BFE\u7A0B GPA", "Course GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
       if (box.innerHTML !== html) box.innerHTML = html;
+      _tr.items.push(i + ":" + f + ":box" + (box.isConnected ? "" : "!disc"));
     }
   }
   function _taskKey(s) {
@@ -5750,7 +5913,7 @@
     const course = S.simCourses[ci];
     if (!course) return;
     if (!S.isCurrentYear) return;
-    const td = tr.children[2];
+    const td = _scoreTdOf(tr);
     if (!td) return;
     const key = IE_KIND + ":" + courseIdent(course);
     if (getWindow(key)) {
@@ -5809,7 +5972,7 @@
       }
       win.el.setAttribute("data-ie-ci", String(ci));
       const tr = _rowForCourse(ci);
-      const td = tr ? tr.children[2] : null;
+      const td = tr ? _scoreTdOf(tr) : null;
       if (td) setWindowAnchor(win.key, td);
     }
   }
@@ -5837,7 +6000,7 @@
     const f = S.currentFilter;
     if (f === "s1") return ["s1p", "s1e", "s1f"];
     if (f === "s2") return ["s2p", "s2e", "s2f"];
-    return ALL_FIELDS;
+    return ALL_FIELDS.concat(["eoy"]);
   }
   function _dec() {
     return _colsExpanded ? 2 : 1;
@@ -5884,7 +6047,8 @@
   function _applyColumns(vm) {
     const isCurrYearNow = !!S.isCurrentYear;
     const keepAll = (_savedHeaders || []).filter((h) => h && h.customColumnId !== void 0 && String(h.customColumnId).indexOf(SYNTH_PREFIX) !== 0);
-    const keep = keepAll.filter((h, i) => i === 0 && isCurrYearNow || _headerVisibleUnderFilter(h));
+    const scoreColId = _schoolColumnId();
+    const keep = keepAll.filter((h) => scoreColId !== null && String(h.customColumnId) === scoreColId || _headerVisibleUnderFilter(h));
     const keptNames = new Set(keepAll.map((h) => String(h.customColumnName || "").trim().toUpperCase()));
     const owned = ALL_FIELDS.filter((f) => !keptNames.has(FIELD_LABEL[f]));
     const visible = _activeFields().filter((f) => owned.indexOf(f) >= 0);
@@ -5912,6 +6076,7 @@
     if (!keysMissing && sig === _colsSig) return;
     _colsSig = sig;
     vm.dynamicHeaders = headers;
+    _synthThCache = null;
     rows.forEach((row) => {
       if (!row) return;
       if (!row.customColumnScores) vm.$set(row, "customColumnScores", {});
@@ -5951,25 +6116,58 @@
     return (vm.dynamicHeaders || []).some((h) => h && String(h.customColumnId).indexOf(SYNTH_PREFIX) === 0);
   }
   function _captureOriginalIfNeeded(vm) {
-    if (!_hasSynthetic(vm)) _savedHeaders = (vm.dynamicHeaders || []).slice();
+    const hs = vm && vm.dynamicHeaders || [];
+    if (!hs.length) return;
+    if (_hasSynthetic(vm)) return;
+    if (!hs.some((h) => h && String(h.customColumnId === void 0 ? "" : h.customColumnId).indexOf(SYNTH_PREFIX) !== 0)) return;
+    const sig = hs.map((h) => String(h.customColumnId === void 0 ? "" : h.customColumnId)).sort().join(",");
+    if (_savedColSig === sig) return;
+    if (_savedColSig && _colsExpanded) return;
+    _savedColSig = sig;
+    _savedHeaders = hs.slice();
   }
-  function _expandColumns(expand) {
+  function _persistColsExpanded(v) {
+    S.colsExpanded = !!v;
+    safe("\u5185\u8054\u5217\u5F00\u5173\u6301\u4E45\u5316", () => flushSave(true));
+  }
+  function _afterSiteRender(vm) {
+    _synthThCache = null;
+    if (vm && typeof vm.$nextTick === "function") {
+      try {
+        vm.$nextTick(() => decoratePointsRows());
+      } catch (e) {
+      }
+    }
+    _schedule(DECORATE_DEBOUNCE_MS);
+  }
+  function _expandColumns(expand, opts) {
+    const keepPref = !!(opts && opts.keepPref);
     const vm = _findGradeVm();
     if (!vm) {
-      console.warn("[\u5185\u8054] \u672A\u627E\u5230\u6210\u7EE9\u518C\u7EC4\u4EF6\uFF0C\u65E0\u6CD5\u5C55\u5F00\u5217\uFF08\u5B66\u6821\u9875\u9762\u7ED3\u6784\u53EF\u80FD\u5DF2\u53D8\uFF09");
+      _colsExpanded = expand;
+      if (!keepPref) _persistColsExpanded(expand);
+      safe("\u5185\u8054\u5217\u5F00\u5173\uFF08\u7EC4\u4EF6\u672A\u5C31\u7EEA\uFF09", () => {
+        throw new Error("\u672A\u627E\u5230\u6210\u7EE9\u518C\u7EC4\u4EF6\uFF0C\u7A0D\u540E\u91CD\u8BD5");
+      });
       return false;
     }
     if (expand) {
       _captureOriginalIfNeeded(vm);
+      _captureSiteColumns(vm);
       _colsExpanded = true;
+      if (!keepPref) _persistColsExpanded(true);
       _applyColumns(vm);
+      _afterSiteRender(vm);
       console.log("[\u5185\u8054] \u5DF2\u5C55\u5F00\u5168\u90E8\u6210\u7EE9\u5217: " + (vm.dynamicHeaders || []).map((h) => h.customColumnName).join(", "));
     } else {
       _colsExpanded = false;
+      if (!keepPref) _persistColsExpanded(false);
       _clearSyntheticColumns(vm);
       if (_savedHeaders !== null) vm.dynamicHeaders = _savedHeaders.slice();
       _savedHeaders = null;
+      _savedColSig = "";
       _colsSig = null;
+      _afterSiteRender(vm);
       console.log("[\u5185\u8054] \u5DF2\u8FD8\u539F\u4E3A\u7AD9\u70B9\u539F\u59CB\u6210\u7EE9\u5217");
     }
     _refreshEditorWindows();
@@ -6145,7 +6343,6 @@
         safe("\u5185\u8054\u5217\u5F00\u5173", () => {
           if (_expandColumns(!_colsExpanded)) {
             _renderToolbar();
-            decoratePointsRows();
           }
         });
       }));
@@ -6222,9 +6419,11 @@
           if (vm) safe("\u5185\u8054\u5B66\u671F\u7B5B\u9009\u91CD\u5199\u5217", () => {
             _captureOriginalIfNeeded(vm);
             _applyColumns(vm);
+            _afterSiteRender(vm);
           });
+        } else {
+          _schedule(DECORATE_DEBOUNCE_MS);
         }
-        decoratePointsRows();
         e.target.blur();
       }));
       const scopeAttr = _siteScopeAttr();
@@ -6284,7 +6483,11 @@
       attachTargetGPAEvents(ctl, guardListener("\u5185\u8054\u76EE\u6807GPA", _onTargetChanged));
     }
     const hint = ctl && ctl.querySelector("#target-max-hint");
-    if (hint) hint.textContent = maxGPAHintText();
+    if (hint) {
+      const hintText = maxGPAHintText();
+      if (hintText) hint.textContent = hintText;
+      else hint.remove();
+    }
     const btn = host.querySelector("#" + TARGET_TOGGLE_ID);
     const open = _targetStripOpen && has;
     if (btn) {
@@ -6429,6 +6632,7 @@
   function _overviewSignature() {
     let sig = (S.multiYearEntries || []).length + "|" + JSON.stringify(S.multiYearGPAOverrides || {});
     for (const e of S.multiYearEntries || []) {
+      sig += "|" + e.grade + ":" + (e.yearValue || "-");
       const g = e.simCourses || [];
       for (const c of g) {
         sig += "|" + (c && c.simGrades ? c.simGrades.s1f + "," + c.simGrades.s2f : "-");
@@ -6441,7 +6645,7 @@
     if (el) el.textContent = text || "";
   }
   function _renderCalcCard() {
-    const usable = !!S.isCurrentYear && !S.isMultiYearMode && _calcOpen;
+    const usable = !!S.isCurrentYear && _calcOpen;
     let card = document.getElementById(CALC_CARD_ID);
     if (!usable) {
       if (card) card.remove();
@@ -6489,18 +6693,28 @@
     return btn;
   }
   function getInlineStats() {
-    return __spreadValues({}, _stats);
+    const headers = _vm && _vm.dynamicHeaders || [];
+    return __spreadProps(__spreadValues({}, _stats), {
+      // 这几项是"详情 / 成绩格"类问题的现场判据：展开态决定小数位与列，合成列数决定我们往
+      // 站点表里塞了几列，scoreIdx / schoolCol 决定成绩格落在哪一格（诊断报告里也用它们）。
+      colsExpanded: !!_colsExpanded,
+      synthCols: headers.filter((h) => h && String(h.customColumnId === void 0 ? "" : h.customColumnId).indexOf(SYNTH_PREFIX) === 0).length,
+      schoolCol: _schoolColumnId(),
+      scoreIdx: _scoreTdIndex(),
+      colTrace: _colTrace
+    });
   }
   function _decorate() {
     if (!_isPointsPage() || !_inlineEnabled()) return;
     if (!S.simCourses || !S.simCourses.length) return;
-    if (S.isMultiYearMode) return;
     _renderGpa();
     _renderToolbar();
     _synthThCache = null;
-    if (_colsExpanded) {
-      const vm = _findGradeVm();
-      if (vm) {
+    _structDirty = false;
+    const vm = _findGradeVm();
+    if (vm) {
+      _captureSiteColumns(vm);
+      if (_colsExpanded) {
         _captureOriginalIfNeeded(vm);
         _applyColumns(vm);
       }
@@ -6515,11 +6729,11 @@
         unmatched++;
         const box = tr.querySelector("[data-ints-sim]");
         if (box) box.remove();
-        _restoreScoreCell(tr.children[2]);
+        _restoreScoreCell(_scoreTdOf(tr));
         Array.prototype.forEach.call(tr.children, (td) => {
           if (td.getAttribute && td.getAttribute(VTASK_ATTR) !== null) _clearVirtualCell(td);
         });
-        if (tr.children[2]) tr.children[2].setAttribute(INLINE_ATTR, "1");
+        _markRowDone(tr);
         return;
       }
       used.add(idx);
@@ -6653,14 +6867,33 @@
   function _hasUndecoratedRows() {
     const rows = _rows();
     for (const tr of rows) {
-      const scoreTd = tr.children[2];
-      if (scoreTd && scoreTd.getAttribute(INLINE_ATTR) !== "1") return true;
+      if (tr.getAttribute(ROW_ATTR) !== "1") return true;
     }
     return false;
   }
-  function _shouldSchedule() {
+  function _markStructDirty(muts) {
+    for (const m of muts || []) {
+      const nodes = [].concat(
+        Array.prototype.slice.call(m.addedNodes || []),
+        Array.prototype.slice.call(m.removedNodes || [])
+      );
+      for (const n of nodes) {
+        if (!n || n.nodeType !== 1) continue;
+        const tag = n.nodeName;
+        if (tag === "TD" || tag === "TH" || tag === "TR") return true;
+        if (n.getAttribute && (n.hasAttribute("data-ints-sim") || n.hasAttribute("data-ints-simscore") || n.hasAttribute("data-ints-coldelta") || n.hasAttribute("data-ints-taskscore") || n.hasAttribute("data-ints-origwrap"))) return true;
+        if (n.querySelector && n.querySelector("td,th,tr")) return true;
+      }
+    }
+    return false;
+  }
+  function _shouldSchedule(muts) {
     if (!_isPointsPage() || !_inlineEnabled()) return false;
     if (!S.simCourses || !S.simCourses.length) return false;
+    if (_structDirty || _markStructDirty(muts)) {
+      _structDirty = true;
+      return true;
+    }
     if (!document.getElementById(GPA_ID)) return true;
     if (_hasUndecoratedRows()) return true;
     return _pageYearText() !== _lastPageYearText;
@@ -6692,7 +6925,7 @@
     console.log("[\u5185\u8054] \u7AD9\u70B9\u5B66\u5E74\u5207\u6362\u4E3A " + txt + "\uFF0C\u91CD\u65B0\u52A0\u8F7D");
     safe("points \u5185\u8054\u6362\u5E74", () => {
       _ensureData().then((ok) => {
-        if (ok) decoratePointsRows();
+        if (ok) _schedule(DECORATE_DEBOUNCE_MS);
       }).catch(() => {
       });
     });
@@ -6701,9 +6934,13 @@
     if (_started) return;
     _started = true;
     console.log("[\u5185\u8054] /points \u5185\u8054\u6A21\u62DF\u542F\u52A8");
+    ensureStorageLoaded();
     if (S.lastSelectedFilter === "all" || S.lastSelectedFilter === "s1" || S.lastSelectedFilter === "s2") {
       S.currentFilter = S.lastSelectedFilter;
     }
+    _colsExpanded = !!S.colsExpanded;
+    _savedHeaders = null;
+    _savedColSig = "";
     setCourseChangeListener((courseIdx) => {
       if (!_isPointsPage() || !_inlineEnabled()) return;
       if (courseIdx === -1) decoratePointsRows();
@@ -6716,7 +6953,8 @@
       safe("\u660E\u7EC6\u7A97\u53E3\u5237\u65B0", refreshSubjectDetailWindows);
     });
     _lastPageYearText = _pageYearText();
-    setTimeout(() => {
+    _bootTimer = setTimeout(() => {
+      _bootTimer = null;
       safe("points \u5185\u8054\u9996\u6B21\u52A0\u8F7D", () => {
         _ensureData().then((ok) => {
           if (ok) decoratePointsRows();
@@ -6724,11 +6962,12 @@
         });
       });
     }, 600);
-    _observer = new MutationObserver(guardListener("points \u5185\u8054\u89C2\u5BDF", () => {
-      if (_shouldSchedule()) _schedule(DECORATE_DEBOUNCE_MS);
+    _observer = new MutationObserver(guardListener("points \u5185\u8054\u89C2\u5BDF", (muts) => {
+      if (_shouldSchedule(muts)) _schedule(DECORATE_DEBOUNCE_MS);
     }));
     _observer.observe(document.documentElement, { childList: true, subtree: true });
-    window.addEventListener("popstate", guardListener("points \u5185\u8054\u8FD4\u56DE", () => _schedule(400)));
+    _popHandler = guardListener("points \u5185\u8054\u8FD4\u56DE", () => _schedule(400));
+    window.addEventListener("popstate", _popHandler);
   }
   function _rowForCourse(courseIdx) {
     const rows = _rows();
@@ -6751,14 +6990,38 @@
       clearTimeout(_timer);
       _timer = null;
     }
+    if (_bootTimer) {
+      clearTimeout(_bootTimer);
+      _bootTimer = null;
+    }
+    if (_popHandler) {
+      window.removeEventListener("popstate", _popHandler);
+      _popHandler = null;
+    }
     _closeInlineWindows();
     _closeTaskEditor();
     safe("\u5185\u8054\u5217\u8FD8\u539F", () => {
-      if (_colsExpanded) _expandColumns(false);
+      const vm = _findGradeVm();
+      if (vm) {
+        if (_colsExpanded) {
+          _clearSyntheticColumns(vm);
+          if (_savedHeaders !== null) vm.dynamicHeaders = _savedHeaders.slice();
+        }
+        _savedHeaders = null;
+        _savedColSig = "";
+        _colsSig = null;
+        _structDirty = false;
+        _siteHeaderIds = [];
+        _siteColSig = "";
+        _synthThCache = null;
+        _driftCheckedAt = 0;
+        _driftRefreshing = false;
+      }
     });
     const gpa = document.getElementById(GPA_ID);
     if (gpa) gpa.remove();
     _closeMenus();
+    const ovHost = document.getElementById(OVERVIEW_VIEW_ID);
     [
       TERM_ID,
       TARGET_TOGGLE_ID,
@@ -6774,6 +7037,7 @@
       const el = document.getElementById(id);
       if (el) el.remove();
     });
+    if (ovHost) safe("\u603B\u89C8\u5BBF\u4E3B\u53CD\u6CE8\u518C", () => unregisterMultiYearHost(ovHost));
     document.querySelectorAll("[data-ints-term]").forEach((el) => el.remove());
     _targetStripOpen = false;
     _targetHasState = null;
@@ -6785,17 +7049,17 @@
     document.querySelectorAll("[" + INLINE_ATTR + "]").forEach((el) => {
       el.removeAttribute(INLINE_ATTR);
       el.removeAttribute("data-ints-clickable");
-      delete el._intsClickBound;
       el.style.cursor = "";
       el.removeAttribute("title");
       _restoreScoreCell(el);
       const box = el.querySelector("[data-ints-sim]");
       if (box) box.remove();
     });
+    document.querySelectorAll("[" + ROW_ATTR + "]").forEach((tr) => tr.removeAttribute(ROW_ATTR));
+    document.querySelectorAll(".ant-table-tbody [data-ints-sim], .ant-table-tbody [data-ints-coldelta]").forEach((el) => el.remove());
     document.querySelectorAll("[data-ints-task]").forEach((td) => {
       td.removeAttribute("data-ints-task");
       td.removeAttribute("data-ints-taskbound");
-      delete td._intsTaskClickBound;
       td.style.cursor = "";
       td.removeAttribute("title");
       const b = td.querySelector("[" + TASK_SCORE_ATTR + "]");
@@ -6811,10 +7075,19 @@
     document.querySelectorAll("[" + VTASK_ATTR + "]").forEach((td) => {
       _clearVirtualCell(td);
       td.removeAttribute("data-ints-taskbound");
-      delete td._intsTaskClickBound;
+    });
+    safe("\u5185\u8054\u6A21\u6001\u6E05\u7406", () => {
+      const vt = document.querySelector(".virtual-task-modal");
+      if (vt) vt.remove();
+      S.activeSubModal = false;
+      const diag = document.getElementById("ints-diag-modal");
+      if (diag) diag.remove();
     });
     _started = false;
     _vm = null;
+    _structDirty = false;
+    _siteHeaderIds = [];
+    _siteColSig = "";
     console.log("[\u5185\u8054] /points \u5185\u8054\u5DF2\u505C\u6B62\u5E76\u6E05\u7406\u6CE8\u5165");
   }
   function syncPointsInline() {
@@ -6825,7 +7098,7 @@
     if (_isPointsPage()) _start();
     else stopPointsInline();
   }
-  var INLINE_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, _synthThCache, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, _targetHasState, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _lastPageYearText;
+  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, _synthThCache, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, _targetHasState, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _structDirty;
   var init_inline_points = __esm({
     "v8.30/inline-points.js"() {
       init_state();
@@ -6837,8 +7110,12 @@
       init_diagnose();
       init_win_shell();
       INLINE_ATTR = "data-ints-inline";
+      ROW_ATTR = "data-ints-row";
       GPA_ID = "ints-inline-gpa";
       DECORATE_DEBOUNCE_MS = 300;
+      _siteHeaderIds = [];
+      _siteColSig = "";
+      _colTrace = null;
       SCORE_SIM_ATTR = "data-ints-simscore";
       SCORE_WRAP_ATTR = "data-ints-origwrap";
       SCORE_DELTA_ATTR = "data-ints-scoredelta";
@@ -6861,8 +7138,8 @@
       IE_F_IDS = { s1: "s1", s2: "s2" };
       ALL_FIELDS = ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"];
       FIELD_LABEL = { s1p: "S1P", s1e: "S1E", s1f: "S1F", s2p: "S2P", s2e: "S2E", s2f: "S2F" };
-      FIELD_BY_LABEL = { S1P: "s1p", S1E: "s1e", S1F: "s1f", S2P: "s2p", S2E: "s2e", S2F: "s2f" };
-      FIELD_ORDER = { S1P: 0, S1E: 1, S1F: 2, S2P: 3, S2E: 4, S2F: 5 };
+      FIELD_BY_LABEL = { S1P: "s1p", S1E: "s1e", S1F: "s1f", S2P: "s2p", S2E: "s2e", S2F: "s2f", EOY: "eoy" };
+      FIELD_ORDER = { S1P: 0, S1E: 1, S1F: 2, S2P: 3, S2E: 4, S2F: 5, EOY: 6 };
       SYNTH_PREFIX = "ints_";
       TOGGLE_ID = "ints-inline-cols-btn";
       TERM_ID = "ints-inline-term";
@@ -6875,6 +7152,7 @@
       _savedHeaders = null;
       _colsExpanded = false;
       _colsSig = null;
+      _savedColSig = "";
       MENU_CALC_ID = "ints-inline-menu-calc";
       MENU_SHOW_ID = "ints-inline-menu-show";
       MENU_CALC_TRIGGER_ID = "ints-inline-calc-menu-btn";
@@ -6908,7 +7186,10 @@
       _started = false;
       _observer = null;
       _timer = null;
+      _bootTimer = null;
+      _popHandler = null;
       _lastPageYearText = null;
+      _structDirty = false;
     }
   });
 
@@ -7438,6 +7719,7 @@
       init_button();
       init_dragmark();
       init_inline_points();
+      init_year_data();
       init_simulation();
       init_ui();
       init_win_shell();
@@ -7498,6 +7780,9 @@
         getInlineStats,
         loadPointsData: _ensureData,
         _resetDriftCheckForTest,
+        // 多年级总览的数据装载（年级映射的回归用例要**真的跑一遍** loadMultiYearData，
+        // 不能手造 S.multiYearEntries —— 用户报的"在读学年那行全「—」"就出在这段映射里）
+        loadMultiYearData,
         // 持久化：驱动"改完 → 落盘 → 重开页面 → 还在吗"的全链路
         flushSave,
         loadFromLocalStorage,
@@ -7511,7 +7796,7 @@
         // 清空模拟 + 校准：验"清干净（含落盘）且不误伤校准数据"，以及"校准在飞的时候被清空模拟打断"这条竞态
         resetSimulations,
         autoCalibrateStarredCourses,
-        // 窗口：科目明细窗口 + 窗口表（关最近一个 / 全关 / 数一下开着几个）
+        // 窗口：科目明细窗口 + 窗口表（关最近一个 / 全关 / 数一下开着几个 / 容器可视区尺寸）
         showSubjectDetailModal,
         refreshSubjectDetailWindows,
         listWindows,
@@ -7519,6 +7804,7 @@
         closeTopWindow,
         closeAllWindows,
         getShellStats,
+        getShellBounds,
         syncWindows
       };
       window.__INTS_DIAG = () => safe("\u8BCA\u65AD\u62A5\u544A", () => showDiagnostics());
