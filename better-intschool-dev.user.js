@@ -941,14 +941,16 @@
   });
 
   // v8.30/log.js
+  function getBuildChannel() {
+    return BUILD_CHANNEL;
+  }
   function isLogOn() {
     return _on;
   }
   function setLogOn(on) {
     _on = !!(on && on !== "0" && on !== "false");
     try {
-      if (_on) localStorage.setItem(LOG_KEY, "1");
-      else localStorage.removeItem(LOG_KEY);
+      localStorage.setItem(LOG_KEY, _on ? "1" : "0");
     } catch (e) {
     }
     return _on;
@@ -960,16 +962,19 @@
     } catch (e) {
     }
   }
-  var LOG_KEY, _on;
+  var BUILD_CHANNEL, LOG_KEY, _on;
   var init_log = __esm({
     "v8.30/log.js"() {
+      BUILD_CHANNEL = "dev";
       LOG_KEY = "ints_log";
       _on = (function() {
         try {
-          return localStorage.getItem(LOG_KEY) === "1";
+          const stored = localStorage.getItem(LOG_KEY);
+          if (stored === "1") return true;
+          if (stored === "0") return false;
         } catch (e) {
-          return false;
         }
+        return BUILD_CHANNEL === "dev";
       })();
     }
   });
@@ -2944,7 +2949,8 @@
           return "?";
         }
       })(),
-      diagLog: isLogOn() ? "\u5F00\u542F" : "\u5173\u95ED"
+      diagLog: isLogOn() ? "\u5F00\u542F" : "\u5173\u95ED",
+      build: getBuildChannel() === "dev" ? "\u5F00\u53D1\u4EF6" : "\u53D1\u5E03\u4EF6"
     };
     const data = _dataSnapshot();
     const inline = _inlineSnapshot();
@@ -2955,7 +2961,7 @@
     lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(Date.now()));
     lines.push("");
     lines.push("[\u73AF\u5883]");
-    lines.push("  \u7248\u672C: " + env.version + "    \u754C\u9762\u8BED\u8A00: " + env.locale + "    \u6807\u8BB0\u56FE\u6807: " + env.markIcon);
+    lines.push("  \u7248\u672C: " + env.version + "\uFF08" + env.build + "\uFF09    \u754C\u9762\u8BED\u8A00: " + env.locale + "    \u6807\u8BB0\u56FE\u6807: " + env.markIcon);
     lines.push("  \u9875\u9762: " + env.url + "    \u89C6\u53E3: " + env.viewport);
     lines.push("  \u767B\u5F55\u6001: token=" + env.token + "  schoolId=" + env.schoolId);
     lines.push("  \u81EA\u52A8\u6821\u51C6: " + env.autoCalibrate + "    \u8BCA\u65AD\u65E5\u5FD7: " + env.diagLog + "\uFF08__INTS_LOG(1) \u53EF\u5F00\uFF09");
@@ -8140,6 +8146,7 @@
         getDragMarkState,
         isLogOn,
         setLogOn,
+        getBuildChannel,
         getCourseWeights,
         differsFromSchool,
         clearServerCache,
