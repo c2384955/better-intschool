@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.01.1
+// @version      1.01.2
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -670,11 +670,11 @@
   function ensureStorageLoaded() {
     S._storageLoaded || (S._storageLoaded = !0, loadFromLocalStorage());
   }
-  var BASE_URL, BUTTON_ID, COLUMN_KEY_MAPPING, STORAGE_KEY_TASK_TOGGLES, STORAGE_KEY_TASK_MARKS, STORAGE_KEY_CACHE, STORAGE_KEY_USER, STORAGE_KEY_OVERRIDES, STORAGE_KEY_VTID, STORAGE_KEY_CALIB, STORAGE_KEY_LAST_YEAR, STORAGE_KEY_LAST_FILTER, STORAGE_KEY_COLS, STORAGE_KEY_TARGET_UW, STORAGE_KEY_TARGET_W, STORAGE_KEY_TARGET_MODE, S, _saveDisabled, init_state = __esm({
+  var BASE_URL, BUTTON_ID, COLUMN_KEY_MAPPING, STORAGE_KEY_TASK_TOGGLES, STORAGE_KEY_TASK_MARKS, STORAGE_KEY_TASK_IGNORE, STORAGE_KEY_CACHE, STORAGE_KEY_USER, STORAGE_KEY_OVERRIDES, STORAGE_KEY_VTID, STORAGE_KEY_CALIB, STORAGE_KEY_LAST_YEAR, STORAGE_KEY_LAST_FILTER, STORAGE_KEY_COLS, STORAGE_KEY_TARGET_UW, STORAGE_KEY_TARGET_W, STORAGE_KEY_TARGET_MODE, S, _saveDisabled, init_state = __esm({
     "v8.30/state.js"() {
       BASE_URL = "https://shc.intschool.cn/api", BUTTON_ID = "intschool-custom-grade-btn", COLUMN_KEY_MAPPING = {
         "2025-2026": { s1p: "189", s1e: "191", s1f: null, s2p: "226", s2e: null, s2f: null }
-      }, STORAGE_KEY_TASK_TOGGLES = "ints_task_toggles", STORAGE_KEY_TASK_MARKS = "ints_task_marks", STORAGE_KEY_CACHE = "ints_gs_cache", STORAGE_KEY_USER = "ints_gs_user", STORAGE_KEY_OVERRIDES = "ints_gs_overrides", STORAGE_KEY_VTID = "ints_gs_vtid", STORAGE_KEY_CALIB = "ints_calib_excluded", STORAGE_KEY_LAST_YEAR = "ints_gs_lastYear", STORAGE_KEY_LAST_FILTER = "ints_gs_lastFilter", STORAGE_KEY_COLS = "ints_gs_colsExpanded", STORAGE_KEY_TARGET_UW = "ints_gs_targetUW", STORAGE_KEY_TARGET_W = "ints_gs_targetW", STORAGE_KEY_TARGET_MODE = "ints_gs_targetMode", S = {
+      }, STORAGE_KEY_TASK_TOGGLES = "ints_task_toggles", STORAGE_KEY_TASK_MARKS = "ints_task_marks", STORAGE_KEY_TASK_IGNORE = "ints_ddl_ignore", STORAGE_KEY_CACHE = "ints_gs_cache", STORAGE_KEY_USER = "ints_gs_user", STORAGE_KEY_OVERRIDES = "ints_gs_overrides", STORAGE_KEY_VTID = "ints_gs_vtid", STORAGE_KEY_CALIB = "ints_calib_excluded", STORAGE_KEY_LAST_YEAR = "ints_gs_lastYear", STORAGE_KEY_LAST_FILTER = "ints_gs_lastFilter", STORAGE_KEY_COLS = "ints_gs_colsExpanded", STORAGE_KEY_TARGET_UW = "ints_gs_targetUW", STORAGE_KEY_TARGET_W = "ints_gs_targetW", STORAGE_KEY_TARGET_MODE = "ints_gs_targetMode", S = {
         currentYearKey: null,
         currentYearValue: null,
         // 在读学年（只认第一次）—— 能不能模拟、要不要写用户数据、跑不跑校准看它
@@ -723,6 +723,7 @@
         _deadlineCheckedOnce: !1,
         _deadlineCheckTrigger: null,
         _deadlineFallbackArmed: !1,
+        _taskIgnore: {},
         _taskToggles: {},
         _taskMarks: {},
         _taskDragging: !1,
@@ -1010,6 +1011,24 @@
     let raw = String(name || "");
     return raw ? t(raw, raw) : "";
   }
+  function classifyDeadlineTask(raw, ctx) {
+    let c = ctx || {};
+    if (!raw || !raw.endDate) return { verdict: "skip", reason: "no-deadline" };
+    if (String(raw.type) !== DEADLINE_ASSIGNMENT_TYPE) return { verdict: "skip", reason: "not-assignment" };
+    if (raw.status) return { verdict: "skip", reason: "submitted" };
+    if (!raw.online && raw.score !== null && raw.score !== void 0) return { verdict: "skip", reason: "already-graded" };
+    let typeName = String(c.typeName || raw.typeName || "");
+    return typeName && DEADLINE_RECORD_ONLY_TYPES.indexOf(typeName) >= 0 ? { verdict: "skip", reason: "record-only" } : raw.online ? { verdict: "detected", reason: "online-unsubmitted" } : c.isIgnored && !c.isMarked ? { verdict: "ignored", reason: "ignored-by-user" } : { verdict: "inferred", reason: typeName ? "offline-assignment" : "offline-assignment-unknown-type" };
+  }
+  function _buildTaskTypeMap(gradeData) {
+    let map = /* @__PURE__ */ new Map(), items = gradeData && gradeData.gradeBookItems || [];
+    for (let it of items)
+      for (let ts of it.taskScores || []) {
+        let raw = ts.taskStudentId !== void 0 ? ts.taskStudentId : ts.entityId !== void 0 ? ts.entityId : ts.id, id = parseInt(raw, 10);
+        id && map.set(String(id), { typeName: ts.taskTypeName || "", topScore: ts.topScore });
+      }
+    return map;
+  }
   function renderTooltipContent() {
     if (!_deadlineFloatBox) {
       console.warn("[DDL] renderTooltipContent: \u5361\u7247\u8282\u70B9\u4E0D\u5B58\u5728");
@@ -1027,22 +1046,33 @@
       let todayTs = today.getTime(), allFutureTasks = (S._deadlineAllTasks || []).filter((t4) => _taskVisible(t4, todayTs)), grouped = {};
       for (let w of allFutureTasks)
         grouped[w.courseName] || (grouped[w.courseName] = []), grouped[w.courseName].push(w);
-      let sortedCourses = Object.keys(grouped).sort(), html = "", rowCount = 0;
+      let sortedCourses = Object.keys(grouped).sort(), html = "", rowCount = 0, inferredCount = 0;
+      for (let w of allFutureTasks)
+        w.inferred && inferredCount++;
+      inferredCount > 0 && (html += '<div data-ints-note="inferred" style="padding:5px 6px;font-size:11px;color:#8c8c8c;background:#fafafa;border-bottom:1px solid #f0f0f0;">' + escapeHtml(t(
+        "\u542B " + inferredCount + " \u9879\u63A8\u65AD\uFF08\u7AD9\u70B9\u6CA1\u6709\u5728\u7EBF\u63D0\u4EA4\u5165\u53E3\uFF0C\u6309\u7EBF\u4E0B\u4EFB\u52A1\u5224\u65AD\uFF1B\u4E0D\u60F3\u8981\u5C31\u628A\u90A3\u4E00\u884C\u62D6\u4E0B\u53BB\uFF09",
+        inferredCount + " inferred item(s) \u2014 no online submission, treated as offline work"
+      )) + "</div>");
       for (let courseName of sortedCourses) {
         let tasks = grouped[courseName];
         tasks.sort((a, b) => _typeRank(a.typeName) - _typeRank(b.typeName) || a.endDate - b.endDate), html += '<div class="task-dash-course" data-course="' + escapeHtml(courseName) + '" style="font-size:12px;color:#555;font-weight:600;padding:6px 6px 2px;border-bottom:1px solid #f0f0f0;">' + escapeHtml(courseName) + "</div>";
         for (let task of tasks) {
           rowCount++;
-          let taskDate = new Date(task.endDate), ds = taskDate.getFullYear() + "." + (taskDate.getMonth() + 1) + "." + taskDate.getDate(), shown = isTaskShown(task.entityId), href = taskHref(task.entityId), taskNameHtml = href ? '<a href="' + escapeHtml(href) + '" draggable="true" title="' + t("\u6253\u5F00\u4EFB\u52A1\u9875\uFF08\u53EF\u62D6\u5230\u4E0B\u65B9\u4EFB\u52A1\u5217\u8868\u6807\u8BB0 / \u62D6\u5230\u522B\u5904\u53D6\u6D88\u6807\u8BB0\uFF09", "Open task page (drag onto the task list to mark, drag elsewhere to unmark)") + '" style="color:#1890ff;text-decoration:underline;cursor:grab;">' + escapeHtml(task.taskName) + "</a>" : '<span draggable="true" style="cursor:grab;">' + escapeHtml(task.taskName) + "</span>", typeLabel = _typeLabel(task.typeName);
-          html += '<div class="task-dash-row" data-entity="' + task.entityId + '" data-name="' + escapeHtml(task.taskName) + '" data-type="' + escapeHtml(String(task.typeName || "")) + '" style="padding:3px 6px;border-bottom:1px solid #f5f5f5;font-size:13px;">', html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">', html += '<span style="flex:1;white-space:nowrap;">' + (typeLabel ? '<span style="color:#bfbfbf;font-size:11px;margin-right:6px;">' + escapeHtml(typeLabel) + "</span>" : "") + taskNameHtml + "\uFF08" + ds + "\uFF09" + (task.marked ? '<span title="' + t("\u624B\u52A8\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210", "Manually marked as pending") + '" style="margin-left:6px;padding:0 4px;border:1px solid #ffa39e;border-radius:3px;color:#cf1322;font-size:10px;">' + t("\u6807\u8BB0", "Marked") + "</span>" : "") + "</span>", html += '<label class="task-toggle-label" title="' + t("\u5F00\u542F\u540E\u8BE5\u4EFB\u52A1\u5C06\u8BA1\u5165\u63D0\u9192", "Show this task in reminders") + '" style="display:flex;align-items:center;gap:6px;font-size:11px;color:#666;cursor:pointer;flex-shrink:0;">', html += "<span>" + (shown ? t("\u5DF2\u5F00\u542F", "On") : t("\u5DF2\u5173\u95ED", "Off")) + '</span><input type="checkbox" class="task-toggle-switch" data-entity="' + task.entityId + '"' + (shown ? " checked" : "") + "></label></div></div>";
+          let taskDate = new Date(task.endDate), ds = taskDate.getFullYear() + "." + (taskDate.getMonth() + 1) + "." + taskDate.getDate(), shown = isTaskShown(task.entityId), href = taskHref(task.entityId), taskNameHtml = href ? '<a href="' + escapeHtml(href) + '" draggable="true" title="' + t("\u6253\u5F00\u4EFB\u52A1\u9875\uFF08\u53EF\u62D6\u5230\u4E0B\u65B9\u4EFB\u52A1\u5217\u8868\u6807\u8BB0 / \u62D6\u5230\u522B\u5904\u53D6\u6D88\u6807\u8BB0\uFF09", "Open task page (drag onto the task list to mark, drag elsewhere to unmark)") + '" style="color:#1890ff;text-decoration:underline;cursor:grab;">' + escapeHtml(task.taskName) + "</a>" : '<span draggable="true" style="cursor:grab;">' + escapeHtml(task.taskName) + "</span>", typeLabel = _typeLabel(task.typeName), source = task.inferred ? "inferred" : "detected";
+          html += '<div class="task-dash-row" data-entity="' + task.entityId + '" data-name="' + escapeHtml(task.taskName) + '" data-type="' + escapeHtml(String(task.typeName || "")) + '" data-source="' + source + '" style="padding:3px 6px;border-bottom:1px solid #f5f5f5;font-size:13px;">', html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">', html += '<span style="flex:1;white-space:nowrap;">' + (typeLabel ? '<span style="color:#bfbfbf;font-size:11px;margin-right:6px;">' + escapeHtml(typeLabel) + "</span>" : "") + taskNameHtml + "\uFF08" + ds + "\uFF09" + (task.inferred ? '<span class="task-src-tag" title="' + t("\u7AD9\u70B9\u6CA1\u6709\u5F00\u5728\u7EBF\u63D0\u4EA4\u5165\u53E3\uFF0C\u8FD9\u6761\u662F\u6309\u7EBF\u4E0B\u4EFB\u52A1\u63A8\u65AD\u51FA\u6765\u7684\uFF08\u62D6\u5230\u4E0B\u65B9\u5373\u53EF\u4E0D\u518D\u63D0\u9192\uFF09", "No online submission for this task \u2014 inferred as offline work (drag down to dismiss)") + '" style="margin-left:6px;padding:0 4px;border:1px solid #d9d9d9;border-radius:3px;color:#8c8c8c;font-size:10px;">' + t("\u63A8\u65AD", "Inferred") + "</span>" : "") + (task.marked ? '<span title="' + t("\u624B\u52A8\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210", "Manually marked as pending") + '" style="margin-left:6px;padding:0 4px;border:1px solid #ffa39e;border-radius:3px;color:#cf1322;font-size:10px;">' + t("\u6807\u8BB0", "Marked") + "</span>" : "") + "</span>", html += '<label class="task-toggle-label" title="' + t("\u5F00\u542F\u540E\u8BE5\u4EFB\u52A1\u5C06\u8BA1\u5165\u63D0\u9192", "Show this task in reminders") + '" style="display:flex;align-items:center;gap:6px;font-size:11px;color:#666;cursor:pointer;flex-shrink:0;">', html += "<span>" + (shown ? t("\u5DF2\u5F00\u542F", "On") : t("\u5DF2\u5173\u95ED", "Off")) + '</span><input type="checkbox" class="task-toggle-switch" data-entity="' + task.entityId + '"' + (shown ? " checked" : "") + "></label></div></div>";
         }
       }
-      _deadlineFloatBox.innerHTML = html, _deadlineFloatBox.dataset.hasTasks = rowCount > 0 ? "1" : "0", _deadlineFloatBox.querySelectorAll(".task-toggle-switch").forEach((cb) => {
+      let ignoreCount = getTaskIgnoreCount();
+      ignoreCount > 0 && (html += '<div data-ints-note="ignored" title="' + t("\u88AB\u5FFD\u7565\u7684\u63A8\u65AD\u9879\u4E0D\u518D\u51FA\u73B0\u5728\u63D0\u9192\u91CC", "Ignored inferred items are not reminded") + '" style="padding:5px 6px;font-size:11px;color:#8c8c8c;border-top:1px solid #f0f0f0;cursor:pointer;text-decoration:underline;">' + escapeHtml(t("\u5DF2\u5FFD\u7565 " + ignoreCount + " \u9879\u63A8\u65AD \xB7 \u70B9\u6B64\u6062\u590D", "Ignored " + ignoreCount + " inferred item(s) \u2014 click to restore")) + "</div>"), _deadlineFloatBox.innerHTML = html, _deadlineFloatBox.dataset.hasTasks = rowCount > 0 || ignoreCount > 0 ? "1" : "0", _deadlineFloatBox.querySelectorAll(".task-toggle-switch").forEach((cb) => {
         cb.addEventListener("change", function() {
           let entityId = parseInt(this.dataset.entity, 10);
           isNaN(entityId) || setTaskShown(entityId, this.checked);
         });
-      }), DL("[DDL] renderTooltipContent: courses=" + sortedCourses.length + " rows=" + rowCount + " htmlLen=" + html.length + " (\u542B\u5DF2\u5173\u95ED\u63D0\u9192\u7684\u4EFB\u52A1)");
+      });
+      let restoreEl = _deadlineFloatBox.querySelector('[data-ints-note="ignored"]');
+      restoreEl && restoreEl.addEventListener("click", function(e) {
+        e.stopPropagation(), clearTaskIgnore();
+      }), DL("[DDL] renderTooltipContent: courses=" + sortedCourses.length + " rows=" + rowCount + " inferred=" + inferredCount + " \u5FFD\u7565=" + ignoreCount + " htmlLen=" + html.length + " (\u542B\u5DF2\u5173\u95ED\u63D0\u9192\u7684\u4EFB\u52A1)");
     } catch (e) {
       console.error("[DDL] renderTooltipContent \u5F02\u5E38:", e);
     }
@@ -1104,12 +1134,58 @@
     let entries = S._deadlineAllTasks.filter((t4) => String(t4.entityId) === key);
     if (entries.length) {
       for (let t4 of entries) t4.marked = marked;
-      marked || (S._deadlineAllTasks = S._deadlineAllTasks.filter((t4) => String(t4.entityId) !== key || t4.detected)), recomputeDeadlineWarnings(), updateDeadlineIcon();
+      marked || (S._deadlineAllTasks = S._deadlineAllTasks.filter((t4) => String(t4.entityId) !== key || t4.detected || t4.inferred)), recomputeDeadlineWarnings(), updateDeadlineIcon();
     } else marked && (S._deadlineCache.ts = 0, checkUpcomingDeadlines());
     DL("[\u6807\u8BB0] \u4EFB\u52A1 " + key + (marked ? " \u5DF2\u6807\u8BB0\uFF08\u89C6\u4E3A\u672A\u5B8C\u6210\uFF09" : " \u5DF2\u79FB\u9664\u6807\u8BB0") + "\uFF0C\u5DF2\u5728\u5217\u8868\u5185=" + entries.length + "\uFF0C\u5269\u4F59\u5217\u8868=" + S._deadlineAllTasks.length);
   }
+  function loadTaskIgnore() {
+    try {
+      let raw = localStorage.getItem(STORAGE_KEY_TASK_IGNORE);
+      if (S._taskIgnore = {}, raw) {
+        let parsed = JSON.parse(raw);
+        if (parsed && typeof parsed == "object")
+          for (let [k, v] of Object.entries(parsed)) {
+            let ts = Number(v);
+            S._taskIgnore[k] = isFinite(ts) && ts > 0 ? ts : 0;
+          }
+      }
+    } catch (e) {
+      S._taskIgnore = {};
+    }
+  }
+  function saveTaskIgnore() {
+    try {
+      localStorage.setItem(STORAGE_KEY_TASK_IGNORE, JSON.stringify(S._taskIgnore));
+    } catch (e) {
+    }
+  }
+  function isTaskIgnored(entityId) {
+    return S._taskIgnore[String(entityId)] !== void 0;
+  }
+  function getTaskIgnoreCount() {
+    return Object.keys(S._taskIgnore).length;
+  }
+  function setTaskIgnored(entityId, endDateTs) {
+    let key = String(entityId);
+    S._taskIgnore[key] = Number(endDateTs) > 0 ? Number(endDateTs) : 0, saveTaskIgnore();
+    for (let t4 of S._deadlineAllTasks)
+      String(t4.entityId) === key && (t4.ignored = !0);
+    recomputeDeadlineWarnings(), updateDeadlineIcon(), DL("[DDL] \u4EFB\u52A1 " + key + " \u5DF2\u5FFD\u7565\uFF08\u4E0D\u518D\u5F53\u4F5C\u5F85\u529E\uFF09\uFF0C\u5FFD\u7565\u8868 " + getTaskIgnoreCount() + " \u6761");
+  }
+  function clearTaskIgnore() {
+    let n = getTaskIgnoreCount();
+    S._taskIgnore = {}, saveTaskIgnore();
+    for (let t4 of S._deadlineAllTasks) t4.ignored = !1;
+    recomputeDeadlineWarnings(), updateDeadlineIcon(), DL("[DDL] \u5FFD\u7565\u8868\u5DF2\u6E05\u7A7A\uFF08" + n + " \u6761\uFF09\uFF0C\u6062\u590D\u663E\u793A");
+  }
+  function _pruneTaskIgnore(nowTs) {
+    let removed = 0;
+    for (let [k, ts] of Object.entries(S._taskIgnore))
+      ts > 0 && ts < nowTs && (delete S._taskIgnore[k], removed++);
+    removed && (saveTaskIgnore(), DL("[DDL] \u5FFD\u7565\u8FC7\u671F\u8BB0\u5F55 " + removed + " \u6761\uFF0C\u5269 " + getTaskIgnoreCount() + " \u6761"));
+  }
   function _taskVisible(t4, nowTs) {
-    return t4.marked ? !0 : !!t4.detected && t4.endDate > nowTs;
+    return t4.marked ? !0 : t4.ignored ? !1 : !!(t4.detected || t4.inferred) && t4.endDate > nowTs;
   }
   function recomputeDeadlineWarnings() {
     let now = Date.now(), warnings = [];
@@ -1189,8 +1265,8 @@
       currentYearEntry = sorted[sorted.length - 1] || null, currentYearEntry && DL("[DDL] \u65E0\u5B66\u5E74\u4E0B\u62C9\uFF0C\u56DE\u9000\u6700\u65B0\u5B66\u5E74 " + currentYearEntry.value);
     }
     if (DL("[DDL] \u5B66\u5E74\u5217\u8868=" + yearList.length + " \u4E0B\u62C9\u6587\u672C=" + JSON.stringify(currentYearText) + " \u547D\u4E2D=" + (currentYearEntry ? currentYearEntry.key : "\u65E0")), !currentYearEntry) return null;
-    let courses = ((await _getGradeBookDataFn(currentYearEntry.key)).gradeBookItems || []).filter((item) => item.inClass !== !1 && item.courseId).map((item) => ({ courseId: item.courseId, courseName: item.courseName }));
-    return { year: currentYearEntry, courses };
+    let gradeData = await _getGradeBookDataFn(currentYearEntry.key), courses = (gradeData.gradeBookItems || []).filter((item) => item.inClass !== !1 && item.courseId).map((item) => ({ courseId: item.courseId, courseName: item.courseName }));
+    return { year: currentYearEntry, courses, gradeData };
   }
   async function _fetchCourseTasksRaw(course, schoolYearKey) {
     let pageCurrent = 1, total = 0, fetched = 0, items = [];
@@ -1229,7 +1305,7 @@
     }), { at: Date.now(), year: resolved.year.key, courses: out };
   }
   async function checkUpcomingDeadlines(force) {
-    if (loadTaskToggles(), loadTaskMarks(), DL("[DDL] checkUpcomingDeadlines: \u89E6\u53D1 (force=" + !!force + " cacheTs=" + S._deadlineCache.ts + " inFlight=" + S._deadlineCheckInFlight + ")"), !force && Date.now() - S._deadlineCache.ts < 3e5) {
+    if (loadTaskToggles(), loadTaskMarks(), loadTaskIgnore(), DL("[DDL] checkUpcomingDeadlines: \u89E6\u53D1 (force=" + !!force + " cacheTs=" + S._deadlineCache.ts + " inFlight=" + S._deadlineCheckInFlight + ")"), !force && Date.now() - S._deadlineCache.ts < 3e5) {
       DL("[DDL] checkUpcomingDeadlines: \u7F13\u5B58\u547D\u4E2D"), updateDeadlineIcon();
       return;
     }
@@ -1238,31 +1314,48 @@
       return;
     }
     S._deadlineCheckTrigger === null && (S._deadlineCheckTrigger = "direct"), S._deadlineCheckedOnce = !0, _checkStarts++, _clearFallback(), S._deadlineCheckInFlight = !0, _lastCheckTs = Date.now(), updateDeadlineIcon();
-    let allTasks = [];
+    let allTasks = [], today = /* @__PURE__ */ new Date();
+    today.setHours(23, 59, 59, 999);
+    let todayTs = today.getTime();
     try {
       let resolved = await _resolveDeadlineCourses();
       if (!resolved) {
         S._deadlineCache = { ts: Date.now(), data: [] }, S._deadlineAllTasks = allTasks, S._deadlineCheckInFlight = !1, updateDeadlineIcon();
         return;
       }
-      let courses = resolved.courses, today = /* @__PURE__ */ new Date();
-      today.setHours(23, 59, 59, 999);
-      let todayTs = today.getTime();
+      let courses = resolved.courses, typeMap = _buildTaskTypeMap(resolved.gradeData), verdictCount = { detected: 0, inferred: 0, ignored: 0, skip: 0 };
       async function checkCourseDeadline(course) {
         let courseId = course.courseId, courseName = course.courseName || "Course#" + courseId;
         if (!courseId) return { allTasks: [], checked: 0, tasks: 0, online: 0, unsub: 0, future: 0 };
         try {
           let items = await _fetchCourseTasksRaw(course, resolved.year.key), onlineCountLocal = 0, unsubmittedCountLocal = 0, futureCountLocal = 0, markedCountLocal = 0, courseAllTasks = [];
           for (let task of items) {
-            let isOnline = !!task.online, isUnsubmitted = !task.status, entityId = parseInt(task.entityId, 10);
+            let entityId = parseInt(task.entityId, 10);
             if (!entityId) continue;
-            let isMarked = isTaskMarked(entityId);
+            let isOnline = !!task.online, isUnsubmitted = !task.status, isMarked = isTaskMarked(entityId);
             isOnline && onlineCountLocal++, isUnsubmitted && unsubmittedCountLocal++, isMarked && markedCountLocal++;
-            let isDetected = isOnline && isUnsubmitted;
-            if ((isMarked || isDetected) && task.endDate) {
-              let endDate = new Date(task.endDate);
-              isNaN(endDate.getTime()) || (courseAllTasks.push({ courseId, courseName, entityId, taskName: task.name || "Unnamed", endDate: endDate.getTime(), typeName: task.typeName || "", marked: isMarked, detected: isDetected }), endDate.getTime() > todayTs && futureCountLocal++);
-            }
+            let meta = typeMap.get(String(entityId)) || null, verdict = classifyDeadlineTask(task, {
+              typeName: meta ? meta.typeName : "",
+              isMarked,
+              isIgnored: isTaskIgnored(entityId)
+            });
+            if (verdictCount[verdict.verdict]++, !isMarked && verdict.verdict !== "detected" && verdict.verdict !== "inferred" && verdict.verdict !== "ignored" || !task.endDate) continue;
+            let endDate = new Date(task.endDate);
+            if (isNaN(endDate.getTime())) continue;
+            let isInferred = verdict.verdict === "inferred" || verdict.verdict === "ignored";
+            courseAllTasks.push({
+              courseId,
+              courseName,
+              entityId,
+              taskName: task.name || "Unnamed",
+              endDate: endDate.getTime(),
+              typeName: meta && meta.typeName || task.typeName || "",
+              marked: isMarked,
+              detected: verdict.verdict === "detected",
+              inferred: isInferred,
+              ignored: verdict.verdict === "ignored",
+              reason: verdict.reason
+            }), endDate.getTime() > todayTs && futureCountLocal++;
           }
           return { allTasks: courseAllTasks, checked: 1, tasks: items.length, online: onlineCountLocal, unsub: unsubmittedCountLocal, future: futureCountLocal, marked: markedCountLocal };
         } catch (e) {
@@ -1274,13 +1367,13 @@
         for (let r of results)
           allTasks.push(...r.allTasks);
       }
-      DL("[DDL] checkUpcomingDeadlines: courses=" + courses.length + " allTasks=" + allTasks.length + " future=" + allTasks.filter((t4) => t4.endDate > todayTs).length);
+      DL("[DDL] checkUpcomingDeadlines: courses=" + courses.length + " allTasks=" + allTasks.length + " future=" + allTasks.filter((t4) => t4.endDate > todayTs).length + " \u5224\u5B9A=" + JSON.stringify(verdictCount) + " \u7C7B\u578B\u8868=" + typeMap.size + " \u6761");
     } catch (e) {
       console.error("[\u63D0\u9192] \u68C0\u67E5\u5931\u8D25\uFF1A" + e.message), S._deadlineCheckInFlight = !1;
     }
-    S._deadlineAllTasks = allTasks;
+    S._deadlineAllTasks = allTasks, _pruneTaskIgnore(todayTs);
     let warnings = recomputeDeadlineWarnings();
-    S._deadlineCache.ts = Date.now(), S._deadlineCheckInFlight = !1, DL("[DDL] checkUpcomingDeadlines \u5B8C\u6210: allTasks=" + allTasks.length + " marked=" + allTasks.filter((t4) => t4.marked).length + " warnings=" + warnings.length), _pollingStarted || (_pollingStarted = !0, startDeadlinePolling()), updateDeadlineIcon();
+    S._deadlineCache.ts = Date.now(), S._deadlineCheckInFlight = !1, DL("[DDL] checkUpcomingDeadlines \u5B8C\u6210: allTasks=" + allTasks.length + " marked=" + allTasks.filter((t4) => t4.marked).length + " inferred=" + allTasks.filter((t4) => t4.inferred).length + " \u5FFD\u7565=" + getTaskIgnoreCount() + " warnings=" + warnings.length), _pollingStarted || (_pollingStarted = !0, startDeadlinePolling()), updateDeadlineIcon();
   }
   function updateDeadlineIcon() {
     let anchor = document.querySelector(".filter-info.filter-container") || document.querySelector(".grade .filter-container") || document.querySelector(".filter-container");
@@ -1303,7 +1396,24 @@
     let btn = document.getElementById("intschool-deadline-btn");
     if (btn) {
       let count = warnings.length;
-      S._deadlineCheckedOnce ? S._deadlineCheckInFlight ? (btn.innerHTML = "<span>&#9888;</span> <span>" + t("\u68C0\u67E5\u4E2D\u2026", "Checking...") + "</span>", btn.style.color = "#1890ff") : (btn.innerHTML = count > 0 ? "<span>&#9888;</span> <span>" + t("\u672A\u5B8C\u6210\u4EFB\u52A1", "Pending Tasks") + " (" + count + ")</span>" : "<span>&#9888;</span> <span>" + t("\u65E0\u672A\u5B8C\u6210\u4EFB\u52A1", "No Pending Tasks") + "</span>", btn.style.color = count > 0 ? "#faad14" : "#999") : (btn.innerHTML = "<span>&#9888;</span> <span>" + t("\u672A\u52A0\u8F7D", "Not checked") + "</span>", btn.style.color = "#1890ff"), btn.getAttribute("title") && btn.removeAttribute("title");
+      if (!S._deadlineCheckedOnce)
+        btn.innerHTML = "<span>&#9888;</span> <span>" + t("\u672A\u52A0\u8F7D", "Not checked") + "</span>", btn.style.color = "#1890ff";
+      else if (S._deadlineCheckInFlight)
+        btn.innerHTML = "<span>&#9888;</span> <span>" + t("\u68C0\u67E5\u4E2D\u2026", "Checking...") + "</span>", btn.style.color = "#1890ff";
+      else {
+        let count2 = warnings.length;
+        if (!S._deadlineCheckedOnce)
+          btn.innerHTML = "<span>&#9888;</span> <span>" + t("\u672A\u52A0\u8F7D", "Not checked") + "</span>", btn.style.color = "#1890ff";
+        else if (S._deadlineCheckInFlight)
+          btn.innerHTML = "<span>&#9888;</span> <span>" + t("\u68C0\u67E5\u4E2D\u2026", "Checking...") + "</span>", btn.style.color = "#1890ff";
+        else {
+          let today2 = /* @__PURE__ */ new Date();
+          today2.setHours(23, 59, 59, 999);
+          let todayTs2 = today2.getTime(), shownTasks = S._deadlineAllTasks.filter((t4) => _taskVisible(t4, todayTs2) && isTaskShown(t4.entityId)), inferredN = shownTasks.filter((t4) => t4.inferred).length, detectedN = shownTasks.length - inferredN, countText = inferredN > 0 && detectedN > 0 ? detectedN + "+" + inferredN : String(count2);
+          btn.innerHTML = count2 > 0 ? "<span>&#9888;</span> <span>" + t("\u672A\u5B8C\u6210\u4EFB\u52A1", "Pending Tasks") + " (" + countText + ")</span>" : "<span>&#9888;</span> <span>" + t("\u65E0\u672A\u5B8C\u6210\u4EFB\u52A1", "No Pending Tasks") + "</span>", btn.style.color = count2 > 0 ? "#faad14" : "#999";
+        }
+        btn.getAttribute("title") && btn.removeAttribute("title");
+      }
     }
     _ensureFloatTip(), renderTooltipContent();
   }
@@ -1331,7 +1441,7 @@
     let url = `${BASE_URL}/${requestUrl}?studentId=${studentId}&gradePeriodId=${gradePeriodId}`;
     return await apiRequest(url);
   }
-  var DEADLINE_POLL_INTERVAL, DEADLINE_VISIBILITY_MIN_INTERVAL, DEADLINE_BATCH_SIZE, DEADLINE_LAZY_FALLBACK_MS, _fallbackTimer, _pollingStarted, _checkStarts, _lastCheckTs, ZONE_PAD, _deadlineFloatTip, _deadlineFloatBox, _deadlineFloatTimer, _floatTipBoundWrap, _TASK_HREF_PATTERN, TYPE_ORDER, _getGradeBookDataFn, MARK_BTN_ID, DETAIL_TITLE_SELECTORS, DETAIL_BTN_SELECTORS, DEADLINE_NAV_MIN_INTERVAL, _lastNavPath, _lastNavRefreshTs, _deadlinePollTimer, _deadlineVisibilityHandler, init_deadline = __esm({
+  var DEADLINE_POLL_INTERVAL, DEADLINE_VISIBILITY_MIN_INTERVAL, DEADLINE_BATCH_SIZE, DEADLINE_LAZY_FALLBACK_MS, _fallbackTimer, _pollingStarted, _checkStarts, _lastCheckTs, ZONE_PAD, _deadlineFloatTip, _deadlineFloatBox, _deadlineFloatTimer, _floatTipBoundWrap, _TASK_HREF_PATTERN, TYPE_ORDER, DEADLINE_ASSIGNMENT_TYPE, DEADLINE_RECORD_ONLY_TYPES, _getGradeBookDataFn, MARK_BTN_ID, DETAIL_TITLE_SELECTORS, DETAIL_BTN_SELECTORS, DEADLINE_NAV_MIN_INTERVAL, _lastNavPath, _lastNavRefreshTs, _deadlinePollTimer, _deadlineVisibilityHandler, init_deadline = __esm({
     "v8.30/deadline.js"() {
       init_state();
       init_utils();
@@ -1351,6 +1461,7 @@
         "Quizzes",
         "Engagement"
       ];
+      DEADLINE_ASSIGNMENT_TYPE = "1001", DEADLINE_RECORD_ONLY_TYPES = ["Engagement"];
       _getGradeBookDataFn = null;
       MARK_BTN_ID = "intschool-task-mark-btn", DETAIL_TITLE_SELECTORS = [
         ".detail-header .header-content > .title",
@@ -2015,7 +2126,7 @@
       for (let [k, v] of S.creditMap) credits.push(k + "=" + v);
     } catch (e) {
     }
-    let starred = (S.originalCourses || []).filter((c) => c && c.showStar && (c.showStar.s1 || c.showStar.s2)).map((c) => c.name), zeroCredit = (S.originalCourses || []).filter((c) => c && !(c.credit > 0)).length, marks = Object.keys(S._taskMarks || {}), dt = S._deadlineAllTasks || [];
+    let starred = (S.originalCourses || []).filter((c) => c && c.showStar && (c.showStar.s1 || c.showStar.s2)).map((c) => c.name), zeroCredit = (S.originalCourses || []).filter((c) => c && !(c.credit > 0)).length, marks = Object.keys(S._taskMarks || {}), dt2 = S._deadlineAllTasks || [];
     return {
       creditMapSize: S.creditMap ? S.creditMap.size : 0,
       creditSample: credits.slice(0, 12).join(", ") + (credits.length > 12 ? " \u2026" : ""),
@@ -2024,9 +2135,12 @@
       starred: starred.length + (starred.length ? " [" + starred.join(" | ") + "]" : ""),
       marks: marks.length,
       markIds: marks.slice(0, 12).join(","),
-      ddlAll: dt.length,
-      ddlDetected: dt.filter((x) => x.detected).length,
-      ddlMarked: dt.filter((x) => x.marked).length,
+      ddlAll: dt2.length,
+      ddlDetected: dt2.filter((x) => x.detected).length,
+      ddlInferred: dt2.filter((x) => x.inferred && !x.ignored).length,
+      ddlIgnored: dt2.filter((x) => x.ignored).length,
+      ddlIgnoreStore: getTaskIgnoreCount(),
+      ddlMarked: dt2.filter((x) => x.marked).length,
       ddlCacheAge: S._deadlineCache && S._deadlineCache.ts ? Math.round((Date.now() - S._deadlineCache.ts) / 1e3) + "s" : "\u65E0",
       yearCache: S.yearDataCache ? S.yearDataCache.size : 0,
       simCourses: (S.simCourses || []).length
@@ -2108,7 +2222,9 @@
       diagLog: isLogOn() ? "\u5F00\u542F" : "\u5173\u95ED",
       build: getBuildChannel() === "dev" ? "\u5F00\u53D1\u4EF6" : "\u53D1\u5E03\u4EF6"
     }, data = _dataSnapshot(), inline = _inlineSnapshot(), api = await _apiSnapshot(), errors = S._errors.slice(-5).map((e) => "  \xB7 [" + _fmtTs(e.ts) + "] " + e.label + ": " + e.msg), lines = [];
-    return lines.push("===== Better Intschool \u81EA\u68C0\u62A5\u544A ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(Date.now())), lines.push(""), lines.push("[\u73AF\u5883]"), lines.push("  \u7248\u672C: " + env.version + "\uFF08" + env.build + "\uFF09    \u754C\u9762\u8BED\u8A00: " + env.locale + "    \u6807\u8BB0\u56FE\u6807: " + env.markIcon), lines.push("  \u9875\u9762: " + env.url + "    \u89C6\u53E3: " + env.viewport), lines.push("  \u767B\u5F55\u6001: token=" + env.token + "  schoolId=" + env.schoolId), lines.push("  \u81EA\u52A8\u6821\u51C6: " + env.autoCalibrate + "    \u8BCA\u65AD\u65E5\u5FD7: " + env.diagLog + "\uFF08__INTS_LOG(1) \u53EF\u5F00\uFF09"), lines.push("  \u6D4F\u89C8\u5668: " + env.ua), lines.push(""), lines.push("[\u63A5\u53E3]"), lines.push("  \u5B66\u5E74\u5217\u8868: " + api.yearList), lines.push("  \u5F53\u524D\u5B66\u5E74: key=" + S.currentYearKey + " value=" + S.currentYearValue + " isCurrentYear=" + S.isCurrentYear), lines.push("  grade-book: " + api.gradeBook + "    customColumns: " + api.customColumns + " [" + api.columns + "]"), api.firstCourse && lines.push("  \u9996\u95E8\u8BFE\u7A0B: " + api.firstCourse), lines.push(""), lines.push("[\u6570\u636E]"), lines.push("  \u5B66\u5206\u6620\u5C04: " + data.creditMapSize + " \u6761    " + (data.creditSample || "\uFF08\u7A7A\uFF09")), lines.push("  \u8BFE\u7A0B: " + data.courses + " \u95E8\uFF08\u96F6\u5B66\u5206 " + data.zeroCredit + "\uFF09    \u661F\u6807\u79D1\u76EE: " + data.starred), lines.push("  \u624B\u52A8\u6807\u8BB0: " + data.marks + (data.markIds ? " [" + data.markIds + "]" : "")), lines.push("  DDL: \u5168\u90E8 " + data.ddlAll + " / \u68C0\u6D4B\u5230 " + data.ddlDetected + " / \u6807\u8BB0 " + data.ddlMarked + "    \u7F13\u5B58\u5E74\u9F84: " + data.ddlCacheAge), lines.push("  \u7F13\u5B58: \u5B66\u5E74 " + data.yearCache + " \u6761    \u6A21\u62DF\u8BFE\u7A0B " + data.simCourses + " \u95E8"), lines.push("  /points \u5185\u8054: \u8BE6\u60C5\uFF1A" + inline.colsExpanded + "    \u5408\u6210\u5217\u6570\uFF1A" + inline.synthCols), lines.push(""), lines.push("[\u6743\u91CD] \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [Homework/In-Class/Projects/Tests/Quizzes]"), _weightsSnapshot().forEach((l) => lines.push(l)), lines.push(""), lines.push("[\u5F02\u5E38\u8BB0\u5F55] " + S._errors.length + " \u6761" + (errors.length ? `
+    lines.push("===== Better Intschool \u81EA\u68C0\u62A5\u544A ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(Date.now())), lines.push(""), lines.push("[\u73AF\u5883]"), lines.push("  \u7248\u672C: " + env.version + "\uFF08" + env.build + "\uFF09    \u754C\u9762\u8BED\u8A00: " + env.locale + "    \u6807\u8BB0\u56FE\u6807: " + env.markIcon), lines.push("  \u9875\u9762: " + env.url + "    \u89C6\u53E3: " + env.viewport), lines.push("  \u767B\u5F55\u6001: token=" + env.token + "  schoolId=" + env.schoolId), lines.push("  \u81EA\u52A8\u6821\u51C6: " + env.autoCalibrate + "    \u8BCA\u65AD\u65E5\u5FD7: " + env.diagLog + "\uFF08__INTS_LOG(1) \u53EF\u5F00\uFF09"), lines.push("  \u6D4F\u89C8\u5668: " + env.ua), lines.push(""), lines.push("[\u63A5\u53E3]"), lines.push("  \u5B66\u5E74\u5217\u8868: " + api.yearList), lines.push("  \u5F53\u524D\u5B66\u5E74: key=" + S.currentYearKey + " value=" + S.currentYearValue + " isCurrentYear=" + S.isCurrentYear), lines.push("  grade-book: " + api.gradeBook + "    customColumns: " + api.customColumns + " [" + api.columns + "]"), api.firstCourse && lines.push("  \u9996\u95E8\u8BFE\u7A0B: " + api.firstCourse), lines.push(""), lines.push("[\u6570\u636E]"), lines.push("  \u5B66\u5206\u6620\u5C04: " + data.creditMapSize + " \u6761    " + (data.creditSample || "\uFF08\u7A7A\uFF09")), lines.push("  \u8BFE\u7A0B: " + data.courses + " \u95E8\uFF08\u96F6\u5B66\u5206 " + data.zeroCredit + "\uFF09    \u661F\u6807\u79D1\u76EE: " + data.starred), lines.push("  \u624B\u52A8\u6807\u8BB0: " + data.marks + (data.markIds ? " [" + data.markIds + "]" : "")), lines.push("  DDL: \u5168\u90E8 " + data.ddlAll + " / \u68C0\u6D4B\u5230 " + data.ddlDetected + " / \u63A8\u65AD " + data.ddlInferred + " / \u6807\u8BB0 " + data.ddlMarked + " / \u5DF2\u5FFD\u7565 " + data.ddlIgnoreStore + "    \u7F13\u5B58\u5E74\u9F84: " + data.ddlCacheAge), lines.push("    \u5224\u5B9A: type=" + DEADLINE_ASSIGNMENT_TYPE + " \u4E14\u672A\u63D0\u4EA4\uFF1B\u7EBF\u4E0A\u21D2\u68C0\u6D4B\u5230\uFF0C\u7EBF\u4E0B\u4E14\u672A\u8BB0\u5206\u21D2\u63A8\u65AD\uFF1B\u8BB0\u5206\u578B\uFF08\u4E0D\u7B97\u5F85\u529E\uFF09: " + DEADLINE_RECORD_ONLY_TYPES.join("/"));
+    let typed = dt.filter((x) => x.inferred || x.detected).map((x) => x.typeName).filter(Boolean);
+    return lines.push("    \u53D6\u5230\u7C7B\u578B\u7684\u5F85\u529E: " + typed.length + " \u6761" + (typed.length ? "\uFF08" + Array.from(new Set(typed)).join(" / ") + "\uFF09" : "\uFF08\u4E00\u6761\u90FD\u6CA1\u6709 \u21D2 \u53EF\u80FD grade-book \u91CC\u6CA1\u6709\u8FD9\u4E9B\u4EFB\u52A1\uFF09")), lines.push("  \u7F13\u5B58: \u5B66\u5E74 " + data.yearCache + " \u6761    \u6A21\u62DF\u8BFE\u7A0B " + data.simCourses + " \u95E8"), lines.push("  /points \u5185\u8054: \u8BE6\u60C5\uFF1A" + inline.colsExpanded + "    \u5408\u6210\u5217\u6570\uFF1A" + inline.synthCols), lines.push(""), lines.push("[\u6743\u91CD] \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [Homework/In-Class/Projects/Tests/Quizzes]"), _weightsSnapshot().forEach((l) => lines.push(l)), lines.push(""), lines.push("[\u5F02\u5E38\u8BB0\u5F55] " + S._errors.length + " \u6761" + (errors.length ? `
 ` + errors.join(`
 `) : "\uFF08\u65E0\uFF09")), lines.push(""), lines.push('\u63D0\u793A: \u62A5\u544A\u4E0D\u542B token/schoolId \u660E\u6587\uFF1B\u5982\u67D0\u9879\u663E\u793A"\u83B7\u53D6\u5931\u8D25"\uFF0C\u591A\u534A\u662F\u767B\u5F55\u6001\u8FC7\u671F\u6216\u7F51\u7EDC\u95EE\u9898\u3002'), lines.join(`
 `);
@@ -2147,6 +2263,7 @@
       init_state();
       init_utils();
       init_log();
+      init_deadline();
       init_api();
       init_courses();
       MAX_ERRORS = 20;
@@ -5159,13 +5276,13 @@
     if (!row || _dragTask) return;
     let entityId = parseInt(row.getAttribute("data-entity"), 10);
     if (!entityId || isNaN(entityId)) return;
-    let name = row.getAttribute("data-name") || (row.textContent || "").trim().slice(0, 40);
-    _dragTask = { entityId, name, marked: isTaskMarked(entityId), rowEl: null, nameEl: null, fromTooltip: !0 };
+    let name = row.getAttribute("data-name") || (row.textContent || "").trim().slice(0, 40), inferred = row.getAttribute("data-source") === "inferred", entry = (S._deadlineAllTasks || []).filter((t4) => String(t4.entityId) === String(entityId))[0] || null;
+    _dragTask = { entityId, name, marked: isTaskMarked(entityId), inferred, endDate: entry ? entry.endDate : 0, rowEl: null, nameEl: null, fromTooltip: !0 };
     try {
       e.dataTransfer.effectAllowed = "copyMove", e.dataTransfer.setData("text/plain", name), e.dataTransfer.setDragImage(_makeGhost(name), 12, 14);
     } catch (err) {
     }
-    _setDragState(_dragTask), _prepareZone(), DL2("[\u62D6\u62FD\u6807\u8BB0] \u4ECE\u60AC\u6D6E\u7A97\u5F00\u59CB\u62D6\u52A8\u300C" + name + "\u300D entityId=" + entityId + " \u5DF2\u6807\u8BB0=" + _dragTask.marked + " \u65B9\u5411=\u4E0B\u62D6(\u7EA2\u8272\u53D6\u6D88\u6807\u8BB0\u533A)");
+    _setDragState(_dragTask), _prepareZone(), DL2("[\u62D6\u62FD\u6807\u8BB0] \u4ECE\u60AC\u6D6E\u7A97\u5F00\u59CB\u62D6\u52A8\u300C" + name + "\u300D entityId=" + entityId + " \u5DF2\u6807\u8BB0=" + _dragTask.marked + " \u6765\u6E90=" + (inferred ? "\u63A8\u65AD\u9879(\u4E0B\u62D6=\u4E0D\u518D\u63D0\u9192)" : "\u7AD9\u70B9\u68C0\u6D4B\u9879(\u4E0B\u62D6=\u53D6\u6D88\u6807\u8BB0)"));
   }
   function _onDragEnd() {
     _dragTask && _dragTask.rowEl && (_dragTask.rowEl.style.opacity = ""), _dragGhost && (_dragGhost.remove(), _dragGhost = null), _clearAllZones(), _dragTask = null, S._taskDragging = !1, clearTimeout(_dragWatchdog), _dragWatchdog = null;
@@ -5206,9 +5323,10 @@
   function _styleZone(kind, hot) {
     let zone = _zoneEl(kind);
     if (zone)
-      if (kind === "unmark")
-        zone.textContent = hot ? t("\u677E\u5F00\u9F20\u6807\uFF1A\u53D6\u6D88\u6807\u8BB0", "Release to unmark") : t("\u62D6\u5230\u6B64\u5904\u53D6\u6D88\u6807\u8BB0", "Drop here to unmark"), zone.style.borderColor = hot ? "#ff4d4f" : "rgba(255,77,79,0.55)", zone.style.background = hot ? "rgba(255,77,79,0.13)" : "rgba(255,77,79,0.05)", zone.style.color = hot ? "#cf1322" : "#d46b6b";
-      else {
+      if (kind === "unmark") {
+        let inferring = !!(_dragTask && _dragTask.inferred);
+        zone.textContent = inferring ? hot ? t("\u677E\u5F00\u9F20\u6807\uFF1A\u4E0D\u518D\u63D0\u9192\u8FD9\u4E2A\u4EFB\u52A1", "Release: stop reminding me of this task") : t("\u62D6\u5230\u6B64\u5904\u4E0D\u518D\u63D0\u9192\u8FD9\u4E2A\u4EFB\u52A1", "Drop here to stop reminding") : hot ? t("\u677E\u5F00\u9F20\u6807\uFF1A\u53D6\u6D88\u6807\u8BB0", "Release to unmark") : t("\u62D6\u5230\u6B64\u5904\u53D6\u6D88\u6807\u8BB0", "Drop here to unmark"), zone.style.borderColor = hot ? "#ff4d4f" : "rgba(255,77,79,0.55)", zone.style.background = hot ? "rgba(255,77,79,0.13)" : "rgba(255,77,79,0.05)", zone.style.color = hot ? "#cf1322" : "#d46b6b";
+      } else {
         let marked = _dragTask && isTaskMarked(_dragTask.entityId);
         zone.textContent = hot ? marked ? t("\u677E\u5F00\u9F20\u6807\uFF1A\u79FB\u9664\u6807\u8BB0", "Release to remove the mark") : t("\u677E\u5F00\u9F20\u6807\uFF1A\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210", "Release to mark as pending") : marked ? t("\u62D6\u5230\u6B64\u5904\u79FB\u9664\u6807\u8BB0", "Drop here to remove the mark") : t("\u62D6\u5230\u6B64\u5904\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210", "Drop here to mark as pending"), zone.style.borderColor = hot ? "#faad14" : "rgba(250,173,20,0.65)", zone.style.background = hot ? "rgba(250,173,20,0.16)" : "rgba(250,173,20,0.06)", zone.style.color = hot ? "#ad6800" : "#8c6b1f";
       }
@@ -5242,7 +5360,7 @@
     if (inside && kind === "mark") {
       let next = !marked;
       setTaskMark(entityId, next), nameEl && _updateRowFlag(nameEl, next), _showToast((next ? t("\u5DF2\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210: ", "Marked as pending: ") : t("\u5DF2\u79FB\u9664\u6807\u8BB0: ", "Mark removed: ")) + name, next), DL2("[\u62D6\u62FD\u6807\u8BB0] \u843D\u5165\u9EC4\u8272\u6807\u8BB0\u533A \u2192 " + (next ? "\u6807\u8BB0" : "\u53D6\u6D88\u6807\u8BB0") + " entityId=" + entityId + " name=" + name);
-    } else inside && kind === "unmark" ? marked ? (setTaskMark(entityId, !1), nameEl && _updateRowFlag(nameEl, !1), _showToast(t("\u5DF2\u79FB\u9664\u6807\u8BB0: ", "Mark removed: ") + name, !0), DL2("[\u62D6\u62FD\u6807\u8BB0] \u843D\u5165\u7EA2\u8272\u53D6\u6D88\u6807\u8BB0\u533A \u2192 \u53D6\u6D88\u6807\u8BB0 entityId=" + entityId + " name=" + name)) : DL2("[\u62D6\u62FD\u6807\u8BB0] \u843D\u5165\u7EA2\u8272\u53D6\u6D88\u6807\u8BB0\u533A\u4F46\u4EFB\u52A1\u672A\u88AB\u6807\u8BB0\uFF0C\u65E0\u64CD\u4F5C entityId=" + entityId + " name=" + name) : DL2("[\u62D6\u62FD\u6807\u8BB0] \u672A\u843D\u5165" + (kind === "mark" ? "\u9EC4\u8272\u6807\u8BB0\u533A" : "\u7EA2\u8272\u53D6\u6D88\u6807\u8BB0\u533A") + "\uFF0C\u65E0\u64CD\u4F5C entityId=" + entityId + " name=" + name);
+    } else inside && kind === "unmark" ? _dragTask.inferred ? (marked && (setTaskMark(entityId, !1), nameEl && _updateRowFlag(nameEl, !1)), setTaskIgnored(entityId, _dragTask.endDate), _showToast(t("\u4E0D\u518D\u63D0\u9192: ", "No longer reminded: ") + name, !0), DL2("[\u62D6\u62FD\u6807\u8BB0] \u843D\u5165\u7EA2\u8272\u533A\uFF08\u63A8\u65AD\u9879\uFF09\u2192 \u5FFD\u7565 entityId=" + entityId + " name=" + name)) : marked ? (setTaskMark(entityId, !1), nameEl && _updateRowFlag(nameEl, !1), _showToast(t("\u5DF2\u79FB\u9664\u6807\u8BB0: ", "Mark removed: ") + name, !0), DL2("[\u62D6\u62FD\u6807\u8BB0] \u843D\u5165\u7EA2\u8272\u53D6\u6D88\u6807\u8BB0\u533A \u2192 \u53D6\u6D88\u6807\u8BB0 entityId=" + entityId + " name=" + name)) : DL2("[\u62D6\u62FD\u6807\u8BB0] \u843D\u5165\u7EA2\u8272\u53D6\u6D88\u6807\u8BB0\u533A\u4F46\u4EFB\u52A1\u672A\u88AB\u6807\u8BB0\uFF0C\u65E0\u64CD\u4F5C entityId=" + entityId + " name=" + name) : DL2("[\u62D6\u62FD\u6807\u8BB0] \u672A\u843D\u5165" + (kind === "mark" ? "\u9EC4\u8272\u6807\u8BB0\u533A" : "\u7EA2\u8272\u53D6\u6D88\u6807\u8BB0\u533A") + "\uFF0C\u65E0\u64CD\u4F5C entityId=" + entityId + " name=" + name);
     _onDragEnd(), fromTooltip && decorateTeachingRows();
   }
   function _showToast(msg, ok) {
@@ -5433,6 +5551,11 @@
         checkDeadlinesAfterNav,
         _setNavPathForTest,
         dumpTaskFields,
+        classifyDeadlineTask,
+        setTaskIgnored,
+        isTaskIgnored,
+        clearTaskIgnore,
+        getTaskIgnoreCount,
         getDeadlineState,
         getDragMarkState,
         isLogOn,
