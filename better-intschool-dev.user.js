@@ -465,6 +465,10 @@
     .anticon-spin-once { animation: anticon-spin-once-anim 0.6s ease; }
     @keyframes anticon-spin-once-anim { 100% { transform: rotate(360deg); } }
     .my-gpa-editable:hover { background: #e6f7ff !important; border-radius: 3px; }
+    /* \u6210\u7EE9\u683C\u91CC\u90A3\u4E00\u679A GPA \u76D2\u5B50\uFF1A\u53EA\u5728"\u8FD9\u4E00\u683C\u88AB\u6A21\u62DF\u8FC7"\u65F6\u8DDF\u7740\u53D8\u9ED1\uFF08\u5E73\u65F6\u4FDD\u6301\u7070\u8272\u6B21\u8981\u5C42\u7EA7\uFF09\u3002
+       \u7528\u7C7B + !important \u8986\u76D6\u5185\u8054\u7684 color \u2014\u2014 \u4E09\u5904 GPA \u76D2\u5B50\u7684**\u5185\u8054\u6837\u5F0F**\u5FC5\u987B\u9010\u9879\u76F8\u540C
+       \uFF08P31_colGpaSameStyleAsScore \u6BD4\u7684\u5C31\u662F\u5185\u8054\u503C\uFF09\uFF0C\u6240\u4EE5\u989C\u8272\u5DEE\u5F02\u53EA\u80FD\u8D70\u6837\u5F0F\u8868\u3002 */
+    .ant-table-tbody [data-ints-sim].ints-gpa-strong { color: rgba(0, 0, 0, 0.88) !important; }
     /* ====================== \u6CE8\u5165\u5C42 z-index \u5951\u7EA6 ======================
        \u7AD9\u70B9\u81EA\u5DF1\u7528\u7684\u662F antd-vue 1.5\uFF0C\u5B83\u7684\u6D6E\u5C42 z-index \u662F\uFF1Amodal 1000 / message 1010 /
        popover 1030 / dropdown 1050 / tooltip 1060\u3002**\u5B66\u6821\u81EA\u5DF1\u7684\u6D6E\u5C42\u6C38\u8FDC\u4F18\u5148** \u2014\u2014
@@ -3870,13 +3874,13 @@
   }
   function _siteScoreParts(siteText) {
     let s = String(siteText == null ? "" : siteText).replace(/\s+/g, " ").trim(), i = s.lastIndexOf("/");
-    if (i <= 0) return { score: null, level: "" };
-    let before = Number(s.slice(0, i).trim()), after = s.slice(i + 1).trim();
-    return { score: isNaN(before) ? null : before, level: after || "" };
+    if (i <= 0) return { score: null, level: "", raw: "" };
+    let raw = s.slice(0, i).trim(), before = Number(raw), after = s.slice(i + 1).trim();
+    return { score: isNaN(before) ? null : before, level: after || "", raw };
   }
   function _simTwoLineHtml(parts, shown, delta, showDelta) {
-    let grey = "color:rgba(0,0,0,0.45);font-size:11px;", ours = "font-size:12px;", oldScore = parts.score === null ? "\u2014" : _scoreNum(parts.score), oldLevel = parts.level || "\u2014", dText = showDelta ? "<span " + SCORE_DELTA_ATTR + '="1" style="font-size:10px;"> (' + _delta2(delta) + ")</span>" : "";
-    return '<div data-ints-line="score" style="white-space:nowrap;line-height:1.3;"><span style="' + grey + '">' + escapeHtml(oldScore) + "</span>" + iconArrowRight() + '<span style="' + ours + '">' + escapeHtml(_scoreNum(shown)) + '</span></div><div data-ints-line="level" style="white-space:nowrap;line-height:1.3;"><span style="' + grey + '">' + escapeHtml(oldLevel) + "</span>" + iconArrowRight() + '<span style="' + ours + '">' + escapeHtml(scoreToLetter(shown) || "\u2014") + "</span>" + dText + "</div>";
+    let oldScore = parts.raw || (parts.score === null ? "\u2014" : _scoreNum(parts.score)), oldLevel = parts.level || "\u2014", dText = showDelta ? "<span " + SCORE_DELTA_ATTR + '="1" style="font-size:10px;"> (' + _delta2(delta) + ")</span>" : "";
+    return '<div data-ints-line="score" style="white-space:nowrap;line-height:1.35;font-size:14px;"><span>' + escapeHtml(oldScore) + "</span>" + iconArrowRight() + "<span>" + escapeHtml(_scoreNum(shown)) + '</span></div><div data-ints-line="level" style="white-space:nowrap;line-height:1.3;font-size:11px;"><span>' + escapeHtml(oldLevel) + "</span>" + iconArrowRight() + "<span>" + escapeHtml(scoreToLetter(shown) || "\u2014") + "</span>" + dText + "</div>";
   }
   function _renderRow(tr, courseIdx) {
     let course = S.simCourses[courseIdx];
@@ -3918,7 +3922,7 @@
       box && box.remove(), scoreTd.setAttribute(INLINE_ATTR, "1"), _markRowDone(tr);
       return;
     }
-    box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:11px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box));
+    box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:10px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), simmed ? box.classList.add("ints-gpa-strong") : box.classList.remove("ints-gpa-strong");
     let html = "";
     if (showGpa) {
       let g = gpaSim || gpaOrig, changed = gpaSim && (Math.abs(gpaSim.uw - gpaOrig.uw) > 1e-3 || Math.abs(gpaSim.w - gpaOrig.w) > 1e-3), gu = changed ? gpaSim.uw - gpaOrig.uw : 0, gw = changed ? gpaSim.w - gpaOrig.w : 0, gDir = Math.abs(gu) > 1e-3 ? gu : gw, gColor = changed ? gDir > 0 ? COLOR_UP : COLOR_DOWN : "", tip = changed ? t(
@@ -3993,7 +3997,7 @@
       return;
     }
     let inner = _cellInner(td);
-    box && box.parentElement !== inner && (box.remove(), box = null), box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:11px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box));
+    box && box.parentElement !== inner && (box.remove(), box = null), box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:10px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box));
     let g = getGPAForScore(score, course.weightBonus);
     if (!g) {
       box.remove();
@@ -4050,7 +4054,7 @@
       if (cell !== td && cell.querySelector("[data-ints-sim]")) continue;
       box = cell.querySelector("[data-ints-sim]");
       let inner = _cellInner(cell);
-      box && box.parentElement !== inner && (box.remove(), box = null), box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:11px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), _renderColumnDelta(cell, inner, box, course, f);
+      box && box.parentElement !== inner && (box.remove(), box = null), box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:10px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), _renderColumnDelta(cell, inner, box, course, f);
       let g = getGPAForScore(Number(String(want).split("/")[0]), course.weightBonus);
       if (!g) {
         box.remove(), _tr.items.push(i + ":" + f + ":nogpa");
