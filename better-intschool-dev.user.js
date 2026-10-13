@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.01.3
+// @version      1.02
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -205,6 +205,30 @@
     let uw = uwVals.length > 0 ? uwVals.reduce((a, b) => a + b, 0) / uwVals.length : null, w = wVals.length > 0 ? wVals.reduce((a, b) => a + b, 0) / wVals.length : null;
     return uw === null && w === null ? null : { uw, w };
   }
+  function typeShortName(typeName) {
+    let idx = TYPE_PATTERNS.findIndex((p) => p.test(String(typeName == null ? "" : typeName)));
+    return idx >= 0 ? t(TYPE_SHORT_ZH[idx], TYPE_SHORT_EN[idx]) : t("\u5176\u4ED6", "Other");
+  }
+  function virtualTaskName(entityId, typeName) {
+    return t("\u865A\u62DF\u4EFB\u52A1", "Virtual") + Math.abs(Number(entityId) || 0) + " (" + typeShortName(typeName) + ")";
+  }
+  function valueIsSimulated(shown, schoolValue) {
+    return typeof shown != "number" || isNaN(shown) ? !1 : typeof schoolValue != "number" || isNaN(schoolValue) ? !0 : Math.abs(shown - schoolValue) > 1e-9;
+  }
+  function courseHasSimulation(course) {
+    if (!course) return !1;
+    let sim = course.simGrades, orig = course.originalGrades;
+    if (sim && orig) {
+      for (let f of ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"])
+        if (valueIsSimulated(sim[f], orig[f])) return !0;
+    }
+    if (Array.isArray(course.tasks)) {
+      for (let task of course.tasks)
+        if (task && (task.isVirtual || valueIsSimulated(task.simulatedScore, task.originalScore))) return !0;
+    }
+    let op = course.overrideP;
+    return !!(op && (op.s1 !== null && op.s1 !== void 0 || op.s2 !== null && op.s2 !== void 0));
+  }
   function getCourseWeights(subject) {
     if (subject) {
       let s = subject.toLowerCase();
@@ -267,7 +291,7 @@
   function countUngradedTasks(tasks, term) {
     return tasks.filter((t4) => getTermFromDate(t4.endDate, t4.termRaw) === term).filter((t4) => t4.score === null).length;
   }
-  var locale, t, GRADE_BANDS, LETTER_TO_GPA, DEFAULT_WEIGHTS, SUBJECT_WEIGHT_RULES, ANTD_DOWN_PATH, ANTD_TABLE_PATH, _helpTooltipDone, iconPlus, iconSync, iconCheck, iconDelete, iconLoading, MARK_ICONS, MARK_ICON_PATH, MARK_COLOR_OFF, MARK_COLOR_ON, TYPE_PATTERNS, TYPE_NAMES, SCHOOL_DIFF_TOLERANCE, SCHOOL_DIFF_EPS, SUBJECT_KEYWORDS, init_utils = __esm({
+  var locale, t, GRADE_BANDS, LETTER_TO_GPA, DEFAULT_WEIGHTS, SUBJECT_WEIGHT_RULES, ANTD_DOWN_PATH, ANTD_TABLE_PATH, _helpTooltipDone, iconPlus, iconSync, iconCheck, iconDelete, iconLoading, MARK_ICONS, MARK_ICON_PATH, MARK_COLOR_OFF, MARK_COLOR_ON, TYPE_PATTERNS, TYPE_NAMES, SIM_MARK_ATTR, TYPE_SHORT_ZH, TYPE_SHORT_EN, SCHOOL_DIFF_TOLERANCE, SCHOOL_DIFF_EPS, SUBJECT_KEYWORDS, init_utils = __esm({
     "v8.30/utils.js"() {
       locale = (() => {
         try {
@@ -334,7 +358,7 @@
         flag: "M880 305H624V192c0-17.7-14.3-32-32-32H184v-40c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v784c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V640h248v113c0 17.7 14.3 32 32 32h416c17.7 0 32-14.3 32-32V337c0-17.7-14.3-32-32-32z",
         highlight: "M957.6 507.4L603.2 158.2a7.9 7.9 0 00-11.2 0L353.3 393.4a8.03 8.03 0 00-.1 11.3l.1.1 40 39.4-117.2 115.3a32.09 32.09 0 00-9.5 21.9l-1 46.6-31.1 29.5a33.4 33.4 0 00-2.3 2.6l-27.1 27.2a15.5 15.5 0 000 22l92.6 92.5c3 3 7.1 4.7 11.3 4.7s8.2-1.7 11.2-4.7l55.4-55.4a11.5 11.5 0 002.6-2.3l29.6-31 46.6-1c8.1-.2 15.9-3.4 21.8-9.3l115.4-115.2 39.5 40.1c3.1 3.1 8.2 3.1 11.3 0L957.5 518.6c3.1-3.1 3.1-8.2.1-11.2z"
       }, MARK_ICON_PATH = MARK_ICONS.tag, MARK_COLOR_OFF = "#1f1f1f", MARK_COLOR_ON = "#faad14";
-      TYPE_PATTERNS = [/homework/i, /in.?class|classwork/i, /project|lab/i, /test/i, /quiz/i], TYPE_NAMES = ["Homework", "In-Class/Classwork", "Projects/Labs", "Tests", "Quizzes"];
+      TYPE_PATTERNS = [/homework/i, /in.?class|classwork/i, /project|lab/i, /test/i, /quiz/i], TYPE_NAMES = ["Homework", "In-Class/Classwork", "Projects/Labs", "Tests", "Quizzes"], SIM_MARK_ATTR = "data-ints-simval", TYPE_SHORT_ZH = ["\u4F5C\u4E1A", "\u8BFE\u5802", "\u9879\u76EE", "\u6D4B\u9A8C", "\u5C0F\u6D4B"], TYPE_SHORT_EN = ["HW", "Class", "Proj.", "Test", "Quiz"];
       SCHOOL_DIFF_TOLERANCE = 0.1, SCHOOL_DIFF_EPS = 1e-9;
       SUBJECT_KEYWORDS = ["English", "Math", "Physics", "Chemistry", "Biology", "History", "Geography", "Chinese", "Economics", "Art", "Music", "PE", "Physical Education"];
     }
@@ -449,6 +473,11 @@
     .anticon-spin-once { animation: anticon-spin-once-anim 0.6s ease; }
     @keyframes anticon-spin-once-anim { 100% { transform: rotate(360deg); } }
     .my-gpa-editable:hover { background: #e6f7ff !important; border-radius: 3px; }
+    /* \u9632\u4F2A\u6807\u8BB0\uFF1A\u51E1"\u6211\u4EEC\u9876\u4E0A\u53BB\u7684\u6570"\u90FD\u5E26 \u203B \u4E0E\u70B9\u72B6\u4E0B\u5212\u7EBF\uFF08\u89C1 utils.js \u7684 valueIsSimulated\uFF09\u3002
+       \u6807\u8BB0\u662F ::before \u7684\u5185\u5BB9\uFF0C**\u4E0D\u8FDB DOM\u3001\u4E5F\u4E0D\u8FDB textContent** \u2014\u2014 \u6210\u7EE9\u683C/\u4EFB\u52A1\u683C\u6309"\u8282\u70B9\u6570\u4E00\u81F4"
+       \u5BF9\u9F50\uFF0C\u591A\u4E00\u4E2A\u884C\u5185\u8282\u70B9\u5C31\u4F1A\u6362\u884C\u6216\u957F\u9AD8\uFF1B\u8BFB\u503C\u7684\u4EE3\u7801\u4E5F\u7167\u65E7\u53EA\u8BFB\u6587\u672C\u3002 */
+    [data-ints-simval] { text-decoration: underline dotted; text-underline-offset: 2px; }
+    [data-ints-simval]::before { content: '\u203B'; font-size: 9px; margin-right: 1px; }
     /* ====================== \u6CE8\u5165\u5C42 z-index \u5951\u7EA6 ======================
        \u7AD9\u70B9\u81EA\u5DF1\u7528\u7684\u662F antd-vue 1.5\uFF0C\u5B83\u7684\u6D6E\u5C42 z-index \u662F\uFF1Amodal 1000 / message 1010 /
        popover 1030 / dropdown 1050 / tooltip 1060\u3002**\u5B66\u6821\u81EA\u5DF1\u7684\u6D6E\u5C42\u6C38\u8FDC\u4F18\u5148** \u2014\u2014
@@ -516,7 +545,8 @@
     return { e: t4.entityId, n: t4.name, y: t4.typeName, s: t4.score, t: t4.topScore, d: t4.endDate, r: t4.termRaw, o: t4.originalScore, m: t4.simulatedScore, v: t4.isVirtual || !1, x: t4.excluded === !0 };
   }
   function _deserTask(o) {
-    return { entityId: o.e, taskStudentId: o.e, id: o.e, name: o.n, typeName: o.y, score: o.s, topScore: o.t, endDate: o.d, termRaw: o.r, originalScore: o.o, simulatedScore: o.m, isVirtual: o.v || !1, excluded: o.x === !0 };
+    let isVirtual = o.v === !0;
+    return { entityId: o.e, taskStudentId: o.e, id: o.e, name: isVirtual ? virtualTaskName(o.e, o.y) : o.n, typeName: o.y, score: o.s, topScore: o.t, endDate: o.d, termRaw: o.r, originalScore: o.o, simulatedScore: o.m, isVirtual, excluded: o.x === !0 };
   }
   function _serCourse(c) {
     return { n: c.name, ci: c.courseId, cr: c.credit, wb: c.weightBonus, su: c.subject || null, og: { s1p: c.originalGrades.s1p, s1e: c.originalGrades.s1e, s1f: c.originalGrades.s1f, s2p: c.originalGrades.s2p, s2e: c.originalGrades.s2e, s2f: c.originalGrades.s2f }, sg: c.simGrades ? { s1p: c.simGrades.s1p, s1e: c.simGrades.s1e, s1f: c.simGrades.s1f, s2p: c.simGrades.s2p, s2e: c.simGrades.s2e, s2f: c.simGrades.s2f } : null, ss: c.showStar ? { s1: c.showStar.s1, s2: c.showStar.s2 } : null, op: c.overrideP ? { s1: c.overrideP.s1, s2: c.overrideP.s2 } : null, ts: (c.tasks || []).map((t4) => _serTask(t4)) };
@@ -616,7 +646,7 @@
   }
   function clearServerCache() {
     try {
-      return _saveDisabled = !0, S._saveTimer && (clearTimeout(S._saveTimer), S._saveTimer = null), S._saveDirty = !1, localStorage.removeItem(STORAGE_KEY_CACHE), localStorage.removeItem(STORAGE_KEY_CALIB), S.yearDataCache.clear(), S.calibExcluded.clear(), !0;
+      return _saveDisabled = !0, S._saveTimer && (clearTimeout(S._saveTimer), S._saveTimer = null), S._saveDirty = !1, localStorage.removeItem(STORAGE_KEY_CACHE), localStorage.removeItem(STORAGE_KEY_CALIB), localStorage.removeItem(STORAGE_KEY_SITE_SCHEDULE), S.yearDataCache.clear(), S.calibExcluded.clear(), S._creditMapCache = null, !0;
     } catch (e) {
       return console.error("[\u4FDD\u5B58] \u6E05\u9664\u7F13\u5B58\u5931\u8D25:", e.message), !1;
     }
@@ -625,7 +655,7 @@
     let v = S.yearDataCache.get(String(yearKey));
     if (!v) return !1;
     let ts = v.dataTs || 0;
-    return ts ? Date.now() - ts < 36e5 : !1;
+    return ts ? Date.now() - ts < CACHE_TTL : !1;
   }
   function loadFromLocalStorage() {
     try {
@@ -670,11 +700,12 @@
   function ensureStorageLoaded() {
     S._storageLoaded || (S._storageLoaded = !0, loadFromLocalStorage());
   }
-  var BASE_URL, BUTTON_ID, COLUMN_KEY_MAPPING, STORAGE_KEY_TASK_TOGGLES, STORAGE_KEY_TASK_MARKS, STORAGE_KEY_TASK_IGNORE, STORAGE_KEY_CACHE, STORAGE_KEY_USER, STORAGE_KEY_OVERRIDES, STORAGE_KEY_VTID, STORAGE_KEY_CALIB, STORAGE_KEY_LAST_YEAR, STORAGE_KEY_LAST_FILTER, STORAGE_KEY_COLS, STORAGE_KEY_TARGET_UW, STORAGE_KEY_TARGET_W, STORAGE_KEY_TARGET_MODE, S, _saveDisabled, init_state = __esm({
+  var BASE_URL, BUTTON_ID, DEADLINE_CACHE_TTL, CACHE_TTL, COLUMN_KEY_MAPPING, STORAGE_KEY_TASK_TOGGLES, STORAGE_KEY_TASK_MARKS, STORAGE_KEY_TASK_IGNORE, STORAGE_KEY_CACHE, STORAGE_KEY_USER, STORAGE_KEY_OVERRIDES, STORAGE_KEY_VTID, STORAGE_KEY_CALIB, STORAGE_KEY_LAST_YEAR, STORAGE_KEY_LAST_FILTER, STORAGE_KEY_COLS, STORAGE_KEY_TARGET_UW, STORAGE_KEY_TARGET_W, STORAGE_KEY_TARGET_MODE, STORAGE_KEY_SITE_SCHEDULE, S, _saveDisabled, init_state = __esm({
     "v8.30/state.js"() {
-      BASE_URL = "https://shc.intschool.cn/api", BUTTON_ID = "intschool-custom-grade-btn", COLUMN_KEY_MAPPING = {
+      init_utils();
+      BASE_URL = "https://shc.intschool.cn/api", BUTTON_ID = "intschool-custom-grade-btn", DEADLINE_CACHE_TTL = 300 * 1e3, CACHE_TTL = 3600 * 1e3, COLUMN_KEY_MAPPING = {
         "2025-2026": { s1p: "189", s1e: "191", s1f: null, s2p: "226", s2e: null, s2f: null }
-      }, STORAGE_KEY_TASK_TOGGLES = "ints_task_toggles", STORAGE_KEY_TASK_MARKS = "ints_task_marks", STORAGE_KEY_TASK_IGNORE = "ints_ddl_ignore", STORAGE_KEY_CACHE = "ints_gs_cache", STORAGE_KEY_USER = "ints_gs_user", STORAGE_KEY_OVERRIDES = "ints_gs_overrides", STORAGE_KEY_VTID = "ints_gs_vtid", STORAGE_KEY_CALIB = "ints_calib_excluded", STORAGE_KEY_LAST_YEAR = "ints_gs_lastYear", STORAGE_KEY_LAST_FILTER = "ints_gs_lastFilter", STORAGE_KEY_COLS = "ints_gs_colsExpanded", STORAGE_KEY_TARGET_UW = "ints_gs_targetUW", STORAGE_KEY_TARGET_W = "ints_gs_targetW", STORAGE_KEY_TARGET_MODE = "ints_gs_targetMode", S = {
+      }, STORAGE_KEY_TASK_TOGGLES = "ints_task_toggles", STORAGE_KEY_TASK_MARKS = "ints_task_marks", STORAGE_KEY_TASK_IGNORE = "ints_ddl_ignore", STORAGE_KEY_CACHE = "ints_gs_cache", STORAGE_KEY_USER = "ints_gs_user", STORAGE_KEY_OVERRIDES = "ints_gs_overrides", STORAGE_KEY_VTID = "ints_gs_vtid", STORAGE_KEY_CALIB = "ints_calib_excluded", STORAGE_KEY_LAST_YEAR = "ints_gs_lastYear", STORAGE_KEY_LAST_FILTER = "ints_gs_lastFilter", STORAGE_KEY_COLS = "ints_gs_colsExpanded", STORAGE_KEY_TARGET_UW = "ints_gs_targetUW", STORAGE_KEY_TARGET_W = "ints_gs_targetW", STORAGE_KEY_TARGET_MODE = "ints_gs_targetMode", STORAGE_KEY_SITE_SCHEDULE = "schedule", S = {
         currentYearKey: null,
         currentYearValue: null,
         // 在读学年（只认第一次）—— 能不能模拟、要不要写用户数据、跑不跑校准看它
@@ -1048,8 +1079,8 @@
       for (let w of allFutureTasks)
         w.inferred && inferredCount++;
       inferredCount > 0 && (html += '<div data-ints-note="inferred" style="padding:5px 6px;font-size:11px;color:#8c8c8c;background:#fafafa;border-bottom:1px solid #f0f0f0;">' + escapeHtml(t(
-        "\u542B " + inferredCount + " \u9879\u63A8\u65AD\uFF08\u7AD9\u70B9\u6CA1\u6709\u5728\u7EBF\u63D0\u4EA4\u5165\u53E3\uFF0C\u6309\u7EBF\u4E0B\u4EFB\u52A1\u5224\u65AD\uFF1B\u4E0D\u60F3\u8981\u5C31\u628A\u90A3\u4E00\u884C\u62D6\u4E0B\u53BB\uFF09",
-        inferredCount + " inferred item(s) \u2014 no online submission, treated as offline work"
+        "\u68C0\u6D4B\u5230 " + inferredCount + " \u9879\u7EBF\u4E0B\u4EFB\u52A1 \xB7 \u62D6\u5230\u4E0B\u65B9\u5373\u53EF\u5FFD\u7565",
+        inferredCount + " offline task(s) \xB7 drag below to dismiss"
       )) + "</div>");
       for (let courseName of sortedCourses) {
         let tasks = grouped[courseName];
@@ -1057,11 +1088,11 @@
         for (let task of tasks) {
           rowCount++;
           let taskDate = new Date(task.endDate), ds = taskDate.getFullYear() + "." + (taskDate.getMonth() + 1) + "." + taskDate.getDate(), shown = isTaskShown(task.entityId), href = taskHref(task.entityId), taskNameHtml = href ? '<a href="' + escapeHtml(href) + '" draggable="true" title="' + t("\u6253\u5F00\u4EFB\u52A1\u9875\uFF08\u53EF\u62D6\u5230\u4E0B\u65B9\u4EFB\u52A1\u5217\u8868\u6807\u8BB0 / \u62D6\u5230\u522B\u5904\u53D6\u6D88\u6807\u8BB0\uFF09", "Open task page (drag onto the task list to mark, drag elsewhere to unmark)") + '" style="color:#1890ff;text-decoration:underline;cursor:grab;">' + escapeHtml(task.taskName) + "</a>" : '<span draggable="true" style="cursor:grab;">' + escapeHtml(task.taskName) + "</span>", typeLabel = _typeLabel(task.typeName), source = task.inferred ? "inferred" : "detected";
-          html += '<div class="task-dash-row" data-entity="' + task.entityId + '" data-name="' + escapeHtml(task.taskName) + '" data-type="' + escapeHtml(String(task.typeName || "")) + '" data-source="' + source + '" style="padding:3px 6px;border-bottom:1px solid #f5f5f5;font-size:13px;">', html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">', html += '<span style="flex:1;white-space:nowrap;">' + (typeLabel ? '<span style="color:#bfbfbf;font-size:11px;margin-right:6px;">' + escapeHtml(typeLabel) + "</span>" : "") + taskNameHtml + "\uFF08" + ds + "\uFF09" + (task.inferred ? '<span class="task-src-tag" title="' + t("\u7AD9\u70B9\u6CA1\u6709\u5F00\u5728\u7EBF\u63D0\u4EA4\u5165\u53E3\uFF0C\u8FD9\u6761\u662F\u6309\u7EBF\u4E0B\u4EFB\u52A1\u63A8\u65AD\u51FA\u6765\u7684\uFF08\u62D6\u5230\u4E0B\u65B9\u5373\u53EF\u4E0D\u518D\u63D0\u9192\uFF09", "No online submission for this task \u2014 inferred as offline work (drag down to dismiss)") + '" style="margin-left:6px;padding:0 4px;border:1px solid #d9d9d9;border-radius:3px;color:#8c8c8c;font-size:10px;">' + t("\u63A8\u65AD", "Inferred") + "</span>" : "") + (task.marked ? '<span title="' + t("\u624B\u52A8\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210", "Manually marked as pending") + '" style="margin-left:6px;padding:0 4px;border:1px solid #ffa39e;border-radius:3px;color:#cf1322;font-size:10px;">' + t("\u6807\u8BB0", "Marked") + "</span>" : "") + "</span>", html += '<label class="task-toggle-label" title="' + t("\u5F00\u542F\u540E\u8BE5\u4EFB\u52A1\u5C06\u8BA1\u5165\u63D0\u9192", "Show this task in reminders") + '" style="display:flex;align-items:center;gap:6px;font-size:11px;color:#666;cursor:pointer;flex-shrink:0;">', html += "<span>" + (shown ? t("\u5DF2\u5F00\u542F", "On") : t("\u5DF2\u5173\u95ED", "Off")) + '</span><input type="checkbox" class="task-toggle-switch" data-entity="' + task.entityId + '"' + (shown ? " checked" : "") + "></label></div></div>";
+          html += '<div class="task-dash-row" data-entity="' + task.entityId + '" data-name="' + escapeHtml(task.taskName) + '" data-type="' + escapeHtml(String(task.typeName || "")) + '" data-source="' + source + '" style="padding:3px 6px;border-bottom:1px solid #f5f5f5;font-size:13px;">', html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">', html += '<span style="flex:1;white-space:nowrap;">' + (typeLabel ? '<span style="color:#bfbfbf;font-size:11px;margin-right:6px;">' + escapeHtml(typeLabel) + "</span>" : "") + taskNameHtml + "\uFF08" + ds + "\uFF09" + (task.inferred ? '<span class="task-src-tag" title="' + t("\u7AD9\u70B9\u6CA1\u6709\u5F00\u5728\u7EBF\u63D0\u4EA4\u5165\u53E3\uFF0C\u6309\u7EBF\u4E0B\u4EFB\u52A1\u5904\u7406\uFF1B\u62D6\u5230\u4E0B\u65B9\u5373\u53EF\u4E0D\u518D\u63D0\u9192", "No online submission \u2014 treated as offline work; drag below to stop reminding") + '" style="margin-left:6px;padding:0 4px;border:1px solid #d9d9d9;border-radius:3px;color:#8c8c8c;font-size:10px;">' + t("\u7EBF\u4E0B", "Offline") + "</span>" : "") + (task.marked ? '<span title="' + t("\u624B\u52A8\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210", "Manually marked as pending") + '" style="margin-left:6px;padding:0 4px;border:1px solid #ffa39e;border-radius:3px;color:#cf1322;font-size:10px;">' + t("\u6807\u8BB0", "Marked") + "</span>" : "") + "</span>", html += '<label class="task-toggle-label" title="' + t("\u5F00\u542F\u540E\u8BE5\u4EFB\u52A1\u5C06\u8BA1\u5165\u63D0\u9192", "Show this task in reminders") + '" style="display:flex;align-items:center;gap:6px;font-size:11px;color:#666;cursor:pointer;flex-shrink:0;">', html += "<span>" + (shown ? t("\u5DF2\u5F00\u542F", "On") : t("\u5DF2\u5173\u95ED", "Off")) + '</span><input type="checkbox" class="task-toggle-switch" data-entity="' + task.entityId + '"' + (shown ? " checked" : "") + "></label></div></div>";
         }
       }
       let ignoreCount = getTaskIgnoreCount();
-      ignoreCount > 0 && (html += '<div data-ints-note="ignored" title="' + t("\u88AB\u5FFD\u7565\u7684\u63A8\u65AD\u9879\u4E0D\u518D\u51FA\u73B0\u5728\u63D0\u9192\u91CC", "Ignored inferred items are not reminded") + '" style="padding:5px 6px;font-size:11px;color:#8c8c8c;border-top:1px solid #f0f0f0;cursor:pointer;text-decoration:underline;">' + escapeHtml(t("\u5DF2\u5FFD\u7565 " + ignoreCount + " \u9879\u63A8\u65AD \xB7 \u70B9\u6B64\u6062\u590D", "Ignored " + ignoreCount + " inferred item(s) \u2014 click to restore")) + "</div>"), _deadlineFloatBox.innerHTML = html, _deadlineFloatBox.dataset.hasTasks = rowCount > 0 || ignoreCount > 0 ? "1" : "0", _deadlineFloatBox.querySelectorAll(".task-toggle-switch").forEach((cb) => {
+      ignoreCount > 0 && (html += '<div data-ints-note="ignored" title="' + t("\u88AB\u5FFD\u7565\u7684\u4EFB\u52A1\u4E0D\u518D\u51FA\u73B0\u5728\u63D0\u9192\u91CC", "Ignored tasks are not reminded") + '" style="padding:5px 6px;font-size:11px;color:#8c8c8c;border-top:1px solid #f0f0f0;cursor:pointer;text-decoration:underline;">' + escapeHtml(t("\u5DF2\u5FFD\u7565 " + ignoreCount + " \u9879 \xB7 \u70B9\u6B64\u6062\u590D", "Ignored " + ignoreCount + " \xB7 click to restore")) + "</div>"), _deadlineFloatBox.innerHTML = html, _deadlineFloatBox.dataset.hasTasks = rowCount > 0 || ignoreCount > 0 ? "1" : "0", _deadlineFloatBox.querySelectorAll(".task-toggle-switch").forEach((cb) => {
         cb.addEventListener("change", function() {
           let entityId = parseInt(this.dataset.entity, 10);
           isNaN(entityId) || setTaskShown(entityId, this.checked);
@@ -1303,7 +1334,7 @@
     }), { at: Date.now(), year: resolved.year.key, courses: out };
   }
   async function checkUpcomingDeadlines(force) {
-    if (loadTaskToggles(), loadTaskMarks(), loadTaskIgnore(), DL("[DDL] checkUpcomingDeadlines: \u89E6\u53D1 (force=" + !!force + " cacheTs=" + S._deadlineCache.ts + " inFlight=" + S._deadlineCheckInFlight + ")"), !force && Date.now() - S._deadlineCache.ts < 3e5) {
+    if (loadTaskToggles(), loadTaskMarks(), loadTaskIgnore(), DL("[DDL] checkUpcomingDeadlines: \u89E6\u53D1 (force=" + !!force + " cacheTs=" + S._deadlineCache.ts + " inFlight=" + S._deadlineCheckInFlight + ")"), !force && Date.now() - S._deadlineCache.ts < DEADLINE_CACHE_TTL) {
       DL("[DDL] checkUpcomingDeadlines: \u7F13\u5B58\u547D\u4E2D"), updateDeadlineIcon();
       return;
     }
@@ -2207,7 +2238,7 @@
       diagLog: isLogOn() ? "\u5F00\u542F" : "\u5173\u95ED",
       build: getBuildChannel() === "dev" ? "\u5F00\u53D1\u4EF6" : "\u53D1\u5E03\u4EF6"
     }, data = _dataSnapshot(), inline = _inlineSnapshot(), api = await _apiSnapshot(), errors = S._errors.slice(-5).map((e) => "  \xB7 [" + _fmtTs(e.ts) + "] " + e.label + ": " + e.msg), lines = [];
-    lines.push("===== Better Intschool \u81EA\u68C0\u62A5\u544A ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(Date.now())), lines.push(""), lines.push("[\u73AF\u5883]"), lines.push("  \u7248\u672C: " + env.version + "\uFF08" + env.build + "\uFF09    \u754C\u9762\u8BED\u8A00: " + env.locale + "    \u6807\u8BB0\u56FE\u6807: " + env.markIcon), lines.push("  \u9875\u9762: " + env.url + "    \u89C6\u53E3: " + env.viewport), lines.push("  \u767B\u5F55\u6001: token=" + env.token + "  schoolId=" + env.schoolId), lines.push("  \u81EA\u52A8\u6821\u51C6: " + env.autoCalibrate + "    \u8BCA\u65AD\u65E5\u5FD7: " + env.diagLog + "\uFF08__INTS_LOG(1) \u53EF\u5F00\uFF09"), lines.push("  \u6D4F\u89C8\u5668: " + env.ua), lines.push(""), lines.push("[\u63A5\u53E3]"), lines.push("  \u5B66\u5E74\u5217\u8868: " + api.yearList), lines.push("  \u5F53\u524D\u5B66\u5E74: key=" + S.currentYearKey + " value=" + S.currentYearValue + " isCurrentYear=" + S.isCurrentYear), lines.push("  grade-book: " + api.gradeBook + "    customColumns: " + api.customColumns + " [" + api.columns + "]"), api.firstCourse && lines.push("  \u9996\u95E8\u8BFE\u7A0B: " + api.firstCourse), lines.push(""), lines.push("[\u6570\u636E]"), lines.push("  \u5B66\u5206\u6620\u5C04: " + data.creditMapSize + " \u6761    " + (data.creditSample || "\uFF08\u7A7A\uFF09")), lines.push("  \u8BFE\u7A0B: " + data.courses + " \u95E8\uFF08\u96F6\u5B66\u5206 " + data.zeroCredit + "\uFF09    \u661F\u6807\u79D1\u76EE: " + data.starred), lines.push("  \u624B\u52A8\u6807\u8BB0: " + data.marks + (data.markIds ? " [" + data.markIds + "]" : "")), lines.push("  DDL: \u5168\u90E8 " + data.ddlAll + " / \u68C0\u6D4B\u5230 " + data.ddlDetected + " / \u63A8\u65AD " + data.ddlInferred + " / \u6807\u8BB0 " + data.ddlMarked + " / \u5DF2\u5FFD\u7565 " + data.ddlIgnoreStore + "    \u7F13\u5B58\u5E74\u9F84: " + data.ddlCacheAge), lines.push("    \u5224\u5B9A: type=" + DEADLINE_ASSIGNMENT_TYPE + " \u4E14\u672A\u63D0\u4EA4\uFF1B\u7EBF\u4E0A\u21D2\u68C0\u6D4B\u5230\uFF0C\u7EBF\u4E0B\u4E14\u672A\u8BB0\u5206\u21D2\u63A8\u65AD\uFF1B\u8BB0\u5206\u578B\uFF08\u4E0D\u7B97\u5F85\u529E\uFF09: " + DEADLINE_RECORD_ONLY_TYPES.join("/"));
+    lines.push("===== Better Intschool \u81EA\u68C0\u62A5\u544A ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(Date.now())), lines.push(""), lines.push("[\u73AF\u5883]"), lines.push("  \u7248\u672C: " + env.version + "\uFF08" + env.build + "\uFF09    \u754C\u9762\u8BED\u8A00: " + env.locale + "    \u6807\u8BB0\u56FE\u6807: " + env.markIcon), lines.push("  \u9875\u9762: " + env.url + "    \u89C6\u53E3: " + env.viewport), lines.push("  \u767B\u5F55\u6001: token=" + env.token + "  schoolId=" + env.schoolId), lines.push("  \u81EA\u52A8\u6821\u51C6: " + env.autoCalibrate + "    \u8BCA\u65AD\u65E5\u5FD7: " + env.diagLog + "\uFF08__INTS_LOG(1) \u53EF\u5F00\uFF09"), lines.push("  \u6D4F\u89C8\u5668: " + env.ua), lines.push(""), lines.push("[\u63A5\u53E3]"), lines.push("  \u5B66\u5E74\u5217\u8868: " + api.yearList), lines.push("  \u5F53\u524D\u5B66\u5E74: key=" + S.currentYearKey + " value=" + S.currentYearValue + " isCurrentYear=" + S.isCurrentYear), lines.push("  grade-book: " + api.gradeBook + "    customColumns: " + api.customColumns + " [" + api.columns + "]"), api.firstCourse && lines.push("  \u9996\u95E8\u8BFE\u7A0B: " + api.firstCourse), lines.push(""), lines.push("[\u6570\u636E]"), lines.push("  \u5B66\u5206\u6620\u5C04: " + data.creditMapSize + " \u6761    " + (data.creditSample || "\uFF08\u7A7A\uFF09")), lines.push("  \u8BFE\u7A0B: " + data.courses + " \u95E8\uFF08\u96F6\u5B66\u5206 " + data.zeroCredit + "\uFF09    \u661F\u6807\u79D1\u76EE: " + data.starred), lines.push("  \u624B\u52A8\u6807\u8BB0: " + data.marks + (data.markIds ? " [" + data.markIds + "]" : "")), lines.push("  DDL: \u5168\u90E8 " + data.ddlAll + " / \u68C0\u6D4B\u5230 " + data.ddlDetected + " / \u7EBF\u4E0B " + data.ddlInferred + " / \u6807\u8BB0 " + data.ddlMarked + " / \u5DF2\u5FFD\u7565 " + data.ddlIgnoreStore + "    \u7F13\u5B58\u5E74\u9F84: " + data.ddlCacheAge), lines.push("    \u5224\u5B9A: type=" + DEADLINE_ASSIGNMENT_TYPE + " \u4E14\u672A\u63D0\u4EA4\uFF1B\u7EBF\u4E0A\u21D2\u68C0\u6D4B\u5230\uFF0C\u7EBF\u4E0B\u4E14\u672A\u8BB0\u5206\u21D2\u7EBF\u4E0B\u4EFB\u52A1\uFF1B\u8BB0\u5206\u578B\uFF08\u4E0D\u7B97\u5F85\u529E\uFF09: " + DEADLINE_RECORD_ONLY_TYPES.join("/"));
     let typed = dt.filter((x) => x.inferred || x.detected).map((x) => x.typeName).filter(Boolean);
     return lines.push("    \u53D6\u5230\u7C7B\u578B\u7684\u5F85\u529E: " + typed.length + " \u6761" + (typed.length ? "\uFF08" + Array.from(new Set(typed)).join(" / ") + "\uFF09" : "\uFF08\u4E00\u6761\u90FD\u6CA1\u6709 \u21D2 \u53EF\u80FD grade-book \u91CC\u6CA1\u6709\u8FD9\u4E9B\u4EFB\u52A1\uFF09")), lines.push("  \u7F13\u5B58: \u5B66\u5E74 " + data.yearCache + " \u6761    \u6A21\u62DF\u8BFE\u7A0B " + data.simCourses + " \u95E8"), lines.push("  /points \u5185\u8054: \u8BE6\u60C5\uFF1A" + inline.colsExpanded + "    \u5408\u6210\u5217\u6570\uFF1A" + inline.synthCols), lines.push(""), lines.push("[\u6743\u91CD] \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [Homework/In-Class/Projects/Tests/Quizzes]"), _weightsSnapshot().forEach((l) => lines.push(l)), lines.push(""), lines.push("[\u5F02\u5E38\u8BB0\u5F55] " + S._errors.length + " \u6761" + (errors.length ? `
 ` + errors.join(`
@@ -2569,8 +2600,8 @@
     function formatEditableGPA(effective, orig, grade, semester) {
       let key = grade + "_" + semester, override = S.multiYearGPAOverrides[key] || {};
       function fmtVal(val, origVal, type, color) {
-        let isOverride = override[type] !== null && override[type] !== void 0, diff = orig && origVal !== null && origVal !== void 0 && val !== null ? val - origVal : 0, diffStr = orig && origVal !== null && origVal !== void 0 && val !== null && Math.abs(diff) > 5e-3 ? " (" + formatDiff(diff) + ")" : "", style = isOverride ? "color:" + color + ";font-weight:bold;cursor:pointer;background:#fff3e0;padding:1px 4px;border-radius:3px;" : "cursor:pointer;", title = isOverride ? t("\u5DF2\u8986\u76D6(\u70B9\u51FB\u7F16\u8F91)", "Overridden (click to edit)") : val !== null ? t("\u70B9\u51FB\u7F16\u8F91GPA", "Click to edit GPA") : t("\u70B9\u51FB\u8BBE\u7F6EGPA", "Click to set GPA"), displayVal = val !== null ? val.toFixed(2) : "\u2014";
-        return '<span class="my-gpa-editable" data-grade="' + grade + '" data-sem="' + semester + '" data-type="' + type + '" style="' + style + '" title="' + title + '">' + displayVal + "</span>" + diffStr;
+        let isOverride = override[type] !== null && override[type] !== void 0, diff = orig && origVal !== null && origVal !== void 0 && val !== null ? val - origVal : 0, hasDiff = orig && origVal !== null && origVal !== void 0 && val !== null && Math.abs(diff) > 5e-3, diffStr = hasDiff ? " (" + formatDiff(diff) + ")" : "", style = isOverride ? "color:" + color + ";font-weight:bold;cursor:pointer;background:#fff3e0;padding:1px 4px;border-radius:3px;" : "cursor:pointer;", title = isOverride ? t("\u5DF2\u8986\u76D6(\u70B9\u51FB\u7F16\u8F91)", "Overridden (click to edit)") : val !== null ? t("\u70B9\u51FB\u7F16\u8F91GPA", "Click to edit GPA") : t("\u70B9\u51FB\u8BBE\u7F6EGPA", "Click to set GPA"), displayVal = val !== null ? val.toFixed(2) : "\u2014";
+        return '<span class="my-gpa-editable"' + (isOverride || hasDiff ? " " + SIM_MARK_ATTR + '="1"' : "") + ' data-grade="' + grade + '" data-sem="' + semester + '" data-type="' + type + '" style="' + style + '" title="' + title + '">' + displayVal + "</span>" + diffStr;
       }
       let uw = effective ? effective.uw : override.uw !== null && override.uw !== void 0 ? override.uw : null, w = effective ? effective.w : override.w !== null && override.w !== void 0 ? override.w : null, origUW = orig ? orig.uw : null, origW = orig ? orig.w : null;
       return "UW: " + fmtVal(uw, origUW, "uw", "#1890ff") + " W: " + fmtVal(w, origW, "w", "#cf1322");
@@ -2959,13 +2990,13 @@
             html += "<tr><td>" + label + '</td><td class="iw-num"><span class="iw-locked">' + t("\u65E0\u6570\u636E", "No data") + "</span></td></tr>";
             continue;
           }
-          let d = typeof simScore == "number" && typeof origScore == "number" ? simScore - origScore : 0, changed = Math.abs(d) >= DETAIL_DELTA_EPS, pct = (simScore / maxScore * 100).toFixed(2), origPct = (origScore / maxScore * 100).toFixed(2), valueHtml = escapeHtml(simScore + "/" + maxScore) + (changed ? ' <span style="font-size:11px;">(' + (d > 0 ? "+" : "") + d.toFixed(2) + ")</span>" : ""), styleAttr = changed ? ' style="color:' + (d > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "", titleAttr = ' title="' + escapeHtml(t("\u539F\u59CB ", "was ") + origScore + "/" + maxScore + " (" + origPct + "%)") + '"';
-          html += "<tr><td>" + label + '</td><td class="iw-num">' + (canEdit ? '<span class="iw-sim-cell"' + styleAttr + titleAttr + ' data-detail-edit="' + i + '" data-detail-term="' + term + '" data-detail-max="' + maxScore + '">' + valueHtml + "</span>" : '<span class="iw-locked"' + titleAttr + ">" + valueHtml + "</span>") + ' <span class="iw-note">' + pct + "%</span></td></tr>";
+          let d = typeof simScore == "number" && typeof origScore == "number" ? simScore - origScore : 0, changed = Math.abs(d) >= DETAIL_DELTA_EPS, cellMark = valueIsSimulated(simScore, origScore) ? " " + SIM_MARK_ATTR + '="1"' : "", pct = (simScore / maxScore * 100).toFixed(2), origPct = (origScore / maxScore * 100).toFixed(2), valueHtml = escapeHtml(simScore + "/" + maxScore) + (changed ? ' <span style="font-size:11px;">(' + (d > 0 ? "+" : "") + d.toFixed(2) + ")</span>" : ""), styleAttr = changed ? ' style="color:' + (d > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "", titleAttr = ' title="' + escapeHtml(t("\u539F\u59CB ", "was ") + origScore + "/" + maxScore + " (" + origPct + "%)") + '"';
+          html += "<tr><td>" + label + '</td><td class="iw-num">' + (canEdit ? '<span class="iw-sim-cell"' + cellMark + styleAttr + titleAttr + ' data-detail-edit="' + i + '" data-detail-term="' + term + '" data-detail-max="' + maxScore + '">' + valueHtml + "</span>" : '<span class="iw-locked"' + cellMark + titleAttr + ">" + valueHtml + "</span>") + ' <span class="iw-note">' + pct + "%</span></td></tr>";
         }
         let pStarGPAstr = pGPA ? formatGPA(pGPA) : "\u2014", origPGPAstr = origPGPA ? formatGPA(origPGPA) : "\u2014", deltaStr = "";
         pDiff !== null && pGPA && origPGPA && (deltaStr = "\u0394 UW: " + formatDiff(pGPA.uw - origPGPA.uw) + "  \u0394 W: " + formatDiff(pGPA.w - origPGPA.w));
-        let pShown = pStar !== null ? pStar : origP, pChanged = pDiff !== null && Math.abs(pDiff) >= DETAIL_DELTA_EPS, pValHtml = (pShown === null ? "\u2014" : pShown.toFixed(2)) + (pChanged ? ' <span style="font-size:11px;">(' + (pDiff > 0 ? "+" : "") + pDiff.toFixed(2) + ")</span>" : ""), pTitle = escapeHtml(t("\u539F\u59CB ", "was ") + (origP === null ? "\u2014" : origP.toFixed(2)) + " \xB7 " + origPGPAstr);
-        html += '<tr class="iw-prow"><td>' + t("\u5E73\u65F6\u6210\u7EE9 (P)", "Performance (P)") + '</td><td class="iw-num"><span' + (pChanged ? ' style="color:' + (pDiff > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "") + ' title="' + pTitle + '">' + pValHtml + '</span><br><span class="iw-note">' + escapeHtml(pStarGPAstr) + "</span>" + (deltaStr ? '<div class="iw-note" style="font-size:11px;">' + deltaStr + "</div>" : "") + "</td></tr>", html += "</tbody></table>", isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u5B66\u671F\u5DF2\u5728\u4E3B\u8868\u683C\u624B\u52A8\u8BBE\u7F6E\u5E73\u65F6\u6210\u7EE9\uFF0C\u672C\u5904\u7F16\u8F91\u5DF2\u7981\u7528\u3002", "\u26A0\uFE0F Manual override exists for this semester, editing disabled.") + "</div>"), isStarred && !isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u79D1\u76EE\u5DF2\u6807\u8BB0\u661F\u6807\uFF0C\u660E\u7EC6\u6A21\u62DF\u7F16\u8F91\u5DF2\u7981\u7528\u3002\u8BF7\u76F4\u63A5\u5728\u4E3B\u8868\u683C\u7F16\u8F91P/E\u3002", "\u26A0\uFE0F Starred subject, detail simulation disabled. Edit P/E in main table.") + "</div>"), html += "</div>";
+        let pShown = pStar !== null ? pStar : origP, pChanged = pDiff !== null && Math.abs(pDiff) >= DETAIL_DELTA_EPS, pValHtml = (pShown === null ? "\u2014" : pShown.toFixed(2)) + (pChanged ? ' <span style="font-size:11px;">(' + (pDiff > 0 ? "+" : "") + pDiff.toFixed(2) + ")</span>" : ""), pTitle = escapeHtml(t("\u539F\u59CB ", "was ") + (origP === null ? "\u2014" : origP.toFixed(2)) + " \xB7 " + origPGPAstr), pMark = valueIsSimulated(pShown, origP) ? " " + SIM_MARK_ATTR + '="1"' : "";
+        html += '<tr class="iw-prow"><td>' + t("\u5E73\u65F6\u6210\u7EE9 (P)", "Performance (P)") + '</td><td class="iw-num"><span' + pMark + (pChanged ? ' style="color:' + (pDiff > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "") + ' title="' + pTitle + '">' + pValHtml + '</span><br><span class="iw-note"' + pMark + ">" + escapeHtml(pStarGPAstr) + "</span>" + (deltaStr ? '<div class="iw-note" style="font-size:11px;">' + deltaStr + "</div>" : "") + "</td></tr>", html += "</tbody></table>", isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u5B66\u671F\u5DF2\u5728\u4E3B\u8868\u683C\u624B\u52A8\u8BBE\u7F6E\u5E73\u65F6\u6210\u7EE9\uFF0C\u672C\u5904\u7F16\u8F91\u5DF2\u7981\u7528\u3002", "\u26A0\uFE0F Manual override exists for this semester, editing disabled.") + "</div>"), isStarred && !isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u79D1\u76EE\u5DF2\u6807\u8BB0\u661F\u6807\uFF0C\u660E\u7EC6\u6A21\u62DF\u7F16\u8F91\u5DF2\u7981\u7528\u3002\u8BF7\u76F4\u63A5\u5728\u4E3B\u8868\u683C\u7F16\u8F91P/E\u3002", "\u26A0\uFE0F Starred subject, detail simulation disabled. Edit P/E in main table.") + "</div>"), html += "</div>";
       }
       html || (html = '<div class="iw-note">' + t("\u8BE5\u7B5B\u9009\u4E0B\u6CA1\u6709\u53EF\u663E\u793A\u7684\u6570\u636E\u3002", "No data to show for this filter.") + "</div>"), handle.setBody(html);
     }
@@ -3329,7 +3360,7 @@
       return t("\u6743\u91CD\u6765\u6E90\uFF1A", "Weights from ") + (src || t("\u9ED8\u8BA4\u89C4\u5219", "default rule")) + "\uFF08" + parts.join(" / ") + "\uFF09";
     }
     let defaultSem = getDefaultSemester(), semOptions = `<option value="S1"${defaultSem === "S1" ? " selected" : ""}>${t("\u7B2C\u4E00\u5B66\u671F (S1)", "Semester 1 (S1)")}</option><option value="S2"${defaultSem === "S2" ? " selected" : ""}>${t("\u7B2C\u4E8C\u5B66\u671F (S2)", "Semester 2 (S2)")}</option>`, initCourse = courses[preselectedCourseIdx !== null ? preselectedCourseIdx : 0], labelStyle = "display:block;text-align:left;line-height:1.5;padding:0 0 6px;", itemStyle = "margin-bottom:16px;", controlCell = (inner) => '<div class="ant-form-item-control-wrapper"><div class="ant-form-item-control">' + inner + "</div></div>", panel = document.createElement("div");
-    panel.className = "ant-modal", panel.style.cssText = "width:480px;max-width:95%;top:0;padding-bottom:0;", panel.innerHTML = '<div class="ant-modal-content"><button type="button" id="close-virtual-task-modal" class="ant-modal-close" aria-label="Close"><span class="ant-modal-close-x">&times;</span></button><div class="ant-modal-header"><div class="ant-modal-title">' + t("\u6DFB\u52A0\u865A\u62DF\u4EFB\u52A1", "Add Virtual Task") + '</div></div><div class="ant-modal-body"><div class="ant-form-item" style="' + itemStyle + '"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-subject">' + t("\u79D1\u76EE", "Subject") + "</label></div>" + controlCell('<select id="vt-subject" class="ant-input">' + subjectOptions + "</select>") + '</div><div class="ant-form-item" style="' + itemStyle + '"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-semester">' + t("\u5B66\u671F", "Semester") + "</label></div>" + controlCell('<select id="vt-semester" class="ant-input">' + semOptions + "</select>") + '</div><div class="ant-form-item" style="' + itemStyle + '"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-type">' + t("\u4EFB\u52A1\u7C7B\u578B", "Task Type") + "</label></div>" + controlCell('<select id="vt-type" class="ant-input">' + _vtTypeOptionHtml(initCourse) + "</select>") + '<div id="vt-weights-note" class="ant-form-item-explain" style="color:rgba(0,0,0,0.45);font-size:12px;line-height:1.6;padding-top:4px;">' + escapeHtml(_vtWeightsNote(initCourse)) + '</div></div><div class="ant-form-item" style="' + itemStyle + '"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-name">' + t("\u4EFB\u52A1\u540D\u79F0", "Task Name") + "</label></div>" + controlCell('<input id="vt-name" class="ant-input" type="text" placeholder="' + t("\u865A\u62DF\u4EFB\u52A1", "Virtual Task") + '" value="' + t("\u865A\u62DF\u4EFB\u52A1", "Virtual Task") + '">') + '</div><div class="ant-form-item" style="' + itemStyle + 'display:flex;gap:16px;"><div style="flex:1;"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-topscore">' + t("\u603B\u5206", "Total Score") + "</label></div>" + controlCell('<input id="vt-topscore" class="ant-input" type="number" min="0.01" step="any" value="">') + '</div><div style="flex:1;"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-score">' + t("\u5F97\u5206", "Score") + "</label></div>" + controlCell('<input id="vt-score" class="ant-input" type="number" min="0" step="any" value="">') + '</div></div></div><div id="ints-vt-msg" style="display:none;padding:0 24px 8px;color:#cf1322;font-size:12px;"></div><div class="ant-modal-footer"><button type="button" id="cancel-virtual-task" class="ant-btn">' + t("\u53D6\u6D88", "Cancel") + '</button><button type="button" id="confirm-virtual-task" class="ant-btn ant-btn-primary">' + t("\u6DFB\u52A0", "Add") + "</button></div></div>";
+    panel.className = "ant-modal", panel.style.cssText = "width:480px;max-width:95%;top:0;padding-bottom:0;", panel.innerHTML = '<div class="ant-modal-content"><button type="button" id="close-virtual-task-modal" class="ant-modal-close" aria-label="Close"><span class="ant-modal-close-x">&times;</span></button><div class="ant-modal-header"><div class="ant-modal-title">' + t("\u6DFB\u52A0\u865A\u62DF\u4EFB\u52A1", "Add Virtual Task") + '</div></div><div class="ant-modal-body"><div class="ant-form-item" style="' + itemStyle + '"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-subject">' + t("\u79D1\u76EE", "Subject") + "</label></div>" + controlCell('<select id="vt-subject" class="ant-input">' + subjectOptions + "</select>") + '</div><div class="ant-form-item" style="' + itemStyle + '"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-semester">' + t("\u5B66\u671F", "Semester") + "</label></div>" + controlCell('<select id="vt-semester" class="ant-input">' + semOptions + "</select>") + '</div><div class="ant-form-item" style="' + itemStyle + '"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-type">' + t("\u4EFB\u52A1\u7C7B\u578B", "Task Type") + "</label></div>" + controlCell('<select id="vt-type" class="ant-input">' + _vtTypeOptionHtml(initCourse) + "</select>") + '<div id="vt-weights-note" class="ant-form-item-explain" style="color:rgba(0,0,0,0.45);font-size:12px;line-height:1.6;padding-top:4px;">' + escapeHtml(_vtWeightsNote(initCourse)) + '</div></div><div class="ant-form-item" style="' + itemStyle + 'display:flex;gap:16px;"><div style="flex:1;"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-topscore">' + t("\u603B\u5206", "Total Score") + "</label></div>" + controlCell('<input id="vt-topscore" class="ant-input" type="number" min="0.01" step="any" value="">') + '</div><div style="flex:1;"><div class="ant-form-item-label" style="' + labelStyle + '"><label for="vt-score">' + t("\u5F97\u5206", "Score") + "</label></div>" + controlCell('<input id="vt-score" class="ant-input" type="number" min="0" step="any" value="">') + '</div></div></div><div id="ints-vt-msg" style="display:none;padding:0 24px 8px;color:#cf1322;font-size:12px;"></div><div class="ant-modal-footer"><button type="button" id="cancel-virtual-task" class="ant-btn">' + t("\u53D6\u6D88", "Cancel") + '</button><button type="button" id="confirm-virtual-task" class="ant-btn ant-btn-primary">' + t("\u6DFB\u52A0", "Add") + "</button></div></div>";
     let subjectSel = panel.querySelector("#vt-subject");
     subjectSel && subjectSel.addEventListener("change", function() {
       let idx = parseInt(subjectSel.value, 10), course = courses[idx], typeSel = panel.querySelector("#vt-type");
@@ -3348,7 +3379,7 @@
       el && (el.textContent = msg, el.style.display = "block");
     }
     function doAdd() {
-      let courseIdx = parseInt(document.getElementById("vt-subject").value), semester = document.getElementById("vt-semester").value, typeIdx = parseInt(document.getElementById("vt-type").value), taskName = document.getElementById("vt-name").value.trim() || t("\u865A\u62DF\u4EFB\u52A1", "Virtual Task"), topScoreVal = document.getElementById("vt-topscore").value.trim(), scoreVal = document.getElementById("vt-score").value.trim();
+      let courseIdx = parseInt(document.getElementById("vt-subject").value), semester = document.getElementById("vt-semester").value, typeIdx = parseInt(document.getElementById("vt-type").value), topScoreVal = document.getElementById("vt-topscore").value.trim(), scoreVal = document.getElementById("vt-score").value.trim();
       if (isNaN(courseIdx) || !courses[courseIdx]) {
         showModalError(t("\u8BF7\u9009\u62E9\u6709\u6548\u7684\u79D1\u76EE", "Please select a valid subject"));
         return;
@@ -3370,7 +3401,9 @@
         entityId: virtualId,
         taskStudentId: virtualId,
         id: virtualId,
-        name: taskName,
+        // 名字**派生、不可编辑**：`虚拟任务3 (作业)`。没有名称输入框，
+        // "把虚拟任务命名成期中考试再截图"这条路就堵住了（反序列化那侧还会再统一改写一次）。
+        name: virtualTaskName(virtualId, TYPE_KEYS[typeIdx]),
         typeName: TYPE_KEYS[typeIdx],
         score,
         topScore,
@@ -3380,7 +3413,7 @@
         simulatedScore: score,
         isVirtual: !0
       }, course = S.simCourses[courseIdx];
-      course.tasks.push(virtualTask), course.tasks.sort((a, b) => (a.endDate || 0) - (b.endDate || 0)), semester === "S1" ? course.overrideP.s1 = null : course.overrideP.s2 = null, recalcCourseTerm(course, "s1"), recalcCourseTerm(course, "s2"), markDirty(), notifyCourseChanged(courseIdx), log(`[\u5185\u8054] \u5DF2\u4E3A ${course.name} \u6DFB\u52A0\u865A\u62DF\u4EFB\u52A1"${taskName}"\uFF08\u5DF2\u8BA1\u5165\u5E73\u65F6\u6210\u7EE9\uFF09`), closeModal();
+      course.tasks.push(virtualTask), course.tasks.sort((a, b) => (a.endDate || 0) - (b.endDate || 0)), semester === "S1" ? course.overrideP.s1 = null : course.overrideP.s2 = null, recalcCourseTerm(course, "s1"), recalcCourseTerm(course, "s2"), markDirty(), notifyCourseChanged(courseIdx), log(`[\u5185\u8054] \u5DF2\u4E3A ${course.name} \u6DFB\u52A0${virtualTask.name}\uFF08\u5DF2\u8BA1\u5165\u5E73\u65F6\u6210\u7EE9\uFF09`), closeModal();
       try {
         typeof onAdded == "function" && onAdded(courseIdx);
       } catch (e) {
@@ -3766,12 +3799,12 @@
     }
     if (!sum || !sum.orig)
       return el.textContent = "", el.removeAttribute("title"), !0;
-    let o = sum.orig, sim = sum.sim, html = '<span style="color:rgba(0,0,0,0.45);">' + t("\u5B66\u5E74GPA", "Annual GPA") + "</span> ";
+    let o = sum.orig, sim = sum.sim, html = '<span style="color:rgba(0,0,0,0.45);">' + t("\u5B66\u5E74GPA", "Annual GPA") + "</span> ", mark = !!(sim && (valueIsSimulated(sim.uw, o.uw) || valueIsSimulated(sim.w, o.w))) ? " " + SIM_MARK_ATTR + '="1"' : "";
     if (sim && (Math.abs(sim.uw - o.uw) > 1e-3 || Math.abs(sim.w - o.w) > 1e-3)) {
       let du = sim.uw - o.uw, dw = sim.w - o.w, gColor = (Math.abs(du) > 1e-3 ? du : dw) > 0 ? COLOR_UP : COLOR_DOWN;
-      html += 'UW <b style="color:' + gColor + ';">' + _num(sim.uw) + " / W " + _num(sim.w) + '</b> <span style="font-size:11px;">(\u0394 UW: ' + _delta(du) + " \u0394 W: " + _delta(dw) + ")</span>";
+      html += "<span" + mark + '>UW <b style="color:' + gColor + ';">' + _num(sim.uw) + " / W " + _num(sim.w) + '</b> <span style="font-size:11px;">(\u0394 UW: ' + _delta(du) + " \u0394 W: " + _delta(dw) + ")</span></span>";
     } else
-      html += "UW " + _num(o.uw) + " / W " + _num(o.w);
+      html += "<span" + mark + ">UW " + _num(o.uw) + " / W " + _num(o.w) + "</span>";
     let school = _schoolAnnual();
     return school && (Math.abs(school.uw - o.uw) > 1e-3 || Math.abs(school.w - o.w) > 1e-3) ? el.title = t(
       "\u5B66\u6821\u516C\u5E03\uFF1AUW " + school.uw.toFixed(2) + " / W " + school.w.toFixed(2),
@@ -3870,7 +3903,7 @@
       _markRowDone(tr), safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx));
       return;
     }
-    let simScore = _courseAnnual(course, "sim"), origScore = _courseAnnual(course, "orig"), delta = simScore !== null && origScore !== null ? simScore - origScore : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, starred = !!(course.showStar && (course.showStar.s1 || course.showStar.s2)), gpaOrig = getGPAForScore(origScore, course.weightBonus), gpaSim = showDelta ? getGPAForScore(simScore, course.weightBonus) : null, inner = _cellInner(scoreTd), foreign = inner.innerHTML.indexOf("UW:") >= 0 && !inner.querySelector("[data-ints-sim]"), showGpa = !!gpaOrig && !foreign, box = scoreTd.querySelector("[data-ints-sim]"), shown = simScore !== null ? simScore : origScore, wrap0 = inner.querySelector("[" + SCORE_WRAP_ATTR + "]");
+    let simScore = _courseAnnual(course, "sim"), origScore = _courseAnnual(course, "orig"), delta = simScore !== null && origScore !== null ? simScore - origScore : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, cellMarked = !1, starred = !!(course.showStar && (course.showStar.s1 || course.showStar.s2)), gpaOrig = getGPAForScore(origScore, course.weightBonus), gpaSim = showDelta ? getGPAForScore(simScore, course.weightBonus) : null, inner = _cellInner(scoreTd), foreign = inner.innerHTML.indexOf("UW:") >= 0 && !inner.querySelector("[data-ints-sim]"), showGpa = !!gpaOrig && !foreign, box = scoreTd.querySelector("[data-ints-sim]"), shown = simScore !== null ? simScore : origScore, wrap0 = inner.querySelector("[" + SCORE_WRAP_ATTR + "]");
     if (shown !== null) {
       let wrap = wrap0;
       if (!wrap) {
@@ -3879,8 +3912,10 @@
       }
       let siteText = wrap ? String(wrap.textContent || "").replace(/\s+/g, " ").trim() : "";
       wrap && (wrap.style.display = "none");
+      let siteScoreRaw = Number(String(siteText).split("/")[0].trim());
+      cellMarked = valueIsSimulated(shown, isNaN(siteScoreRaw) ? null : siteScoreRaw);
       let simEl = inner.querySelector("[" + SCORE_SIM_ATTR + "]");
-      simEl || (simEl = document.createElement("span"), simEl.setAttribute(SCORE_SIM_ATTR, "1"), wrap ? wrap.insertAdjacentElement("afterend", simEl) : inner.insertBefore(simEl, inner.firstChild)), simEl.style.color = showDelta ? delta > 0 ? COLOR_UP : COLOR_DOWN : "";
+      simEl || (simEl = document.createElement("span"), simEl.setAttribute(SCORE_SIM_ATTR, "1"), wrap ? wrap.insertAdjacentElement("afterend", simEl) : inner.insertBefore(simEl, inner.firstChild)), simEl.style.color = showDelta ? delta > 0 ? COLOR_UP : COLOR_DOWN : "", cellMarked ? simEl.setAttribute(SIM_MARK_ATTR, "1") : simEl.removeAttribute(SIM_MARK_ATTR);
       let valText = _scoreNum(shown) + _levelSuffix(shown, siteText);
       simEl.firstChild && simEl.firstChild.nodeType === 3 ? simEl.firstChild.nodeValue !== valText && (simEl.firstChild.nodeValue = valText) : simEl.insertBefore(document.createTextNode(valText), simEl.firstChild);
       let dText = showDelta ? " (" + _delta2(delta) + ")" : "", dEl = simEl.querySelector("[" + SCORE_DELTA_ATTR + "]");
@@ -3902,7 +3937,7 @@
     starred && (html += '<span style="color:#f5222d;margin-left:4px;cursor:help;" title="' + escapeHtml(t(
       "\u5B66\u6821\u7ED9\u7684\u5206\u4E0E\u6309\u4EFB\u52A1\u660E\u7EC6\u7B97\u51FA\u7684\u5206\u4E0D\u4E00\u81F4\uFF08\u5DEE > 0.1\uFF09\uFF0C\u8BE5\u79D1\u76EE\u7684\u6A21\u62DF\u4EC5\u4F9B\u53C2\u8003\u3002",
       "School value differs from the task-based estimate by >0.1; this course is an estimate only."
-    )) + '">*</span>'), box.innerHTML = html, scoreTd.setAttribute(INLINE_ATTR, "1"), _markRowDone(tr), scoreTd.getAttribute("data-ints-clickable") !== "1" && scoreTd.setAttribute("data-ints-clickable", "1"), scoreTd._intsClickBound || (scoreTd._intsClickBound = !0, scoreTd.style.cursor = "pointer", scoreTd.title = t("\u70B9\u51FB\u7F16\u8F91\u8BE5\u79D1\u76EE\u7684\u6A21\u62DF\u6210\u7EE9", "Click to edit this course simulation"), scoreTd.addEventListener("click", guardListener("\u5185\u8054\u7F16\u8F91\u7A97\u53E3", (e) => {
+    )) + '">*</span>'), box.innerHTML = html, cellMarked ? box.setAttribute(SIM_MARK_ATTR, "1") : box.removeAttribute(SIM_MARK_ATTR), scoreTd.setAttribute(INLINE_ATTR, "1"), _markRowDone(tr), scoreTd.getAttribute("data-ints-clickable") !== "1" && scoreTd.setAttribute("data-ints-clickable", "1"), scoreTd._intsClickBound || (scoreTd._intsClickBound = !0, scoreTd.style.cursor = "pointer", scoreTd.title = t("\u70B9\u51FB\u7F16\u8F91\u8BE5\u79D1\u76EE\u7684\u6A21\u62DF\u6210\u7EE9", "Click to edit this course simulation"), scoreTd.addEventListener("click", guardListener("\u5185\u8054\u7F16\u8F91\u7A97\u53E3", (e) => {
       e.stopPropagation();
       let now = _matchCourseIndex(_rowInfo(tr), /* @__PURE__ */ new Set());
       _openEditor(tr, now >= 0 ? now : courseIdx);
@@ -3971,6 +4006,7 @@
       box.remove();
       return;
     }
+    courseHasSimulation(course) ? box.setAttribute(SIM_MARK_ATTR, "1") : box.removeAttribute(SIM_MARK_ATTR);
     let html = '<span title="' + escapeHtml(t("\u672C\u8BFE\u7A0B GPA", "Course GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
     box.innerHTML !== html && (box.innerHTML = html);
   }
@@ -4009,9 +4045,14 @@
       }
       let td = tr.children[i];
       if (!td) continue;
-      let want = _fieldCellWant(courseIdx, f), box = td.querySelector("[data-ints-sim]");
-      if (!want) {
-        box && box.remove(), _tr.items.push(i + ":" + f + ":nowant");
+      let want = _fieldCellWant(courseIdx, f), box = td.querySelector("[data-ints-sim]"), fieldMarked = valueIsSimulated(
+        course.simGrades ? course.simGrades[f] : null,
+        course.originalGrades ? course.originalGrades[f] : null
+      ), markCell = (el, on) => {
+        !el || !el.setAttribute || (on ? el.setAttribute(SIM_MARK_ATTR, "1") : el.removeAttribute(SIM_MARK_ATTR));
+      };
+      if (markCell(td, fieldMarked), !want) {
+        markCell(td, !1), box && box.remove(), _tr.items.push(i + ":" + f + ":nowant");
         continue;
       }
       let cell = _findFieldCell(tr, i, want);
@@ -4020,7 +4061,7 @@
         continue;
       }
       if (cell !== td && cell.querySelector("[data-ints-sim]")) continue;
-      box = cell.querySelector("[data-ints-sim]");
+      cell !== td && markCell(cell, fieldMarked), box = cell.querySelector("[data-ints-sim]");
       let inner = _cellInner(cell);
       box && box.parentElement !== inner && (box.remove(), box = null), box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:11px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), _renderColumnDelta(cell, inner, box, course, f);
       let g = getGPAForScore(Number(String(want).split("/")[0]), course.weightBonus);
@@ -4028,6 +4069,7 @@
         box.remove(), _tr.items.push(i + ":" + f + ":nogpa");
         continue;
       }
+      fieldMarked ? box.setAttribute(SIM_MARK_ATTR, "1") : box.removeAttribute(SIM_MARK_ATTR);
       let html = '<span title="' + escapeHtml(t("\u672C\u8BFE\u7A0B GPA", "Course GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
       box.innerHTML !== html && (box.innerHTML = html), _tr.items.push(i + ":" + f + ":box" + (box.isConnected ? "" : "!disc"));
     }
@@ -4086,7 +4128,7 @@
         let el = mine;
         el || (el = document.createElement("span"), el.setAttribute(TASK_SCORE_ATTR, "1"), siteSpan.insertAdjacentElement("afterend", el));
         let color = sim === -1 || orig !== null && sim < orig ? COLOR_DOWN : COLOR_UP;
-        el.style.cssText = "min-height:21px;display:block;color:" + color + ";", el.textContent = _taskScoreDisplay(sim, task.topScore), el.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + _taskScoreDisplay(orig, task.topScore) + (typeof task.topScore == "number" ? " \xB7 " + t("\u6EE1\u5206 ", "max ") + task.topScore : "");
+        el.style.cssText = "min-height:21px;display:block;color:" + color + ";", el.textContent = _taskScoreDisplay(sim, task.topScore), el.setAttribute(SIM_MARK_ATTR, "1"), el.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + _taskScoreDisplay(orig, task.topScore) + (typeof task.topScore == "number" ? " \xB7 " + t("\u6EE1\u5206 ", "max ") + task.topScore : "");
       }
       td.setAttribute("data-ints-task", String(ti)), td.getAttribute("data-ints-taskbound") !== "1" && td.setAttribute("data-ints-taskbound", "1"), td._intsTaskClickBound || (td._intsTaskClickBound = !0, td.style.cursor = "pointer", td.title = t("\u70B9\u51FB\u7F16\u8F91\u8BE5\u4EFB\u52A1\u7684\u6A21\u62DF\u5F97\u5206\uFF08-1 = \u4E0D\u8BA1\u5165\uFF09", "Click to edit this task score (-1 = excluded)"), td.addEventListener("click", guardListener("\u5185\u8054\u4EFB\u52A1\u7F16\u8F91", (e) => {
         let idx = td.getAttribute("data-ints-task");
@@ -4147,7 +4189,7 @@
     let nameEl = box.querySelector("[data-ints-vtask-title] span");
     nameEl && nameEl.textContent !== task.name && (nameEl.textContent = task.name);
     let scoreSpans = box.querySelectorAll("div > span"), scoreEl = scoreSpans[scoreSpans.length - 1];
-    return scoreEl && scoreEl.textContent !== text && (scoreEl.textContent = text), td.style.cursor = "pointer", box;
+    return scoreEl && scoreEl.textContent !== text && (scoreEl.textContent = text), nameEl && nameEl.setAttribute(SIM_MARK_ATTR, "1"), scoreEl && scoreEl.setAttribute(SIM_MARK_ATTR, "1"), td.style.cursor = "pointer", box;
   }
   function _renderVirtualCells(tr, courseIdx, course) {
     if (!tr || !course) return;
@@ -4230,7 +4272,7 @@
     let c = S.simCourses[ci];
     if (!c) return null;
     let sim = c.simGrades ? c.simGrades[field] : null, orig = c.originalGrades ? c.originalGrades[field] : null;
-    return { sim, orig, overridden: Math.abs((sim === null ? -999 : sim) - (orig === null ? -999 : orig)) > 1e-3 };
+    return { sim, orig, overridden: valueIsSimulated(sim, orig) };
   }
   function _deltaInfo(sim, orig) {
     if (typeof sim != "number" || typeof orig != "number" || isNaN(sim) || isNaN(orig)) return null;
@@ -4249,11 +4291,11 @@
   }
   function _fieldHtml(ci, field, label) {
     let v = _scoreVal(ci, field), shown = v.sim === null ? "" : _num(v.sim);
-    return '<label style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><input data-ie-field="' + field + '" type="text" inputmode="decimal" value="' + escapeHtml(shown) + '" placeholder="\u2014" style="width:56px;padding:2px 4px;text-align:center;border:1px solid ' + (v.overridden ? "#1890ff" : "#d9d9d9") + ";border-radius:4px;font-size:12px;" + (v.overridden ? "background:#e6f7ff;" : "") + '">' + _deltaSpanHtml(field, ci) + "</label>";
+    return '<label style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span data-ie-mark="' + field + '"' + (v.overridden ? " " + SIM_MARK_ATTR + '="1"' : "") + ' style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><input data-ie-field="' + field + '" type="text" inputmode="decimal" value="' + escapeHtml(shown) + '" placeholder="\u2014" style="width:56px;padding:2px 4px;text-align:center;border:1px solid ' + (v.overridden ? "#1890ff" : "#d9d9d9") + ";border-radius:4px;font-size:12px;" + (v.overridden ? "background:#e6f7ff;" : "") + '">' + _deltaSpanHtml(field, ci) + "</label>";
   }
   function _readonlyHtml(ci, field, label, fKey) {
     let v = _scoreVal(ci, field);
-    return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><span data-ie-f="' + fKey + '" style="min-width:56px;text-align:center;font-size:12px;color:rgba(0,0,0,0.75);">' + (v.sim === null ? "\u2014" : _num(v.sim)) + "</span>" + _deltaSpanHtml(field, ci) + "</span>";
+    return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><span data-ie-f="' + fKey + '" data-ie-fmark="' + field + '"' + (v.overridden ? " " + SIM_MARK_ATTR + '="1"' : "") + ' style="min-width:56px;text-align:center;font-size:12px;color:rgba(0,0,0,0.75);">' + (v.sim === null ? "\u2014" : _num(v.sim)) + "</span>" + _deltaSpanHtml(field, ci) + "</span>";
   }
   function _refreshEditorWindows() {
     for (let win of listWindows()) {
@@ -4267,12 +4309,14 @@
         if (document.activeElement === inp) return;
         let f = inp.getAttribute("data-ie-field"), v = _scoreVal(ci, f);
         inp.value = v.sim === null ? "" : _num(v.sim), inp.style.borderColor = v.overridden ? "#1890ff" : "#d9d9d9", inp.style.background = v.overridden ? "#e6f7ff" : "";
+        let mark = win.el.querySelector('[data-ie-mark="' + f + '"]');
+        mark && (v.overridden ? mark.setAttribute(SIM_MARK_ATTR, "1") : mark.removeAttribute(SIM_MARK_ATTR));
       });
       for (let term of ["s1", "s2"]) {
         let span = win.el.querySelector('[data-ie-f="' + IE_F_IDS[term] + '"]');
         if (!span) continue;
         let v = _scoreVal(ci, term + "f");
-        span.textContent = v.sim === null ? "\u2014" : _num(v.sim);
+        span.textContent = v.sim === null ? "\u2014" : _num(v.sim), v.overridden ? span.setAttribute(SIM_MARK_ATTR, "1") : span.removeAttribute(SIM_MARK_ATTR);
       }
       win.el.querySelectorAll("[data-ie-delta]").forEach((sp) => {
         let f = sp.getAttribute("data-ie-delta"), v = _scoreVal(ci, f);
@@ -4780,12 +4824,12 @@
     let host = _menuHostFor("calc");
     if (!host) return null;
     let btn = document.getElementById(CLEAR_CACHE_ID);
-    return btn || (btn = _menuItem(host, CLEAR_CACHE_ID), btn.innerHTML = iconDelete() + "<span>" + t("\u6E05\u9664\u7F13\u5B58", "Clear Cache") + "</span>", btn.style.color = "#8c8c8c", btn.title = t(
+    return btn || (btn = _menuItem(host, CLEAR_CACHE_ID), btn.innerHTML = iconDelete() + "<span>" + t("\u6E05\u9664\u7F13\u5B58\uFF08\u4FDD\u7559\u6A21\u62DF\uFF09", "Clear cache (keep simulation)") + "</span>", btn.style.color = "#8c8c8c", btn.title = t(
       "\u6E05\u9664\u672C\u673A\u4FDD\u5B58\u7684\u6210\u7EE9\u6570\u636E\u7F13\u5B58\uFF08\u5B66\u6821\u6570\u636E\u4E0E\u6821\u51C6\u8BB0\u5F55\uFF09\uFF1B\u6A21\u62DF\u3001\u6807\u8BB0\u4E0E\u76EE\u6807 GPA \u4F1A\u4FDD\u7559\u3002\u516C\u7528\u7535\u8111\u4E0A\u8BF7\u53CA\u65F6\u6E05\u9664\u3002",
       "Clears the cached school data and calibration records stored on this computer. Simulations, marks and target GPA are kept. Please clear it regularly on a shared computer."
     ), btn.addEventListener("click", guardListener("\u5185\u8054\u6E05\u9664\u7F13\u5B58", (e) => {
       e.preventDefault(), safe("\u5185\u8054\u6E05\u9664\u7F13\u5B58", () => {
-        clearServerCache() && (log("[\u5185\u8054] \u5DF2\u6E05\u9664\u672C\u5730\u7F13\u5B58\uFF08\u6210\u7EE9\u518C\u6570\u636E + \u6821\u51C6\u6392\u9664\u8868\uFF09\uFF0C\u5373\u5C06\u5237\u65B0\u9875\u9762"), location.reload());
+        clearServerCache() && (log("[\u5185\u8054] \u5DF2\u6E05\u9664\u672C\u5730\u7F13\u5B58\uFF08\u6210\u7EE9\u518C\u6570\u636E + \u6821\u51C6\u6392\u9664\u8868 + \u8BFE\u8868\u7F13\u5B58\uFF09\uFF0C\u5373\u5C06\u5237\u65B0\u9875\u9762"), location.reload());
       });
     }))), btn;
   }
@@ -4972,7 +5016,7 @@
       for (let n of nodes) {
         if (!n || n.nodeType !== 1) continue;
         let tag = n.nodeName;
-        if (tag === "TD" || tag === "TH" || tag === "TR" || n.getAttribute && (n.hasAttribute("data-ints-sim") || n.hasAttribute("data-ints-simscore") || n.hasAttribute("data-ints-coldelta") || n.hasAttribute("data-ints-taskscore") || n.hasAttribute("data-ints-origwrap")) || n.querySelector && n.querySelector("td,th,tr")) return !0;
+        if (tag === "TD" || tag === "TH" || tag === "TR" || n.getAttribute && (n.hasAttribute("data-ints-sim") || n.hasAttribute("data-ints-simscore") || n.hasAttribute("data-ints-coldelta") || n.hasAttribute("data-ints-taskscore") || n.hasAttribute(SIM_MARK_ATTR) || n.hasAttribute("data-ints-origwrap")) || n.querySelector && n.querySelector("td,th,tr")) return !0;
       }
     }
     return !1;
@@ -5058,7 +5102,7 @@
       el.removeAttribute(INLINE_ATTR), el.removeAttribute("data-ints-clickable"), el.style.cursor = "", el.removeAttribute("title"), _restoreScoreCell(el);
       let box = el.querySelector("[data-ints-sim]");
       box && box.remove();
-    }), document.querySelectorAll("[" + ROW_ATTR + "]").forEach((tr) => tr.removeAttribute(ROW_ATTR)), document.querySelectorAll(".ant-table-tbody [data-ints-sim], .ant-table-tbody [data-ints-coldelta]").forEach((el) => el.remove()), document.querySelectorAll("[data-ints-task]").forEach((td) => {
+    }), document.querySelectorAll("[" + ROW_ATTR + "]").forEach((tr) => tr.removeAttribute(ROW_ATTR)), document.querySelectorAll(".ant-table-tbody [data-ints-sim], .ant-table-tbody [data-ints-coldelta]").forEach((el) => el.remove()), document.querySelectorAll("[" + SIM_MARK_ATTR + "]").forEach((el) => el.removeAttribute(SIM_MARK_ATTR)), document.querySelectorAll("[data-ints-task]").forEach((td) => {
       td.removeAttribute("data-ints-task"), td.removeAttribute("data-ints-taskbound"), td.style.cursor = "", td.removeAttribute("title");
       let b = td.querySelector("[" + TASK_SCORE_ATTR + "]");
       b && b.remove();
