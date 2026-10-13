@@ -103,7 +103,7 @@
     return '<i class="anticon anticon-table" style="display:inline-flex;align-items:center;vertical-align:-0.125em;margin-right:4px;"><svg viewBox="64 64 896 896" data-icon="table" width="' + s + '" height="' + s + '" fill="currentColor" aria-hidden="true" focusable="false"><path d="' + ANTD_TABLE_PATH + '"></path></svg></i>';
   }
   function iconArrowRight() {
-    return '<svg viewBox="0 0 12 8" data-icon="arrow-right" aria-hidden="true" focusable="false" style="width:0.9em;height:0.6em;vertical-align:0.1em;margin:0 0.18em;overflow:visible;" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4h9.4M7.6 1.6 10.6 4 7.6 6.4"></path></svg>';
+    return '<svg viewBox="0 0 12 8" data-icon="arrow-right" aria-hidden="true" focusable="false" style="width:0.9em;height:0.6em;vertical-align:0.1em;margin:0 0.18em;overflow:visible;" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4h9.4M7.6 1.6 10.6 4 7.6 6.4"></path></svg>';
   }
   function escapeHtml(str) {
     return str == null ? "" : String(str).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[m] || m);
@@ -3876,9 +3876,9 @@
     let raw = s.slice(0, i).trim(), before = Number(raw), after = s.slice(i + 1).trim();
     return { score: isNaN(before) ? null : before, level: after || "", raw };
   }
-  function _simTwoLineHtml(parts, shown, delta, showDelta) {
-    let oldScore = parts.raw || (parts.score === null ? "\u2014" : _scoreNum(parts.score)), oldLevel = parts.level || "\u2014", dText = showDelta ? "<span " + SCORE_DELTA_ATTR + '="1" style="font-size:10px;"> (' + _delta2(delta) + ")</span>" : "";
-    return '<div data-ints-line="score" style="white-space:nowrap;line-height:1.35;font-size:14px;"><span>' + escapeHtml(oldScore) + "</span>" + iconArrowRight() + "<span>" + escapeHtml(_scoreNum(shown)) + '</span></div><div data-ints-line="level" style="white-space:nowrap;line-height:1.3;font-size:11px;"><span>' + escapeHtml(oldLevel) + "</span>" + iconArrowRight() + "<span>" + escapeHtml(scoreToLetter(shown) || "\u2014") + "</span>" + dText + "</div>";
+  function _pairLinesHtml(oldScoreText, oldLevelText, shown, delta, showDelta, deltaAttr) {
+    let oldScore = oldScoreText == null || oldScoreText === "" ? "\u2014" : String(oldScoreText), oldLevel = oldLevelText == null || oldLevelText === "" ? "\u2014" : String(oldLevelText), blue = "color:" + SIM_BLUE + ";", dText = showDelta ? "<span " + deltaAttr + '="1" style="font-size:10px;color:' + (delta > 0 ? COLOR_UP : COLOR_DOWN) + ';"> (' + _delta2(delta) + ")</span>" : "";
+    return '<div data-ints-line="score" style="white-space:nowrap;line-height:1.35;font-size:14px;"><span>' + escapeHtml(oldScore) + "</span>" + iconArrowRight() + '<span style="' + blue + '">' + escapeHtml(_scoreNum(shown)) + '</span></div><div data-ints-line="level" style="white-space:nowrap;line-height:1.3;font-size:11px;"><span>' + escapeHtml(oldLevel) + "</span>" + iconArrowRight() + '<span style="' + blue + '">' + escapeHtml(scoreToLetter(shown) || "\u2014") + "</span>" + dText + "</div>";
   }
   function _renderRow(tr, courseIdx) {
     let course = S.simCourses[courseIdx];
@@ -3912,8 +3912,8 @@
       let siteText = wrap ? String(wrap.textContent || "").replace(/\s+/g, " ").trim() : "";
       wrap && (wrap.style.display = "none");
       let simEl = inner.querySelector("[" + SCORE_SIM_ATTR + "]");
-      simEl || (simEl = document.createElement("div"), simEl.setAttribute(SCORE_SIM_ATTR, "1"), wrap ? wrap.insertAdjacentElement("afterend", simEl) : inner.insertBefore(simEl, inner.firstChild)), simEl.style.color = showDelta ? delta > 0 ? COLOR_UP : COLOR_DOWN : "";
-      let html2 = simmed ? _simTwoLineHtml(_siteScoreParts(siteText), shown, delta, showDelta) : escapeHtml(_scoreNum(shown) + _levelSuffix(shown, siteText));
+      simEl || (simEl = document.createElement("div"), simEl.setAttribute(SCORE_SIM_ATTR, "1"), wrap ? wrap.insertAdjacentElement("afterend", simEl) : inner.insertBefore(simEl, inner.firstChild)), simEl.style.color = "";
+      let parts = _siteScoreParts(siteText), html2 = simmed ? _pairLinesHtml(parts.raw, parts.level, shown, delta, showDelta, SCORE_DELTA_ATTR) : escapeHtml(_scoreNum(shown) + _levelSuffix(shown, siteText));
       simEl.innerHTML !== html2 && (simEl.innerHTML = html2), simEl.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + siteText + (showDelta ? " \xB7 " + t("\u0394 ", "delta ") + _delta2(delta) : "");
     } else (wrap0 || inner.querySelector("[" + SCORE_SIM_ATTR + "]")) && _restoreScoreCell(scoreTd);
     if (safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx)), !showGpa && !starred) {
@@ -3951,13 +3951,79 @@
     }
     return null;
   }
-  function _renderColumnDelta(cell, inner, box, course, f) {
-    let sim = course.simGrades ? course.simGrades[f] : null, orig = course.originalGrades ? course.originalGrades[f] : null, info = _deltaInfo(sim, orig), sp = cell.querySelector("[data-ints-coldelta]");
-    if (!info) {
-      sp && sp.remove();
+  function _isExamField(f) {
+    return f === "s1e" || f === "s2e";
+  }
+  function _eFieldEditable(ci, field) {
+    if (!_isExamField(field)) return !0;
+    let c = S.simCourses && S.simCourses[ci], orig = c && c.originalGrades ? c.originalGrades[field] : null;
+    return !(typeof orig == "number" && !isNaN(orig));
+  }
+  function _cellSiteTextNode(inner) {
+    let wrap = inner.querySelector("[" + FIELD_WRAP_ATTR + "]");
+    if (wrap) return wrap.firstChild;
+    for (let n = inner.firstChild; n; n = n.nextSibling)
+      if (n.nodeType === 3 && String(n.nodeValue || "").trim()) return n;
+    return null;
+  }
+  function _hideFieldSiteText(inner, f) {
+    let wrap = inner.querySelector("[" + FIELD_WRAP_ATTR + "]");
+    if (!wrap) {
+      let node = _cellSiteTextNode(inner);
+      if (!node) return null;
+      wrap = document.createElement("span"), wrap.setAttribute(FIELD_WRAP_ATTR, f), node.parentNode.insertBefore(wrap, node), wrap.appendChild(node);
+    }
+    return wrap.style.display = "none", wrap;
+  }
+  function _restoreFieldCell(cell) {
+    if (!cell) return;
+    let inner = _cellInner(cell), wrap = inner.querySelector("[" + FIELD_WRAP_ATTR + "]");
+    if (wrap && wrap.parentNode) {
+      for (; wrap.firstChild; ) wrap.parentNode.insertBefore(wrap.firstChild, wrap);
+      wrap.remove();
+    }
+    let block = inner.querySelector("[" + FIELD_BLOCK_ATTR + "]");
+    block && block.remove();
+  }
+  function _renderFieldGpa(cell, inner, course, shown, strong) {
+    let box = cell.querySelector("[data-ints-sim]");
+    if (box && box.parentElement !== inner && (box.remove(), box = null), shown == null || isNaN(shown)) {
+      box && box.remove();
       return;
     }
-    sp || (sp = document.createElement("span"), sp.setAttribute("data-ints-coldelta", "1"), sp.style.cssText = "font-size:11px;white-space:nowrap;", box && box.parentElement === inner ? inner.insertBefore(sp, box) : inner.appendChild(sp)), sp.style.color = info.color, sp.textContent !== info.text && (sp.textContent = info.text);
+    let g = getGPAForScore(shown, course.weightBonus);
+    if (!g) {
+      box && box.remove();
+      return;
+    }
+    box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:10px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), strong ? box.classList.add("ints-gpa-strong") : box.classList.remove("ints-gpa-strong"), box.previousElementSibling !== null && inner.appendChild(box);
+    let html = '<span title="' + escapeHtml(t("\u672C\u8BFE\u7A0B GPA", "Course GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
+    box.innerHTML !== html && (box.innerHTML = html);
+  }
+  function _renderFieldCell(cell, course, f, isSynth) {
+    var _a;
+    if (!cell) return;
+    let inner = _cellInner(cell), orig = (course.originalGrades || {})[f], sim = (course.simGrades || {})[f], hasVal = (v) => typeof v == "number" && !isNaN(v), shown = hasVal(sim) ? sim : hasVal(orig) ? orig : null;
+    if (_isExamField(f)) {
+      _restoreFieldCell(cell);
+      let ours = isSynth || valueIsSimulated(sim, orig);
+      cell.style.color = ours ? SIM_BLUE : "", _renderFieldGpa(cell, inner, course, shown, ours);
+      return;
+    }
+    cell.style.color = "";
+    let simmed = valueIsSimulated(sim, orig) && shown !== null, gpaFrom = !simmed && !isSynth && (_a = _cellScoreNum(cell)) != null ? _a : shown;
+    if (simmed) {
+      let wrap = _hideFieldSiteText(inner, f), siteText = wrap ? String(wrap.textContent || "").replace(/\s+/g, " ").trim() : "", parts = _siteScoreParts(siteText), oldScore = parts.raw || (hasVal(orig) ? _scoreNum(orig) : ""), oldLevel = parts.level || hasVal(orig) && scoreToLetter(orig) || "", delta = hasVal(sim) && hasVal(orig) ? sim - orig : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, block = inner.querySelector("[" + FIELD_BLOCK_ATTR + "]");
+      if (!block) {
+        block = document.createElement("div"), block.setAttribute(FIELD_BLOCK_ATTR, f);
+        let old = inner.querySelector("[data-ints-sim]");
+        old ? inner.insertBefore(block, old) : inner.appendChild(block);
+      }
+      let html = _pairLinesHtml(oldScore, oldLevel, shown, delta, showDelta, COL_DELTA_ATTR);
+      block.innerHTML !== html && (block.innerHTML = html), block.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + (siteText || oldScore) + (showDelta ? " \xB7 " + t("\u0394 ", "delta ") + _delta2(delta) : "");
+    } else
+      _restoreFieldCell(cell);
+    _renderFieldGpa(cell, inner, course, gpaFrom, simmed);
   }
   function _synthThs() {
     return _synthThCache && _synthThCache.length && _synthThCache[0].isConnected || (_synthThCache = Array.prototype.slice.call(
@@ -3986,31 +4052,32 @@
     }
     return null;
   }
-  function _decorateSchoolFieldCell(tr, idx, course) {
-    let td = tr.children[idx];
+  function _decorateEoyCell(td, course) {
     if (!td || td.querySelector && td.querySelector(".task-title")) return;
-    let box = td.querySelector("[data-ints-sim]"), score = _cellScoreNum(td);
-    if (score === null) {
-      box && box.remove();
-      return;
-    }
-    let inner = _cellInner(td);
-    box && box.parentElement !== inner && (box.remove(), box = null), box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:10px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box));
-    let g = getGPAForScore(score, course.weightBonus);
-    if (!g) {
-      box.remove();
-      return;
-    }
-    let html = '<span title="' + escapeHtml(t("\u672C\u8BFE\u7A0B GPA", "Course GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
-    box.innerHTML !== html && (box.innerHTML = html);
+    let inner = _cellInner(td), siteScore = _cellScoreNum(td), simAnnual = _courseAnnual(course, "sim"), origAnnual = _courseAnnual(course, "orig"), simmed = valueIsSimulated(simAnnual, origAnnual) && simAnnual !== null;
+    if (simmed) {
+      let wrap = _hideFieldSiteText(inner, "eoy"), siteText = wrap ? String(wrap.textContent || "").replace(/\s+/g, " ").trim() : "", parts = _siteScoreParts(siteText), delta = simAnnual !== null && origAnnual !== null ? simAnnual - origAnnual : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, block = inner.querySelector("[" + FIELD_BLOCK_ATTR + "]");
+      if (!block) {
+        block = document.createElement("div"), block.setAttribute(FIELD_BLOCK_ATTR, "eoy");
+        let old = inner.querySelector("[data-ints-sim]");
+        old ? inner.insertBefore(block, old) : inner.appendChild(block);
+      }
+      let html = _pairLinesHtml(parts.raw, parts.level, simAnnual, delta, showDelta, COL_DELTA_ATTR);
+      block.innerHTML !== html && (block.innerHTML = html);
+    } else
+      _restoreFieldCell(td);
+    _renderFieldGpa(td, inner, course, simmed ? simAnnual : siteScore, simmed);
   }
   function _scoreColumnIsField() {
     let ths = _synthThs(), i = _scoreTdIndex(), th = i >= 0 ? ths[i] : null;
     return !!(th && _thFieldOf(th));
   }
   function _cellInner(td) {
-    for (let n = td.firstElementChild; n; n = n.nextElementSibling)
-      if (!n.hasAttribute || !n.hasAttribute("data-ints-sim")) return n;
+    for (let n = td.firstElementChild; n; n = n.nextElementSibling) {
+      if (!n.hasAttribute) return n;
+      if (!(n.hasAttribute("data-ints-sim") || n.hasAttribute(FIELD_BLOCK_ATTR) || n.hasAttribute(FIELD_WRAP_ATTR)))
+        return n;
+    }
     return td;
   }
   function _decorateColumnCells(tr, courseIdx) {
@@ -4029,37 +4096,27 @@
     for (let i = 0; i < ths.length; i++) {
       let f = _thFieldOf(ths[i]);
       if (!f) continue;
-      if (!(String(ths[i].getAttribute("key") || "").indexOf(SYNTH_PREFIX) === 0)) {
+      let isSynth = String(ths[i].getAttribute("key") || "").indexOf(SYNTH_PREFIX) === 0, td = tr.children[i];
+      if (!td) continue;
+      if (!isSynth) {
         if (i === scoreIdx && S.isCurrentYear) {
           _tr.items.push(i + ":skip-score");
           continue;
         }
-        _decorateSchoolFieldCell(tr, i, course), _tr.items.push(i + ":school:" + td0Text(tr.children[i]).slice(0, 12));
+        if (f === "eoy") {
+          _decorateEoyCell(td, course), _tr.items.push(i + ":eoy");
+          continue;
+        }
+        _renderFieldCell(td, course, f, !1), _tr.items.push(i + ":school:" + td0Text(td).slice(0, 12));
         continue;
       }
-      let td = tr.children[i];
-      if (!td) continue;
-      let want = _fieldCellWant(courseIdx, f), box = td.querySelector("[data-ints-sim]");
-      if (!want) {
-        box && box.remove(), _tr.items.push(i + ":" + f + ":nowant");
-        continue;
-      }
-      let cell = _findFieldCell(tr, i, want);
+      let want = _fieldCellWant(courseIdx, f), cell = want ? _findFieldCell(tr, i, want) : null;
       if (!cell) {
-        _tr.items.push(i + ":" + f + ":nocell");
+        let stale = td.querySelector("[data-ints-sim]");
+        stale && stale.remove(), _restoreFieldCell(td), _tr.items.push(i + ":" + f + (want ? ":nocell" : ":nowant"));
         continue;
       }
-      if (cell !== td && cell.querySelector("[data-ints-sim]")) continue;
-      box = cell.querySelector("[data-ints-sim]");
-      let inner = _cellInner(cell);
-      box && box.parentElement !== inner && (box.remove(), box = null), box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:10px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), _renderColumnDelta(cell, inner, box, course, f);
-      let g = getGPAForScore(Number(String(want).split("/")[0]), course.weightBonus);
-      if (!g) {
-        box.remove(), _tr.items.push(i + ":" + f + ":nogpa");
-        continue;
-      }
-      let html = '<span title="' + escapeHtml(t("\u672C\u8BFE\u7A0B GPA", "Course GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
-      box.innerHTML !== html && (box.innerHTML = html), _tr.items.push(i + ":" + f + ":box" + (box.isConnected ? "" : "!disc"));
+      cell !== td && cell.querySelector("[data-ints-sim]") || (_renderFieldCell(cell, course, f, !0), _tr.items.push(i + ":" + f + ":field" + (cell.isConnected ? "" : "!disc")));
     }
   }
   function _taskKey(s) {
@@ -4278,7 +4335,10 @@
     sp.textContent !== txt && (sp.textContent = txt);
   }
   function _fieldHtml(ci, field, label) {
-    let v = _scoreVal(ci, field), shown = v.sim === null ? "" : _num(v.sim);
+    let v = _scoreVal(ci, field);
+    if (!_eFieldEditable(ci, field))
+      return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;" title="' + escapeHtml(t("\u5B66\u6821\u5DF2\u53D1\u5E03\u8BE5\u8003\u8BD5\u6210\u7EE9\uFF0C\u4E0D\u5141\u8BB8\u518D\u6A21\u62DF", "Official exam score published \u2014 simulation disabled")) + '"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><span data-ie-locked="' + field + '" style="min-width:56px;padding:2px 4px;text-align:center;font-size:12px;border:1px solid #f0f0f0;border-radius:4px;background:#fafafa;color:rgba(0,0,0,0.75);">' + (v.sim === null ? "\u2014" : _num(v.sim)) + "</span>" + _deltaSpanHtml(field, ci) + "</span>";
+    let shown = v.sim === null ? "" : _num(v.sim);
     return '<label style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><input data-ie-field="' + field + '" type="text" inputmode="decimal" value="' + escapeHtml(shown) + '" placeholder="\u2014" style="width:56px;padding:2px 4px;text-align:center;border:1px solid ' + (v.overridden ? "#1890ff" : "#d9d9d9") + ";border-radius:4px;font-size:12px;" + (v.overridden ? "background:#e6f7ff;" : "") + '">' + _deltaSpanHtml(field, ci) + "</label>";
   }
   function _readonlyHtml(ci, field, label, fKey) {
@@ -4304,7 +4364,10 @@
         let v = _scoreVal(ci, term + "f");
         span.textContent = v.sim === null ? "\u2014" : _num(v.sim);
       }
-      win.el.querySelectorAll("[data-ie-delta]").forEach((sp) => {
+      win.el.querySelectorAll("[data-ie-locked]").forEach((sp) => {
+        let v = _scoreVal(ci, sp.getAttribute("data-ie-locked")), txt = v && v.sim !== null ? _num(v.sim) : "\u2014";
+        sp.textContent !== txt && (sp.textContent = txt);
+      }), win.el.querySelectorAll("[data-ie-delta]").forEach((sp) => {
         let f = sp.getAttribute("data-ie-delta"), v = _scoreVal(ci, f);
         _applyDeltaSpan(sp, v ? _deltaInfo(v.sim, v.orig) : null);
       });
@@ -4315,7 +4378,12 @@
   function _commitField(ci, field, raw) {
     let m = /^(s[12])([pe])$/.exec(String(field || "").toLowerCase());
     if (!m) return;
-    let term = m[1].toUpperCase(), isP = m[2] === "p", val = String(raw == null ? "" : raw).trim(), num = null;
+    let term = m[1].toUpperCase(), isP = m[2] === "p";
+    if (!isP && !_eFieldEditable(ci, field)) {
+      log("[\u5185\u8054] \u5FFD\u7565\u5BF9\u5DF2\u53D1\u5E03\u6210\u7EE9\u7684 " + field + " \u7684\u6A21\u62DF\u5199\u5165\uFF08\u5B66\u6821\u5DF2\u7ED9\u6B63\u5F0F\u5206\uFF09");
+      return;
+    }
+    let val = String(raw == null ? "" : raw).trim(), num = null;
     if (val !== "") {
       if (num = parseFloat(val), isNaN(num)) return;
       num > 100 && (num = 100), num < 0 && (num = 0);
@@ -5112,7 +5180,7 @@
     }
     _isPointsPage() ? _start() : stopPointsInline();
   }
-  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, _synthThCache, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, _targetHasState, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
+  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, _targetHasState, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
     "v8.30/inline-points.js"() {
       init_state();
       init_utils();
@@ -5127,6 +5195,7 @@
       _siteHeaderIds = [], _siteColSig = "", _colTrace = null;
       SCORE_SIM_ATTR = "data-ints-simscore", SCORE_WRAP_ATTR = "data-ints-origwrap", SCORE_DELTA_ATTR = "data-ints-scoredelta", SCORE_DELTA_EPS = 5e-3;
       FIELD_CELL_SEARCH = [0, -1, 1];
+      SIM_BLUE = "#1890ff", COL_DELTA_ATTR = "data-ints-coldelta", FIELD_WRAP_ATTR = "data-ints-fwrap", FIELD_BLOCK_ATTR = "data-ints-fsim";
       _synthThCache = null;
       TASK_SCORE_ATTR = "data-ints-taskscore", TASK_INPUT_ATTR = "data-ints-taskinput", VTASK_ATTR = "data-ints-vtask-id", COLOR_UP = "#52c41a", COLOR_DOWN = "#d4380d";
       _taskEditing = null;
