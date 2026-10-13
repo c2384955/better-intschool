@@ -102,6 +102,10 @@
     let s = size || "12px";
     return '<i class="anticon anticon-table" style="display:inline-flex;align-items:center;vertical-align:-0.125em;margin-right:4px;"><svg viewBox="64 64 896 896" data-icon="table" width="' + s + '" height="' + s + '" fill="currentColor" aria-hidden="true" focusable="false"><path d="' + ANTD_TABLE_PATH + '"></path></svg></i>';
   }
+  function iconArrowRight(size) {
+    let s = size || "10px";
+    return '<i class="anticon anticon-arrow-right" style="display:inline-flex;align-items:center;vertical-align:-0.125em;margin:0 2px;"><svg viewBox="64 64 896 896" data-icon="arrow-right" width="' + s + '" height="' + s + '" fill="currentColor" aria-hidden="true" focusable="false"><path d="' + ANTD_ARROW_RIGHT_PATH + '"></path></svg></i>';
+  }
   function escapeHtml(str) {
     return str == null ? "" : String(str).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[m] || m);
   }
@@ -210,24 +214,11 @@
     return idx >= 0 ? t(TYPE_SHORT_ZH[idx], TYPE_SHORT_EN[idx]) : t("\u5176\u4ED6", "Other");
   }
   function virtualTaskName(entityId, typeName) {
-    return t("\u865A\u62DF\u4EFB\u52A1", "Virtual") + Math.abs(Number(entityId) || 0) + " (" + typeShortName(typeName) + ")";
+    let n = Math.abs(Number(entityId) || 0), short = typeShortName(typeName);
+    return t("\u865A\u62DF" + short + n, "Virtual " + short + " " + n);
   }
   function valueIsSimulated(shown, schoolValue) {
     return typeof shown != "number" || isNaN(shown) ? !1 : typeof schoolValue != "number" || isNaN(schoolValue) ? !0 : Math.abs(shown - schoolValue) > 1e-9;
-  }
-  function courseHasSimulation(course) {
-    if (!course) return !1;
-    let sim = course.simGrades, orig = course.originalGrades;
-    if (sim && orig) {
-      for (let f of ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"])
-        if (valueIsSimulated(sim[f], orig[f])) return !0;
-    }
-    if (Array.isArray(course.tasks)) {
-      for (let task of course.tasks)
-        if (task && (task.isVirtual || valueIsSimulated(task.simulatedScore, task.originalScore))) return !0;
-    }
-    let op = course.overrideP;
-    return !!(op && (op.s1 !== null && op.s1 !== void 0 || op.s2 !== null && op.s2 !== void 0));
   }
   function getCourseWeights(subject) {
     if (subject) {
@@ -291,7 +282,7 @@
   function countUngradedTasks(tasks, term) {
     return tasks.filter((t4) => getTermFromDate(t4.endDate, t4.termRaw) === term).filter((t4) => t4.score === null).length;
   }
-  var locale, t, GRADE_BANDS, LETTER_TO_GPA, DEFAULT_WEIGHTS, SUBJECT_WEIGHT_RULES, ANTD_DOWN_PATH, ANTD_TABLE_PATH, _helpTooltipDone, iconPlus, iconSync, iconCheck, iconDelete, iconLoading, MARK_ICONS, MARK_ICON_PATH, MARK_COLOR_OFF, MARK_COLOR_ON, TYPE_PATTERNS, TYPE_NAMES, SIM_MARK_ATTR, TYPE_SHORT_ZH, TYPE_SHORT_EN, SCHOOL_DIFF_TOLERANCE, SCHOOL_DIFF_EPS, SUBJECT_KEYWORDS, init_utils = __esm({
+  var locale, t, GRADE_BANDS, LETTER_TO_GPA, DEFAULT_WEIGHTS, SUBJECT_WEIGHT_RULES, ANTD_DOWN_PATH, ANTD_TABLE_PATH, ANTD_ARROW_RIGHT_PATH, _helpTooltipDone, iconPlus, iconSync, iconCheck, iconDelete, iconLoading, MARK_ICONS, MARK_ICON_PATH, MARK_COLOR_OFF, MARK_COLOR_ON, TYPE_PATTERNS, TYPE_NAMES, TYPE_SHORT_ZH, TYPE_SHORT_EN, SCHOOL_DIFF_TOLERANCE, SCHOOL_DIFF_EPS, SUBJECT_KEYWORDS, init_utils = __esm({
     "v8.30/utils.js"() {
       locale = (() => {
         try {
@@ -350,6 +341,7 @@
       for (let rule of SUBJECT_WEIGHT_RULES) rule.weights = normalizeWeights(rule.weights, '\u89C4\u5219 "' + rule.keywords.join(" ") + '"');
       ANTD_DOWN_PATH = "M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z";
       ANTD_TABLE_PATH = "M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zm-40 208H676V232h212v136zm0 224H676V432h212v160zM412 432h200v160H412V432zm200-64H412V232h200v136zm-476 64h212v160H136V432zm0-200h212v136H136V232zm0 424h212v136H136V656zm276 0h200v136H412V656zm476 136H676V656h212v136z";
+      ANTD_ARROW_RIGHT_PATH = "M869 487.8L491.2 159.9c-2.9-2.5-6.6-3.9-10.5-3.9h-88.5c-7.4 0-10.8 9.2-5.2 14l350.2 304H152c-4.4 0-8 3.6-8 8v60c0 4.4 3.6 8 8 8h585.1L386.9 854c-5.6 4.9-2.2 14 5.2 14h91.5c1.9 0 3.8-.7 5.2-2L869 536.2a32.07 32.07 0 000-48.4z";
       _helpTooltipDone = !1;
       iconPlus = () => '<i aria-label="icon: plus" class="anticon anticon-plus"><svg viewBox="64 64 896 896" data-icon="plus" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M482 152h60q8 0 8 8v704q0 8-8 8h-60q-8 0-8-8V160q0-8 8-8z"></path><path d="M176 474h672q8 0 8 8v60q0 8-8 8H176q-8 0-8-8v-60q0-8 8-8z"></path></svg></i>', iconSync = () => '<i aria-label="icon: sync" class="anticon anticon-sync"><svg viewBox="64 64 896 896" data-icon="sync" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27A341.5 341.5 0 0 1 755 268.8c9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47a8 8 0 0 0 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8a8 8 0 0 0 8 8.2h60c4.4 0 7.9-3.5 8-7.8zm756 7.8h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4A342.45 342.45 0 0 1 512.1 856a342.24 342.24 0 0 1-243.2-100.8c-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47a8 8 0 0 0-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8a8 8 0 0 0-8-8.2z"></path></svg></i>', iconCheck = () => '<i aria-label="icon: check" class="anticon anticon-check"><svg viewBox="64 64 896 896" data-icon="check" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 0 0-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z"></path></svg></i>', iconDelete = () => '<i aria-label="icon: delete" class="anticon anticon-delete"><svg viewBox="64 64 896 896" data-icon="delete" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z"></path></svg></i>', iconLoading = () => '<i aria-label="icon: loading" class="anticon anticon-loading anticon-spin"><svg viewBox="0 0 1024 1024" data-icon="loading" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M988 548c-19.9 0-36-16.1-36-36 0-59.4-11.6-117-34.6-171.3a440.45 440.45 0 0 0-94.3-139.9 437.71 437.71 0 0 0-139.9-94.3C629 83.6 571.4 72 512 72c-19.9 0-36-16.1-36-36s16.1-36 36-36c69.1 0 136.2 13.5 199.3 40.3C772.3 66 827 103 874 150c47 47 83.9 101.8 109.7 162.7 26.7 63.1 40.2 130.2 40.2 199.3.1 19.9-16 36-35.9 36z"></path></svg></i>';
       MARK_ICONS = {
@@ -358,7 +350,7 @@
         flag: "M880 305H624V192c0-17.7-14.3-32-32-32H184v-40c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v784c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V640h248v113c0 17.7 14.3 32 32 32h416c17.7 0 32-14.3 32-32V337c0-17.7-14.3-32-32-32z",
         highlight: "M957.6 507.4L603.2 158.2a7.9 7.9 0 00-11.2 0L353.3 393.4a8.03 8.03 0 00-.1 11.3l.1.1 40 39.4-117.2 115.3a32.09 32.09 0 00-9.5 21.9l-1 46.6-31.1 29.5a33.4 33.4 0 00-2.3 2.6l-27.1 27.2a15.5 15.5 0 000 22l92.6 92.5c3 3 7.1 4.7 11.3 4.7s8.2-1.7 11.2-4.7l55.4-55.4a11.5 11.5 0 002.6-2.3l29.6-31 46.6-1c8.1-.2 15.9-3.4 21.8-9.3l115.4-115.2 39.5 40.1c3.1 3.1 8.2 3.1 11.3 0L957.5 518.6c3.1-3.1 3.1-8.2.1-11.2z"
       }, MARK_ICON_PATH = MARK_ICONS.tag, MARK_COLOR_OFF = "#1f1f1f", MARK_COLOR_ON = "#faad14";
-      TYPE_PATTERNS = [/homework/i, /in.?class|classwork/i, /project|lab/i, /test/i, /quiz/i], TYPE_NAMES = ["Homework", "In-Class/Classwork", "Projects/Labs", "Tests", "Quizzes"], SIM_MARK_ATTR = "data-ints-simval", TYPE_SHORT_ZH = ["\u4F5C\u4E1A", "\u8BFE\u5802", "\u9879\u76EE", "\u6D4B\u9A8C", "\u5C0F\u6D4B"], TYPE_SHORT_EN = ["HW", "Class", "Proj.", "Test", "Quiz"];
+      TYPE_PATTERNS = [/homework/i, /in.?class|classwork/i, /project|lab/i, /test/i, /quiz/i], TYPE_NAMES = ["Homework", "In-Class/Classwork", "Projects/Labs", "Tests", "Quizzes"], TYPE_SHORT_ZH = ["\u4F5C\u4E1A", "\u8BFE\u5802", "\u9879\u76EE", "\u6D4B\u9A8C", "\u5C0F\u6D4B"], TYPE_SHORT_EN = ["HW", "Class", "Proj.", "Test", "Quiz"];
       SCHOOL_DIFF_TOLERANCE = 0.1, SCHOOL_DIFF_EPS = 1e-9;
       SUBJECT_KEYWORDS = ["English", "Math", "Physics", "Chemistry", "Biology", "History", "Geography", "Chinese", "Economics", "Art", "Music", "PE", "Physical Education"];
     }
@@ -473,11 +465,6 @@
     .anticon-spin-once { animation: anticon-spin-once-anim 0.6s ease; }
     @keyframes anticon-spin-once-anim { 100% { transform: rotate(360deg); } }
     .my-gpa-editable:hover { background: #e6f7ff !important; border-radius: 3px; }
-    /* \u9632\u4F2A\u6807\u8BB0\uFF1A\u51E1"\u6211\u4EEC\u9876\u4E0A\u53BB\u7684\u6570"\u90FD\u5E26 \u203B \u4E0E\u70B9\u72B6\u4E0B\u5212\u7EBF\uFF08\u89C1 utils.js \u7684 valueIsSimulated\uFF09\u3002
-       \u6807\u8BB0\u662F ::before \u7684\u5185\u5BB9\uFF0C**\u4E0D\u8FDB DOM\u3001\u4E5F\u4E0D\u8FDB textContent** \u2014\u2014 \u6210\u7EE9\u683C/\u4EFB\u52A1\u683C\u6309"\u8282\u70B9\u6570\u4E00\u81F4"
-       \u5BF9\u9F50\uFF0C\u591A\u4E00\u4E2A\u884C\u5185\u8282\u70B9\u5C31\u4F1A\u6362\u884C\u6216\u957F\u9AD8\uFF1B\u8BFB\u503C\u7684\u4EE3\u7801\u4E5F\u7167\u65E7\u53EA\u8BFB\u6587\u672C\u3002 */
-    [data-ints-simval] { text-decoration: underline dotted; text-underline-offset: 2px; }
-    [data-ints-simval]::before { content: '\u203B'; font-size: 9px; margin-right: 1px; }
     /* ====================== \u6CE8\u5165\u5C42 z-index \u5951\u7EA6 ======================
        \u7AD9\u70B9\u81EA\u5DF1\u7528\u7684\u662F antd-vue 1.5\uFF0C\u5B83\u7684\u6D6E\u5C42 z-index \u662F\uFF1Amodal 1000 / message 1010 /
        popover 1030 / dropdown 1050 / tooltip 1060\u3002**\u5B66\u6821\u81EA\u5DF1\u7684\u6D6E\u5C42\u6C38\u8FDC\u4F18\u5148** \u2014\u2014
@@ -2600,8 +2587,8 @@
     function formatEditableGPA(effective, orig, grade, semester) {
       let key = grade + "_" + semester, override = S.multiYearGPAOverrides[key] || {};
       function fmtVal(val, origVal, type, color) {
-        let isOverride = override[type] !== null && override[type] !== void 0, diff = orig && origVal !== null && origVal !== void 0 && val !== null ? val - origVal : 0, hasDiff = orig && origVal !== null && origVal !== void 0 && val !== null && Math.abs(diff) > 5e-3, diffStr = hasDiff ? " (" + formatDiff(diff) + ")" : "", style = isOverride ? "color:" + color + ";font-weight:bold;cursor:pointer;background:#fff3e0;padding:1px 4px;border-radius:3px;" : "cursor:pointer;", title = isOverride ? t("\u5DF2\u8986\u76D6(\u70B9\u51FB\u7F16\u8F91)", "Overridden (click to edit)") : val !== null ? t("\u70B9\u51FB\u7F16\u8F91GPA", "Click to edit GPA") : t("\u70B9\u51FB\u8BBE\u7F6EGPA", "Click to set GPA"), displayVal = val !== null ? val.toFixed(2) : "\u2014";
-        return '<span class="my-gpa-editable"' + (isOverride || hasDiff ? " " + SIM_MARK_ATTR + '="1"' : "") + ' data-grade="' + grade + '" data-sem="' + semester + '" data-type="' + type + '" style="' + style + '" title="' + title + '">' + displayVal + "</span>" + diffStr;
+        let isOverride = override[type] !== null && override[type] !== void 0, diff = orig && origVal !== null && origVal !== void 0 && val !== null ? val - origVal : 0, diffStr = orig && origVal !== null && origVal !== void 0 && val !== null && Math.abs(diff) > 5e-3 ? " (" + formatDiff(diff) + ")" : "", style = isOverride ? "color:" + color + ";font-weight:bold;cursor:pointer;background:#fff3e0;padding:1px 4px;border-radius:3px;" : "cursor:pointer;", title = isOverride ? t("\u5DF2\u8986\u76D6(\u70B9\u51FB\u7F16\u8F91)", "Overridden (click to edit)") : val !== null ? t("\u70B9\u51FB\u7F16\u8F91GPA", "Click to edit GPA") : t("\u70B9\u51FB\u8BBE\u7F6EGPA", "Click to set GPA"), displayVal = val !== null ? val.toFixed(2) : "\u2014";
+        return '<span class="my-gpa-editable" data-grade="' + grade + '" data-sem="' + semester + '" data-type="' + type + '" style="' + style + '" title="' + title + '">' + displayVal + "</span>" + diffStr;
       }
       let uw = effective ? effective.uw : override.uw !== null && override.uw !== void 0 ? override.uw : null, w = effective ? effective.w : override.w !== null && override.w !== void 0 ? override.w : null, origUW = orig ? orig.uw : null, origW = orig ? orig.w : null;
       return "UW: " + fmtVal(uw, origUW, "uw", "#1890ff") + " W: " + fmtVal(w, origW, "w", "#cf1322");
@@ -2990,13 +2977,13 @@
             html += "<tr><td>" + label + '</td><td class="iw-num"><span class="iw-locked">' + t("\u65E0\u6570\u636E", "No data") + "</span></td></tr>";
             continue;
           }
-          let d = typeof simScore == "number" && typeof origScore == "number" ? simScore - origScore : 0, changed = Math.abs(d) >= DETAIL_DELTA_EPS, cellMark = valueIsSimulated(simScore, origScore) ? " " + SIM_MARK_ATTR + '="1"' : "", pct = (simScore / maxScore * 100).toFixed(2), origPct = (origScore / maxScore * 100).toFixed(2), valueHtml = escapeHtml(simScore + "/" + maxScore) + (changed ? ' <span style="font-size:11px;">(' + (d > 0 ? "+" : "") + d.toFixed(2) + ")</span>" : ""), styleAttr = changed ? ' style="color:' + (d > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "", titleAttr = ' title="' + escapeHtml(t("\u539F\u59CB ", "was ") + origScore + "/" + maxScore + " (" + origPct + "%)") + '"';
-          html += "<tr><td>" + label + '</td><td class="iw-num">' + (canEdit ? '<span class="iw-sim-cell"' + cellMark + styleAttr + titleAttr + ' data-detail-edit="' + i + '" data-detail-term="' + term + '" data-detail-max="' + maxScore + '">' + valueHtml + "</span>" : '<span class="iw-locked"' + cellMark + titleAttr + ">" + valueHtml + "</span>") + ' <span class="iw-note">' + pct + "%</span></td></tr>";
+          let d = typeof simScore == "number" && typeof origScore == "number" ? simScore - origScore : 0, changed = Math.abs(d) >= DETAIL_DELTA_EPS, pct = (simScore / maxScore * 100).toFixed(2), origPct = (origScore / maxScore * 100).toFixed(2), valueHtml = escapeHtml(simScore + "/" + maxScore) + (changed ? ' <span style="font-size:11px;">(' + (d > 0 ? "+" : "") + d.toFixed(2) + ")</span>" : ""), styleAttr = changed ? ' style="color:' + (d > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "", titleAttr = ' title="' + escapeHtml(t("\u539F\u59CB ", "was ") + origScore + "/" + maxScore + " (" + origPct + "%)") + '"';
+          html += "<tr><td>" + label + '</td><td class="iw-num">' + (canEdit ? '<span class="iw-sim-cell"' + styleAttr + titleAttr + ' data-detail-edit="' + i + '" data-detail-term="' + term + '" data-detail-max="' + maxScore + '">' + valueHtml + "</span>" : '<span class="iw-locked"' + titleAttr + ">" + valueHtml + "</span>") + ' <span class="iw-note">' + pct + "%</span></td></tr>";
         }
         let pStarGPAstr = pGPA ? formatGPA(pGPA) : "\u2014", origPGPAstr = origPGPA ? formatGPA(origPGPA) : "\u2014", deltaStr = "";
         pDiff !== null && pGPA && origPGPA && (deltaStr = "\u0394 UW: " + formatDiff(pGPA.uw - origPGPA.uw) + "  \u0394 W: " + formatDiff(pGPA.w - origPGPA.w));
-        let pShown = pStar !== null ? pStar : origP, pChanged = pDiff !== null && Math.abs(pDiff) >= DETAIL_DELTA_EPS, pValHtml = (pShown === null ? "\u2014" : pShown.toFixed(2)) + (pChanged ? ' <span style="font-size:11px;">(' + (pDiff > 0 ? "+" : "") + pDiff.toFixed(2) + ")</span>" : ""), pTitle = escapeHtml(t("\u539F\u59CB ", "was ") + (origP === null ? "\u2014" : origP.toFixed(2)) + " \xB7 " + origPGPAstr), pMark = valueIsSimulated(pShown, origP) ? " " + SIM_MARK_ATTR + '="1"' : "";
-        html += '<tr class="iw-prow"><td>' + t("\u5E73\u65F6\u6210\u7EE9 (P)", "Performance (P)") + '</td><td class="iw-num"><span' + pMark + (pChanged ? ' style="color:' + (pDiff > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "") + ' title="' + pTitle + '">' + pValHtml + '</span><br><span class="iw-note"' + pMark + ">" + escapeHtml(pStarGPAstr) + "</span>" + (deltaStr ? '<div class="iw-note" style="font-size:11px;">' + deltaStr + "</div>" : "") + "</td></tr>", html += "</tbody></table>", isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u5B66\u671F\u5DF2\u5728\u4E3B\u8868\u683C\u624B\u52A8\u8BBE\u7F6E\u5E73\u65F6\u6210\u7EE9\uFF0C\u672C\u5904\u7F16\u8F91\u5DF2\u7981\u7528\u3002", "\u26A0\uFE0F Manual override exists for this semester, editing disabled.") + "</div>"), isStarred && !isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u79D1\u76EE\u5DF2\u6807\u8BB0\u661F\u6807\uFF0C\u660E\u7EC6\u6A21\u62DF\u7F16\u8F91\u5DF2\u7981\u7528\u3002\u8BF7\u76F4\u63A5\u5728\u4E3B\u8868\u683C\u7F16\u8F91P/E\u3002", "\u26A0\uFE0F Starred subject, detail simulation disabled. Edit P/E in main table.") + "</div>"), html += "</div>";
+        let pShown = pStar !== null ? pStar : origP, pChanged = pDiff !== null && Math.abs(pDiff) >= DETAIL_DELTA_EPS, pValHtml = (pShown === null ? "\u2014" : pShown.toFixed(2)) + (pChanged ? ' <span style="font-size:11px;">(' + (pDiff > 0 ? "+" : "") + pDiff.toFixed(2) + ")</span>" : ""), pTitle = escapeHtml(t("\u539F\u59CB ", "was ") + (origP === null ? "\u2014" : origP.toFixed(2)) + " \xB7 " + origPGPAstr);
+        html += '<tr class="iw-prow"><td>' + t("\u5E73\u65F6\u6210\u7EE9 (P)", "Performance (P)") + '</td><td class="iw-num"><span' + (pChanged ? ' style="color:' + (pDiff > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "") + ' title="' + pTitle + '">' + pValHtml + '</span><br><span class="iw-note">' + escapeHtml(pStarGPAstr) + "</span>" + (deltaStr ? '<div class="iw-note" style="font-size:11px;">' + deltaStr + "</div>" : "") + "</td></tr>", html += "</tbody></table>", isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u5B66\u671F\u5DF2\u5728\u4E3B\u8868\u683C\u624B\u52A8\u8BBE\u7F6E\u5E73\u65F6\u6210\u7EE9\uFF0C\u672C\u5904\u7F16\u8F91\u5DF2\u7981\u7528\u3002", "\u26A0\uFE0F Manual override exists for this semester, editing disabled.") + "</div>"), isStarred && !isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u79D1\u76EE\u5DF2\u6807\u8BB0\u661F\u6807\uFF0C\u660E\u7EC6\u6A21\u62DF\u7F16\u8F91\u5DF2\u7981\u7528\u3002\u8BF7\u76F4\u63A5\u5728\u4E3B\u8868\u683C\u7F16\u8F91P/E\u3002", "\u26A0\uFE0F Starred subject, detail simulation disabled. Edit P/E in main table.") + "</div>"), html += "</div>";
       }
       html || (html = '<div class="iw-note">' + t("\u8BE5\u7B5B\u9009\u4E0B\u6CA1\u6709\u53EF\u663E\u793A\u7684\u6570\u636E\u3002", "No data to show for this filter.") + "</div>"), handle.setBody(html);
     }
@@ -3799,12 +3786,12 @@
     }
     if (!sum || !sum.orig)
       return el.textContent = "", el.removeAttribute("title"), !0;
-    let o = sum.orig, sim = sum.sim, html = '<span style="color:rgba(0,0,0,0.45);">' + t("\u5B66\u5E74GPA", "Annual GPA") + "</span> ", mark = !!(sim && (valueIsSimulated(sim.uw, o.uw) || valueIsSimulated(sim.w, o.w))) ? " " + SIM_MARK_ATTR + '="1"' : "";
+    let o = sum.orig, sim = sum.sim, html = '<span style="color:rgba(0,0,0,0.45);">' + t("\u5B66\u5E74GPA", "Annual GPA") + "</span> ";
     if (sim && (Math.abs(sim.uw - o.uw) > 1e-3 || Math.abs(sim.w - o.w) > 1e-3)) {
       let du = sim.uw - o.uw, dw = sim.w - o.w, gColor = (Math.abs(du) > 1e-3 ? du : dw) > 0 ? COLOR_UP : COLOR_DOWN;
-      html += "<span" + mark + '>UW <b style="color:' + gColor + ';">' + _num(sim.uw) + " / W " + _num(sim.w) + '</b> <span style="font-size:11px;">(\u0394 UW: ' + _delta(du) + " \u0394 W: " + _delta(dw) + ")</span></span>";
+      html += '<span>UW <b style="color:' + gColor + ';">' + _num(sim.uw) + " / W " + _num(sim.w) + '</b> <span style="font-size:11px;">(\u0394 UW: ' + _delta(du) + " \u0394 W: " + _delta(dw) + ")</span></span>";
     } else
-      html += "<span" + mark + ">UW " + _num(o.uw) + " / W " + _num(o.w) + "</span>";
+      html += "<span>UW " + _num(o.uw) + " / W " + _num(o.w) + "</span>";
     let school = _schoolAnnual();
     return school && (Math.abs(school.uw - o.uw) > 1e-3 || Math.abs(school.w - o.w) > 1e-3) ? el.title = t(
       "\u5B66\u6821\u516C\u5E03\uFF1AUW " + school.uw.toFixed(2) + " / W " + school.w.toFixed(2),
@@ -3881,6 +3868,16 @@
   function _delta2(v) {
     return (v > 0 ? "+" : "") + v.toFixed(2);
   }
+  function _siteScoreParts(siteText) {
+    let s = String(siteText == null ? "" : siteText).replace(/\s+/g, " ").trim(), i = s.lastIndexOf("/");
+    if (i <= 0) return { score: null, level: "" };
+    let before = Number(s.slice(0, i).trim()), after = s.slice(i + 1).trim();
+    return { score: isNaN(before) ? null : before, level: after || "" };
+  }
+  function _simTwoLineHtml(parts, shown, delta, showDelta) {
+    let grey = "color:rgba(0,0,0,0.45);font-size:11px;", ours = "font-size:12px;", oldScore = parts.score === null ? "\u2014" : _scoreNum(parts.score), oldLevel = parts.level || "\u2014", dText = showDelta ? "<span " + SCORE_DELTA_ATTR + '="1" style="font-size:10px;"> (' + _delta2(delta) + ")</span>" : "";
+    return '<div data-ints-line="score" style="white-space:nowrap;line-height:1.3;"><span style="' + grey + '">' + escapeHtml(oldScore) + "</span>" + iconArrowRight() + '<span style="' + ours + '">' + escapeHtml(_scoreNum(shown)) + '</span></div><div data-ints-line="level" style="white-space:nowrap;line-height:1.3;"><span style="' + grey + '">' + escapeHtml(oldLevel) + "</span>" + iconArrowRight() + '<span style="' + ours + '">' + escapeHtml(scoreToLetter(shown) || "\u2014") + "</span>" + dText + "</div>";
+  }
   function _renderRow(tr, courseIdx) {
     let course = S.simCourses[courseIdx];
     if (!course) return;
@@ -3903,7 +3900,7 @@
       _markRowDone(tr), safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx));
       return;
     }
-    let simScore = _courseAnnual(course, "sim"), origScore = _courseAnnual(course, "orig"), delta = simScore !== null && origScore !== null ? simScore - origScore : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, cellMarked = !1, starred = !!(course.showStar && (course.showStar.s1 || course.showStar.s2)), gpaOrig = getGPAForScore(origScore, course.weightBonus), gpaSim = showDelta ? getGPAForScore(simScore, course.weightBonus) : null, inner = _cellInner(scoreTd), foreign = inner.innerHTML.indexOf("UW:") >= 0 && !inner.querySelector("[data-ints-sim]"), showGpa = !!gpaOrig && !foreign, box = scoreTd.querySelector("[data-ints-sim]"), shown = simScore !== null ? simScore : origScore, wrap0 = inner.querySelector("[" + SCORE_WRAP_ATTR + "]");
+    let simScore = _courseAnnual(course, "sim"), origScore = _courseAnnual(course, "orig"), delta = simScore !== null && origScore !== null ? simScore - origScore : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, simmed = valueIsSimulated(simScore, origScore), starred = !!(course.showStar && (course.showStar.s1 || course.showStar.s2)), gpaOrig = getGPAForScore(origScore, course.weightBonus), gpaSim = showDelta ? getGPAForScore(simScore, course.weightBonus) : null, inner = _cellInner(scoreTd), foreign = inner.innerHTML.indexOf("UW:") >= 0 && !inner.querySelector("[data-ints-sim]"), showGpa = !!gpaOrig && !foreign, box = scoreTd.querySelector("[data-ints-sim]"), shown = simScore !== null ? simScore : origScore, wrap0 = inner.querySelector("[" + SCORE_WRAP_ATTR + "]");
     if (shown !== null) {
       let wrap = wrap0;
       if (!wrap) {
@@ -3912,14 +3909,10 @@
       }
       let siteText = wrap ? String(wrap.textContent || "").replace(/\s+/g, " ").trim() : "";
       wrap && (wrap.style.display = "none");
-      let siteScoreRaw = Number(String(siteText).split("/")[0].trim());
-      cellMarked = valueIsSimulated(shown, isNaN(siteScoreRaw) ? null : siteScoreRaw);
       let simEl = inner.querySelector("[" + SCORE_SIM_ATTR + "]");
-      simEl || (simEl = document.createElement("span"), simEl.setAttribute(SCORE_SIM_ATTR, "1"), wrap ? wrap.insertAdjacentElement("afterend", simEl) : inner.insertBefore(simEl, inner.firstChild)), simEl.style.color = showDelta ? delta > 0 ? COLOR_UP : COLOR_DOWN : "", cellMarked ? simEl.setAttribute(SIM_MARK_ATTR, "1") : simEl.removeAttribute(SIM_MARK_ATTR);
-      let valText = _scoreNum(shown) + _levelSuffix(shown, siteText);
-      simEl.firstChild && simEl.firstChild.nodeType === 3 ? simEl.firstChild.nodeValue !== valText && (simEl.firstChild.nodeValue = valText) : simEl.insertBefore(document.createTextNode(valText), simEl.firstChild);
-      let dText = showDelta ? " (" + _delta2(delta) + ")" : "", dEl = simEl.querySelector("[" + SCORE_DELTA_ATTR + "]");
-      dText ? dEl ? dEl.textContent !== dText && (dEl.textContent = dText) : (dEl = document.createElement("span"), dEl.setAttribute(SCORE_DELTA_ATTR, "1"), dEl.style.fontSize = "10px", dEl.textContent = dText, simEl.appendChild(dEl)) : dEl && dEl.remove(), simEl.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + siteText + (showDelta ? " \xB7 " + t("\u0394 ", "delta ") + _delta2(delta) : "");
+      simEl || (simEl = document.createElement("div"), simEl.setAttribute(SCORE_SIM_ATTR, "1"), wrap ? wrap.insertAdjacentElement("afterend", simEl) : inner.insertBefore(simEl, inner.firstChild)), simEl.style.color = showDelta ? delta > 0 ? COLOR_UP : COLOR_DOWN : "";
+      let html2 = simmed ? _simTwoLineHtml(_siteScoreParts(siteText), shown, delta, showDelta) : escapeHtml(_scoreNum(shown) + _levelSuffix(shown, siteText));
+      simEl.innerHTML !== html2 && (simEl.innerHTML = html2), simEl.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + siteText + (showDelta ? " \xB7 " + t("\u0394 ", "delta ") + _delta2(delta) : "");
     } else (wrap0 || inner.querySelector("[" + SCORE_SIM_ATTR + "]")) && _restoreScoreCell(scoreTd);
     if (safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx)), !showGpa && !starred) {
       box && box.remove(), scoreTd.setAttribute(INLINE_ATTR, "1"), _markRowDone(tr);
@@ -3937,7 +3930,7 @@
     starred && (html += '<span style="color:#f5222d;margin-left:4px;cursor:help;" title="' + escapeHtml(t(
       "\u5B66\u6821\u7ED9\u7684\u5206\u4E0E\u6309\u4EFB\u52A1\u660E\u7EC6\u7B97\u51FA\u7684\u5206\u4E0D\u4E00\u81F4\uFF08\u5DEE > 0.1\uFF09\uFF0C\u8BE5\u79D1\u76EE\u7684\u6A21\u62DF\u4EC5\u4F9B\u53C2\u8003\u3002",
       "School value differs from the task-based estimate by >0.1; this course is an estimate only."
-    )) + '">*</span>'), box.innerHTML = html, cellMarked ? box.setAttribute(SIM_MARK_ATTR, "1") : box.removeAttribute(SIM_MARK_ATTR), scoreTd.setAttribute(INLINE_ATTR, "1"), _markRowDone(tr), scoreTd.getAttribute("data-ints-clickable") !== "1" && scoreTd.setAttribute("data-ints-clickable", "1"), scoreTd._intsClickBound || (scoreTd._intsClickBound = !0, scoreTd.style.cursor = "pointer", scoreTd.title = t("\u70B9\u51FB\u7F16\u8F91\u8BE5\u79D1\u76EE\u7684\u6A21\u62DF\u6210\u7EE9", "Click to edit this course simulation"), scoreTd.addEventListener("click", guardListener("\u5185\u8054\u7F16\u8F91\u7A97\u53E3", (e) => {
+    )) + '">*</span>'), box.innerHTML = html, scoreTd.setAttribute(INLINE_ATTR, "1"), _markRowDone(tr), scoreTd.getAttribute("data-ints-clickable") !== "1" && scoreTd.setAttribute("data-ints-clickable", "1"), scoreTd._intsClickBound || (scoreTd._intsClickBound = !0, scoreTd.style.cursor = "pointer", scoreTd.title = t("\u70B9\u51FB\u7F16\u8F91\u8BE5\u79D1\u76EE\u7684\u6A21\u62DF\u6210\u7EE9", "Click to edit this course simulation"), scoreTd.addEventListener("click", guardListener("\u5185\u8054\u7F16\u8F91\u7A97\u53E3", (e) => {
       e.stopPropagation();
       let now = _matchCourseIndex(_rowInfo(tr), /* @__PURE__ */ new Set());
       _openEditor(tr, now >= 0 ? now : courseIdx);
@@ -4006,7 +3999,6 @@
       box.remove();
       return;
     }
-    courseHasSimulation(course) ? box.setAttribute(SIM_MARK_ATTR, "1") : box.removeAttribute(SIM_MARK_ATTR);
     let html = '<span title="' + escapeHtml(t("\u672C\u8BFE\u7A0B GPA", "Course GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
     box.innerHTML !== html && (box.innerHTML = html);
   }
@@ -4045,14 +4037,9 @@
       }
       let td = tr.children[i];
       if (!td) continue;
-      let want = _fieldCellWant(courseIdx, f), box = td.querySelector("[data-ints-sim]"), fieldMarked = valueIsSimulated(
-        course.simGrades ? course.simGrades[f] : null,
-        course.originalGrades ? course.originalGrades[f] : null
-      ), markCell = (el, on) => {
-        !el || !el.setAttribute || (on ? el.setAttribute(SIM_MARK_ATTR, "1") : el.removeAttribute(SIM_MARK_ATTR));
-      };
-      if (markCell(td, fieldMarked), !want) {
-        markCell(td, !1), box && box.remove(), _tr.items.push(i + ":" + f + ":nowant");
+      let want = _fieldCellWant(courseIdx, f), box = td.querySelector("[data-ints-sim]");
+      if (!want) {
+        box && box.remove(), _tr.items.push(i + ":" + f + ":nowant");
         continue;
       }
       let cell = _findFieldCell(tr, i, want);
@@ -4061,7 +4048,7 @@
         continue;
       }
       if (cell !== td && cell.querySelector("[data-ints-sim]")) continue;
-      cell !== td && markCell(cell, fieldMarked), box = cell.querySelector("[data-ints-sim]");
+      box = cell.querySelector("[data-ints-sim]");
       let inner = _cellInner(cell);
       box && box.parentElement !== inner && (box.remove(), box = null), box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:11px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), _renderColumnDelta(cell, inner, box, course, f);
       let g = getGPAForScore(Number(String(want).split("/")[0]), course.weightBonus);
@@ -4069,7 +4056,6 @@
         box.remove(), _tr.items.push(i + ":" + f + ":nogpa");
         continue;
       }
-      fieldMarked ? box.setAttribute(SIM_MARK_ATTR, "1") : box.removeAttribute(SIM_MARK_ATTR);
       let html = '<span title="' + escapeHtml(t("\u672C\u8BFE\u7A0B GPA", "Course GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
       box.innerHTML !== html && (box.innerHTML = html), _tr.items.push(i + ":" + f + ":box" + (box.isConnected ? "" : "!disc"));
     }
@@ -4128,7 +4114,7 @@
         let el = mine;
         el || (el = document.createElement("span"), el.setAttribute(TASK_SCORE_ATTR, "1"), siteSpan.insertAdjacentElement("afterend", el));
         let color = sim === -1 || orig !== null && sim < orig ? COLOR_DOWN : COLOR_UP;
-        el.style.cssText = "min-height:21px;display:block;color:" + color + ";", el.textContent = _taskScoreDisplay(sim, task.topScore), el.setAttribute(SIM_MARK_ATTR, "1"), el.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + _taskScoreDisplay(orig, task.topScore) + (typeof task.topScore == "number" ? " \xB7 " + t("\u6EE1\u5206 ", "max ") + task.topScore : "");
+        el.style.cssText = "min-height:21px;display:block;color:" + color + ";", el.textContent = _taskScoreDisplay(sim, task.topScore), el.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + _taskScoreDisplay(orig, task.topScore) + (typeof task.topScore == "number" ? " \xB7 " + t("\u6EE1\u5206 ", "max ") + task.topScore : "");
       }
       td.setAttribute("data-ints-task", String(ti)), td.getAttribute("data-ints-taskbound") !== "1" && td.setAttribute("data-ints-taskbound", "1"), td._intsTaskClickBound || (td._intsTaskClickBound = !0, td.style.cursor = "pointer", td.title = t("\u70B9\u51FB\u7F16\u8F91\u8BE5\u4EFB\u52A1\u7684\u6A21\u62DF\u5F97\u5206\uFF08-1 = \u4E0D\u8BA1\u5165\uFF09", "Click to edit this task score (-1 = excluded)"), td.addEventListener("click", guardListener("\u5185\u8054\u4EFB\u52A1\u7F16\u8F91", (e) => {
         let idx = td.getAttribute("data-ints-task");
@@ -4189,7 +4175,7 @@
     let nameEl = box.querySelector("[data-ints-vtask-title] span");
     nameEl && nameEl.textContent !== task.name && (nameEl.textContent = task.name);
     let scoreSpans = box.querySelectorAll("div > span"), scoreEl = scoreSpans[scoreSpans.length - 1];
-    return scoreEl && scoreEl.textContent !== text && (scoreEl.textContent = text), nameEl && nameEl.setAttribute(SIM_MARK_ATTR, "1"), scoreEl && scoreEl.setAttribute(SIM_MARK_ATTR, "1"), td.style.cursor = "pointer", box;
+    return scoreEl && scoreEl.textContent !== text && (scoreEl.textContent = text), td.style.cursor = "pointer", box;
   }
   function _renderVirtualCells(tr, courseIdx, course) {
     if (!tr || !course) return;
@@ -4291,11 +4277,11 @@
   }
   function _fieldHtml(ci, field, label) {
     let v = _scoreVal(ci, field), shown = v.sim === null ? "" : _num(v.sim);
-    return '<label style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span data-ie-mark="' + field + '"' + (v.overridden ? " " + SIM_MARK_ATTR + '="1"' : "") + ' style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><input data-ie-field="' + field + '" type="text" inputmode="decimal" value="' + escapeHtml(shown) + '" placeholder="\u2014" style="width:56px;padding:2px 4px;text-align:center;border:1px solid ' + (v.overridden ? "#1890ff" : "#d9d9d9") + ";border-radius:4px;font-size:12px;" + (v.overridden ? "background:#e6f7ff;" : "") + '">' + _deltaSpanHtml(field, ci) + "</label>";
+    return '<label style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><input data-ie-field="' + field + '" type="text" inputmode="decimal" value="' + escapeHtml(shown) + '" placeholder="\u2014" style="width:56px;padding:2px 4px;text-align:center;border:1px solid ' + (v.overridden ? "#1890ff" : "#d9d9d9") + ";border-radius:4px;font-size:12px;" + (v.overridden ? "background:#e6f7ff;" : "") + '">' + _deltaSpanHtml(field, ci) + "</label>";
   }
   function _readonlyHtml(ci, field, label, fKey) {
     let v = _scoreVal(ci, field);
-    return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><span data-ie-f="' + fKey + '" data-ie-fmark="' + field + '"' + (v.overridden ? " " + SIM_MARK_ATTR + '="1"' : "") + ' style="min-width:56px;text-align:center;font-size:12px;color:rgba(0,0,0,0.75);">' + (v.sim === null ? "\u2014" : _num(v.sim)) + "</span>" + _deltaSpanHtml(field, ci) + "</span>";
+    return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><span data-ie-f="' + fKey + '" style="min-width:56px;text-align:center;font-size:12px;color:rgba(0,0,0,0.75);">' + (v.sim === null ? "\u2014" : _num(v.sim)) + "</span>" + _deltaSpanHtml(field, ci) + "</span>";
   }
   function _refreshEditorWindows() {
     for (let win of listWindows()) {
@@ -4309,14 +4295,12 @@
         if (document.activeElement === inp) return;
         let f = inp.getAttribute("data-ie-field"), v = _scoreVal(ci, f);
         inp.value = v.sim === null ? "" : _num(v.sim), inp.style.borderColor = v.overridden ? "#1890ff" : "#d9d9d9", inp.style.background = v.overridden ? "#e6f7ff" : "";
-        let mark = win.el.querySelector('[data-ie-mark="' + f + '"]');
-        mark && (v.overridden ? mark.setAttribute(SIM_MARK_ATTR, "1") : mark.removeAttribute(SIM_MARK_ATTR));
       });
       for (let term of ["s1", "s2"]) {
         let span = win.el.querySelector('[data-ie-f="' + IE_F_IDS[term] + '"]');
         if (!span) continue;
         let v = _scoreVal(ci, term + "f");
-        span.textContent = v.sim === null ? "\u2014" : _num(v.sim), v.overridden ? span.setAttribute(SIM_MARK_ATTR, "1") : span.removeAttribute(SIM_MARK_ATTR);
+        span.textContent = v.sim === null ? "\u2014" : _num(v.sim);
       }
       win.el.querySelectorAll("[data-ie-delta]").forEach((sp) => {
         let f = sp.getAttribute("data-ie-delta"), v = _scoreVal(ci, f);
@@ -5016,7 +5000,7 @@
       for (let n of nodes) {
         if (!n || n.nodeType !== 1) continue;
         let tag = n.nodeName;
-        if (tag === "TD" || tag === "TH" || tag === "TR" || n.getAttribute && (n.hasAttribute("data-ints-sim") || n.hasAttribute("data-ints-simscore") || n.hasAttribute("data-ints-coldelta") || n.hasAttribute("data-ints-taskscore") || n.hasAttribute(SIM_MARK_ATTR) || n.hasAttribute("data-ints-origwrap")) || n.querySelector && n.querySelector("td,th,tr")) return !0;
+        if (tag === "TD" || tag === "TH" || tag === "TR" || n.getAttribute && (n.hasAttribute("data-ints-sim") || n.hasAttribute("data-ints-simscore") || n.hasAttribute("data-ints-coldelta") || n.hasAttribute("data-ints-taskscore") || n.hasAttribute("data-ints-origwrap")) || n.querySelector && n.querySelector("td,th,tr")) return !0;
       }
     }
     return !1;
@@ -5102,7 +5086,7 @@
       el.removeAttribute(INLINE_ATTR), el.removeAttribute("data-ints-clickable"), el.style.cursor = "", el.removeAttribute("title"), _restoreScoreCell(el);
       let box = el.querySelector("[data-ints-sim]");
       box && box.remove();
-    }), document.querySelectorAll("[" + ROW_ATTR + "]").forEach((tr) => tr.removeAttribute(ROW_ATTR)), document.querySelectorAll(".ant-table-tbody [data-ints-sim], .ant-table-tbody [data-ints-coldelta]").forEach((el) => el.remove()), document.querySelectorAll("[" + SIM_MARK_ATTR + "]").forEach((el) => el.removeAttribute(SIM_MARK_ATTR)), document.querySelectorAll("[data-ints-task]").forEach((td) => {
+    }), document.querySelectorAll("[" + ROW_ATTR + "]").forEach((tr) => tr.removeAttribute(ROW_ATTR)), document.querySelectorAll(".ant-table-tbody [data-ints-sim], .ant-table-tbody [data-ints-coldelta]").forEach((el) => el.remove()), document.querySelectorAll("[data-ints-task]").forEach((td) => {
       td.removeAttribute("data-ints-task"), td.removeAttribute("data-ints-taskbound"), td.style.cursor = "", td.removeAttribute("title");
       let b = td.querySelector("[" + TASK_SCORE_ATTR + "]");
       b && b.remove();
