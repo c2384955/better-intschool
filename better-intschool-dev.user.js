@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.01.2
+// @version      1.01.3
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -1041,9 +1041,7 @@
     }
     _deadlineFloatBox.dataset.intsState = "ready";
     try {
-      let today = /* @__PURE__ */ new Date();
-      today.setHours(23, 59, 59, 999);
-      let todayTs = today.getTime(), allFutureTasks = (S._deadlineAllTasks || []).filter((t4) => _taskVisible(t4, todayTs)), grouped = {};
+      let nowTs = Date.now(), allFutureTasks = (S._deadlineAllTasks || []).filter((t4) => _taskVisible(t4, nowTs)), grouped = {};
       for (let w of allFutureTasks)
         grouped[w.courseName] || (grouped[w.courseName] = []), grouped[w.courseName].push(w);
       let sortedCourses = Object.keys(grouped).sort(), html = "", rowCount = 0, inferredCount = 0;
@@ -1190,7 +1188,7 @@
   function recomputeDeadlineWarnings() {
     let now = Date.now(), warnings = [];
     for (let t4 of S._deadlineAllTasks)
-      _taskVisible(t4, now) && isTaskShown(t4.entityId) && warnings.push({ courseName: t4.courseName, taskName: t4.taskName, endDate: new Date(t4.endDate), entityId: t4.entityId, marked: !!t4.marked });
+      _taskVisible(t4, now) && isTaskShown(t4.entityId) && warnings.push({ courseName: t4.courseName, taskName: t4.taskName, endDate: new Date(t4.endDate), entityId: t4.entityId, marked: !!t4.marked, inferred: !!t4.inferred });
     return S._deadlineCache.data = warnings, warnings;
   }
   function _detailEntityId() {
@@ -1314,9 +1312,7 @@
       return;
     }
     S._deadlineCheckTrigger === null && (S._deadlineCheckTrigger = "direct"), S._deadlineCheckedOnce = !0, _checkStarts++, _clearFallback(), S._deadlineCheckInFlight = !0, _lastCheckTs = Date.now(), updateDeadlineIcon();
-    let allTasks = [], today = /* @__PURE__ */ new Date();
-    today.setHours(23, 59, 59, 999);
-    let todayTs = today.getTime();
+    let allTasks = [], nowTs = Date.now();
     try {
       let resolved = await _resolveDeadlineCourses();
       if (!resolved) {
@@ -1355,7 +1351,7 @@
               inferred: isInferred,
               ignored: verdict.verdict === "ignored",
               reason: verdict.reason
-            }), endDate.getTime() > todayTs && futureCountLocal++;
+            }), endDate.getTime() > nowTs && futureCountLocal++;
           }
           return { allTasks: courseAllTasks, checked: 1, tasks: items.length, online: onlineCountLocal, unsub: unsubmittedCountLocal, future: futureCountLocal, marked: markedCountLocal };
         } catch (e) {
@@ -1367,11 +1363,11 @@
         for (let r of results)
           allTasks.push(...r.allTasks);
       }
-      DL("[DDL] checkUpcomingDeadlines: courses=" + courses.length + " allTasks=" + allTasks.length + " future=" + allTasks.filter((t4) => t4.endDate > todayTs).length + " \u5224\u5B9A=" + JSON.stringify(verdictCount) + " \u7C7B\u578B\u8868=" + typeMap.size + " \u6761");
+      DL("[DDL] checkUpcomingDeadlines: courses=" + courses.length + " allTasks=" + allTasks.length + " \u672A\u8FC7\u622A\u6B62=" + allTasks.filter((t4) => t4.endDate > nowTs).length + " \u5224\u5B9A=" + JSON.stringify(verdictCount) + " \u7C7B\u578B\u8868=" + typeMap.size + " \u6761");
     } catch (e) {
       console.error("[\u63D0\u9192] \u68C0\u67E5\u5931\u8D25\uFF1A" + e.message), S._deadlineCheckInFlight = !1;
     }
-    S._deadlineAllTasks = allTasks, _pruneTaskIgnore(todayTs);
+    S._deadlineAllTasks = allTasks, _pruneTaskIgnore(nowTs);
     let warnings = recomputeDeadlineWarnings();
     S._deadlineCache.ts = Date.now(), S._deadlineCheckInFlight = !1, DL("[DDL] checkUpcomingDeadlines \u5B8C\u6210: allTasks=" + allTasks.length + " marked=" + allTasks.filter((t4) => t4.marked).length + " inferred=" + allTasks.filter((t4) => t4.inferred).length + " \u5FFD\u7565=" + getTaskIgnoreCount() + " warnings=" + warnings.length), _pollingStarted || (_pollingStarted = !0, startDeadlinePolling()), updateDeadlineIcon();
   }
@@ -1381,10 +1377,8 @@
       console.warn("[DDL] updateDeadlineIcon: \u627E\u4E0D\u5230\u63D2\u5165\u951A\u70B9");
       return;
     }
-    let insertPos = "beforeend", warnings = S._deadlineCache.data || [], today = /* @__PURE__ */ new Date();
-    today.setHours(23, 59, 59, 999);
-    let todayTs = today.getTime(), futureTaskCount = S._deadlineAllTasks.filter((t4) => _taskVisible(t4, todayTs)).length;
-    DL("[DDL] updateDeadlineIcon: anchor=" + (anchor.id || anchor.className) + " futureTaskCount=" + futureTaskCount + " warnings=" + warnings.length);
+    let insertPos = "beforeend", warnings = S._deadlineCache.data || [];
+    DL("[DDL] updateDeadlineIcon: anchor=" + (anchor.id || anchor.className) + " warnings=" + warnings.length + "\uFF08\u5176\u4E2D\u63A8\u65AD " + warnings.filter((w) => w.inferred).length + "\uFF09");
     let wrap = document.getElementById("intschool-deadline-wrap");
     if (!wrap) {
       DL("[DDL] updateDeadlineIcon: \u521B\u5EFA\u6309\u94AEwrap"), wrap = document.createElement("span"), wrap.id = "intschool-deadline-wrap", wrap.style.cssText = "position:relative;display:inline-flex;vertical-align:middle;", wrap.addEventListener("click", (e) => e.stopImmediatePropagation());
@@ -1401,19 +1395,10 @@
       else if (S._deadlineCheckInFlight)
         btn.innerHTML = "<span>&#9888;</span> <span>" + t("\u68C0\u67E5\u4E2D\u2026", "Checking...") + "</span>", btn.style.color = "#1890ff";
       else {
-        let count2 = warnings.length;
-        if (!S._deadlineCheckedOnce)
-          btn.innerHTML = "<span>&#9888;</span> <span>" + t("\u672A\u52A0\u8F7D", "Not checked") + "</span>", btn.style.color = "#1890ff";
-        else if (S._deadlineCheckInFlight)
-          btn.innerHTML = "<span>&#9888;</span> <span>" + t("\u68C0\u67E5\u4E2D\u2026", "Checking...") + "</span>", btn.style.color = "#1890ff";
-        else {
-          let today2 = /* @__PURE__ */ new Date();
-          today2.setHours(23, 59, 59, 999);
-          let todayTs2 = today2.getTime(), shownTasks = S._deadlineAllTasks.filter((t4) => _taskVisible(t4, todayTs2) && isTaskShown(t4.entityId)), inferredN = shownTasks.filter((t4) => t4.inferred).length, detectedN = shownTasks.length - inferredN, countText = inferredN > 0 && detectedN > 0 ? detectedN + "+" + inferredN : String(count2);
-          btn.innerHTML = count2 > 0 ? "<span>&#9888;</span> <span>" + t("\u672A\u5B8C\u6210\u4EFB\u52A1", "Pending Tasks") + " (" + countText + ")</span>" : "<span>&#9888;</span> <span>" + t("\u65E0\u672A\u5B8C\u6210\u4EFB\u52A1", "No Pending Tasks") + "</span>", btn.style.color = count2 > 0 ? "#faad14" : "#999";
-        }
-        btn.getAttribute("title") && btn.removeAttribute("title");
+        let inferredN = warnings.filter((w) => w.inferred).length, detectedN = count - inferredN, countText = inferredN > 0 && detectedN > 0 ? detectedN + "+" + inferredN : String(count);
+        btn.innerHTML = count > 0 ? "<span>&#9888;</span> <span>" + t("\u672A\u5B8C\u6210\u4EFB\u52A1", "Pending Tasks") + " (" + countText + ")</span>" : "<span>&#9888;</span> <span>" + t("\u65E0\u672A\u5B8C\u6210\u4EFB\u52A1", "No Pending Tasks") + "</span>", btn.style.color = count > 0 ? "#faad14" : "#999";
       }
+      btn.getAttribute("title") && btn.removeAttribute("title");
     }
     _ensureFloatTip(), renderTooltipContent();
   }
