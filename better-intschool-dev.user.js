@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.3
+// @version      1.02.4
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -2844,18 +2844,17 @@
       }
       if (pts.length === 0) return;
       let polyline = document.createElementNS(svgNS, "polyline");
-      polyline.setAttribute("points", pts.join(" ")), polyline.setAttribute("fill", "none"), polyline.setAttribute("stroke", color), polyline.setAttribute("stroke-width", opts.band ? "9" : "2"), polyline.setAttribute("stroke-linejoin", "round"), polyline.setAttribute("stroke-linecap", "round"), opts.band && polyline.setAttribute("stroke-opacity", "0.18"), opts.dash && polyline.setAttribute("stroke-dasharray", opts.dash), svg.appendChild(polyline);
+      polyline.setAttribute("points", pts.join(" ")), polyline.setAttribute("fill", "none"), polyline.setAttribute("stroke", color), polyline.setAttribute("stroke-width", "2"), polyline.setAttribute("stroke-linejoin", "round"), polyline.setAttribute("stroke-linecap", "round"), opts.dash && polyline.setAttribute("stroke-dasharray", opts.dash), svg.appendChild(polyline);
       for (let i = 0; i < dataPoints.length; i++) {
         let val = getY(dataPoints[i]);
         if (val === null) continue;
         let cx = xPos(i), cy = yPos(val), dot = document.createElementNS(svgNS, "circle");
-        if (dot.setAttribute("cx", cx), dot.setAttribute("cy", cy), dot.setAttribute("r", "5"), opts.ring ? (dot.setAttribute("fill", "#fff"), dot.setAttribute("stroke", color), dot.setAttribute("stroke-width", "2")) : dot.setAttribute("fill", color), dot.style.pointerEvents = "none", svg.appendChild(dot), !opts.ring) {
-          let inner = document.createElementNS(svgNS, "circle");
-          inner.setAttribute("cx", cx), inner.setAttribute("cy", cy), inner.setAttribute("r", "2"), inner.setAttribute("fill", "#fff"), inner.style.pointerEvents = "none", svg.appendChild(inner);
-        }
+        dot.setAttribute("cx", cx), dot.setAttribute("cy", cy), dot.setAttribute("r", "5"), dot.setAttribute("fill", color), dot.style.pointerEvents = "none", svg.appendChild(dot);
+        let inner = document.createElementNS(svgNS, "circle");
+        inner.setAttribute("cx", cx), inner.setAttribute("cy", cy), inner.setAttribute("r", "2"), inner.setAttribute("fill", "#fff"), inner.style.pointerEvents = "none", svg.appendChild(inner);
       }
     }
-    drawDataLine((p) => p.cgpa, CGPA_COLOR, { band: !0 }), drawDataLine((p) => p.uw, "#1890ff"), drawDataLine((p) => p.w, "#cf1322"), drawDataLine((p) => p.cgpa, CGPA_COLOR, { dash: "6,3", ring: !0 });
+    drawDataLine((p) => p.uw, "#1890ff"), drawDataLine((p) => p.w, "#cf1322"), drawDataLine((p) => p.cgpa, CGPA_COLOR, { dash: "6,3" });
     let lg = document.createElementNS(svgNS, "g");
     lg.setAttribute("transform", `translate(${margin.left + 10}, ${margin.top})`);
     let r1 = document.createElementNS(svgNS, "rect");
@@ -2870,12 +2869,12 @@
     r3.setAttribute("x", 80), r3.setAttribute("y", 0), r3.setAttribute("width", 14), r3.setAttribute("height", 3), r3.setAttribute("fill", CGPA_COLOR), lg.appendChild(r3);
     let t32 = document.createElementNS(svgNS, "text");
     t32.setAttribute("x", 98), t32.setAttribute("y", 5), t32.setAttribute("fill", "#333"), t32.setAttribute("font-size", "11"), t32.textContent = CGPA_LABEL(), lg.appendChild(t32), svg.appendChild(lg);
-    let step = pw / (dataPoints.length - 1 || 1);
+    let HIT_HALF = 13;
     for (let i = 0; i < dataPoints.length; i++) {
       let p = dataPoints[i];
       if (p.uw === null && p.w === null && p.cgpa === null) continue;
-      let left = i === 0 ? margin.left - 6 : xPos(i) - step / 2, right = i === dataPoints.length - 1 ? W - margin.right + 6 : xPos(i) + step / 2, hit = document.createElementNS(svgNS, "rect");
-      hit.setAttribute("x", left), hit.setAttribute("y", margin.top), hit.setAttribute("width", Math.max(16, right - left)), hit.setAttribute("height", ph), hit.setAttribute("fill", "transparent"), hit.setAttribute("data-ints-grade", p.grade);
+      let hit = document.createElementNS(svgNS, "rect");
+      hit.setAttribute("x", xPos(i) - HIT_HALF), hit.setAttribute("y", margin.top), hit.setAttribute("width", HIT_HALF * 2), hit.setAttribute("height", ph), hit.setAttribute("fill", "transparent"), hit.setAttribute("data-ints-grade", p.grade);
       let showTip = (e) => {
         let lines = ["<strong>" + p.grade + "</strong>"];
         if (p.uw !== null && lines.push("UW: " + p.uw.toFixed(2)), p.w !== null && lines.push("W: " + p.w.toFixed(2)), p.cgpa !== null) {
