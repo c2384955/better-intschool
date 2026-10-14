@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.1
+// @version      1.02.2
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -1758,7 +1758,16 @@
       let gpa = LETTER_TO_GPA.get(band.letter);
       if (gpa !== void 0 && gpa >= targetGPA) return band.min;
     }
-    return 97;
+    return null;
+  }
+  function _neededExamScore(minF, baseF) {
+    return minF == null ? null : baseF >= minF ? 0 : Math.min((minF - baseF) / 0.2, 100);
+  }
+  function _examImpossible(minF, baseF) {
+    return minF != null && baseF + 20 < minF;
+  }
+  function _emptyGap() {
+    return { locked: !1, atMax: !1, uw: null, w: null, currentUW: null, currentW: null };
   }
   function computeTargetGap(course, term) {
     let cacheKey = _targetCacheKey(course, term) + "|" + S.targetGPAMode + "|" + S.targetUWGPA + "|" + S.targetWGPA, cached = _targetGapCache.get(cacheKey);
@@ -1768,7 +1777,7 @@
   }
   function _computeTargetGapRaw(course, term) {
     let isS1 = term === "S1" || term === "s1", currentP = isS1 ? course.simGrades.s1p : course.simGrades.s2p, examScore = isS1 ? course.simGrades.s1e : course.simGrades.s2e, wb = course.weightBonus;
-    if (currentP === null) return { locked: !1, atMax: !1, uw: null, w: null };
+    if (currentP === null) return _emptyGap();
     let currentF = calcF(currentP, examScore), currentUW = getUnweightedGPA(currentF), currentW = currentUW !== null ? currentUW + wb : null;
     if (examScore !== null)
       return {
@@ -1791,8 +1800,8 @@
       return getMinScoreForGPA(Math.max(targetUW, 0));
     }
     if (S.targetGPAMode === "exam") {
-      let uwMin2 = S.targetUWGPA !== null ? getMinScoreForTarget(S.targetUWGPA, !1) : null, wMin2 = S.targetWGPA !== null ? getMinScoreForTarget(S.targetWGPA, !0) : null, baseF = currentP * 0.8, uwNeeded2 = null, wNeeded2 = null;
-      return uwMin2 !== null && (baseF >= uwMin2 ? uwNeeded2 = 0 : uwNeeded2 = Math.min((uwMin2 - baseF) / 0.2, 100)), wMin2 !== null && (baseF >= wMin2 ? wNeeded2 = 0 : wNeeded2 = Math.min((wMin2 - baseF) / 0.2, 100)), {
+      let uwMin2 = S.targetUWGPA !== null ? getMinScoreForTarget(S.targetUWGPA, !1) : null, wMin2 = S.targetWGPA !== null ? getMinScoreForTarget(S.targetWGPA, !0) : null, baseF = currentP * 0.8, uwNeeded2 = _neededExamScore(uwMin2, baseF), wNeeded2 = _neededExamScore(wMin2, baseF);
+      return {
         locked: !1,
         atMax,
         currentP,
@@ -1804,6 +1813,12 @@
         wGap: wNeeded2,
         uwNeededP: uwNeeded2,
         wNeededP: wNeeded2,
+        targetCourseUW: S.targetUWGPA,
+        targetCourseW: S.targetWGPA,
+        overCeilingUW: S.targetUWGPA !== null && uwMin2 === null,
+        overCeilingW: S.targetWGPA !== null && wMin2 === null,
+        impossibleUW: _examImpossible(uwMin2, baseF),
+        impossibleW: _examImpossible(wMin2, baseF),
         mode: "exam"
       };
     }
@@ -1820,41 +1835,41 @@
       wGap: wNeeded !== null ? Math.max(0, wNeeded - currentP) : null,
       uwNeededP: uwNeeded,
       wNeededP: wNeeded,
+      overCeilingUW: S.targetUWGPA !== null && uwMin === null,
+      overCeilingW: S.targetWGPA !== null && wMin === null,
+      taskCappedUW: uwMin !== null && uwMin > capP,
+      taskCappedW: wMin !== null && wMin > capP,
+      capP,
       mode: "subject"
     };
   }
+  function _examSemesterBasis() {
+    if (!_examDisplayCache.computed) {
+      let focusSem = getExamFocusSemester(), otherSem = focusSem === "S1" ? "S2" : focusSem === "S2" ? "S1" : null, otherGPA = otherSem ? computeSemesterCreditGPA(otherSem) : null, curFocusGPA = focusSem ? computeSemesterCreditGPA(focusSem) : null;
+      _examDisplayCache.focusSem = focusSem, _examDisplayCache.curFocusGPA = curFocusGPA, _examDisplayCache.estimated = !(otherGPA && curFocusGPA), _examDisplayCache.basis = otherGPA || curFocusGPA || null, _examDisplayCache.computed = !0;
+    }
+    return _examDisplayCache;
+  }
   function getExamDisplayGap(course, term) {
     let gap = computeTargetGap(course, term);
-    if (S.targetGPAMode !== "exam" || gap.locked || gap.uw === null) return gap;
-    if (!_examDisplayCache.computed) {
-      let focusSem2 = getExamFocusSemester();
-      if (!focusSem2)
-        return _examDisplayCache.computed = !0, gap;
-      let otherSem = focusSem2 === "S1" ? "S2" : "S1";
-      _examDisplayCache.focusSem = focusSem2, _examDisplayCache.lockedGPA = computeSemesterCreditGPA(otherSem), _examDisplayCache.curFocusGPA = computeSemesterCreditGPA(focusSem2), _examDisplayCache.computed = !0;
-    }
-    let focusSem = _examDisplayCache.focusSem;
-    if (!focusSem || !(term === "s1" && focusSem === "S1" || term === "s2" && focusSem === "S2")) return gap;
-    let lockedGPA = _examDisplayCache.lockedGPA, curFocusGPA = _examDisplayCache.curFocusGPA;
-    if (!lockedGPA || !curFocusGPA) return gap;
-    let wb = course.weightBonus, neededUW = null, neededW = null, targetCourseUW = null, targetCourseW = null;
+    if (S.targetGPAMode !== "exam" || gap.locked || gap.currentUW === null) return gap;
+    let cache = _examSemesterBasis(), focusSem = cache.focusSem;
+    if (!focusSem) return __spreadProps(__spreadValues({}, gap), { estimated: cache.estimated });
+    if (!(term === "s1" && focusSem === "S1" || term === "s2" && focusSem === "S2")) return __spreadProps(__spreadValues({}, gap), { estimated: cache.estimated });
+    let basis = cache.basis, curFocusGPA = cache.curFocusGPA;
+    if (!basis || !curFocusGPA) return __spreadProps(__spreadValues({}, gap), { estimated: cache.estimated });
+    let wb = course.weightBonus, baseF = gap.currentP * 0.8, neededUW = gap.uwNeededP, neededW = gap.wNeededP, targetCourseUW = gap.targetCourseUW, targetCourseW = gap.targetCourseW, impossibleUW = gap.impossibleUW, impossibleW = gap.impossibleW;
     if (S.targetUWGPA !== null) {
-      let uwGap = Math.max(0, 2 * S.targetUWGPA - lockedGPA.uw) - curFocusGPA.uw;
+      let uwGap = Math.max(0, 2 * S.targetUWGPA - basis.uw) - curFocusGPA.uw;
       targetCourseUW = Math.min(gap.currentUW + uwGap, 4);
       let minF = getMinScoreForGPA(targetCourseUW);
-      if (minF !== null) {
-        let raw = (minF - gap.currentP * 0.8) / 0.2;
-        neededUW = Math.max(0, Math.min(raw, 100));
-      }
+      neededUW = _neededExamScore(minF, baseF), impossibleUW = _examImpossible(minF, baseF);
     }
     if (S.targetWGPA !== null) {
-      let wGap = Math.max(0, 2 * S.targetWGPA - lockedGPA.w) - curFocusGPA.w;
+      let wGap = Math.max(0, 2 * S.targetWGPA - basis.w) - curFocusGPA.w;
       targetCourseW = Math.min(gap.currentW + wGap, 4 + wb);
       let minF = getMinScoreForGPA(targetCourseW - wb);
-      if (minF !== null) {
-        let raw = (minF - gap.currentP * 0.8) / 0.2;
-        neededW = Math.max(0, Math.min(raw, 100));
-      }
+      neededW = _neededExamScore(minF, baseF), impossibleW = _examImpossible(minF, baseF);
     }
     return __spreadProps(__spreadValues({}, gap), {
       uwNeededP: neededUW,
@@ -1862,8 +1877,70 @@
       uwGap: neededUW,
       wGap: neededW,
       targetCourseUW,
-      targetCourseW
+      targetCourseW,
+      impossibleUW,
+      impossibleW,
+      estimated: cache.estimated
     });
+  }
+  function buildExamRows() {
+    let empty = { focusSem: null, term: null, rows: [], noP: 0, estimated: !1, courseLevel: !1, finished: !1 };
+    if (S.targetUWGPA === null && S.targetWGPA === null) return empty;
+    let cache = _examSemesterBasis(), focusSem = cache.focusSem;
+    if (!focusSem) return __spreadProps(__spreadValues({}, empty), { estimated: cache.estimated, finished: hasAnyPData() });
+    let term = focusSem === "S1" ? "s1" : "s2", rows = [], noP = 0;
+    for (let course of S.simCourses) {
+      let gap = getExamDisplayGap(course, term);
+      if (!gap.locked) {
+        if (gap.currentUW === null && gap.currentW === null) {
+          noP++;
+          continue;
+        }
+        rows.push({
+          course,
+          term: focusSem,
+          gap,
+          neededUW: gap.uwNeededP,
+          neededW: gap.wNeededP,
+          targetUW: gap.targetCourseUW,
+          targetW: gap.targetCourseW,
+          impossibleUW: !!gap.impossibleUW,
+          impossibleW: !!gap.impossibleW,
+          overCeilingUW: !!gap.overCeilingUW,
+          overCeilingW: !!gap.overCeilingW
+        });
+      }
+    }
+    return {
+      focusSem,
+      term,
+      rows,
+      noP,
+      estimated: !!cache.estimated,
+      courseLevel: !cache.curFocusGPA,
+      finished: !1
+    };
+  }
+  function getExamTargetRows() {
+    let info = buildExamRows();
+    return {
+      focusSem: info.focusSem,
+      estimated: info.estimated,
+      courseLevel: info.courseLevel,
+      noP: info.noP,
+      rows: info.rows.map((r) => ({
+        course: r.course.name,
+        term: r.term,
+        neededUW: r.neededUW,
+        neededW: r.neededW,
+        targetUW: r.targetUW,
+        targetW: r.targetW,
+        impossibleUW: r.impossibleUW,
+        impossibleW: r.impossibleW,
+        overCeilingUW: r.overCeilingUW,
+        overCeilingW: r.overCeilingW
+      }))
+    };
   }
   function computeMaxTermGPA(course, term) {
     let isS1 = term === "S1" || term === "s1", currentP = isS1 ? course.simGrades.s1p : course.simGrades.s2p, examScore = isS1 ? course.simGrades.s1e : course.simGrades.s2e, wb = course.weightBonus;
@@ -1903,7 +1980,7 @@
     let html = '<div style="' + (rowStyle || "display:flex;align-items:center;flex-wrap:wrap;gap:6px;") + '">';
     html += '<select id="target-mode-select" style="padding:2px 4px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;">', html += '<option value="subject"' + (S.targetGPAMode === "subject" ? " selected" : "") + ">" + t("\u79D1\u76EE\u8BA1\u7B97", "Subject Calculation") + "</option>", html += '<option value="exam"' + (S.targetGPAMode === "exam" ? " selected" : "") + ">" + t("\u671F\u672B\u8BA1\u7B97", "Exam Calculation") + "</option>", html += "</select>", html += '<span style="font-weight:500;color:#555;">' + t("\u76EE\u6807GPA", "Target GPA") + ":</span>", html += '<span>UW</span><input id="target-uw-input" type="number" step="0.01" min="0" max="4.0" style="width:55px;padding:2px 4px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;" value="' + (S.targetUWGPA !== null ? S.targetUWGPA.toFixed(2) : "") + '" placeholder="\u2014">', html += '<span>W</span><input id="target-w-input" type="number" step="0.01" min="0" max="5.0" style="width:55px;padding:2px 4px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;" value="' + (S.targetWGPA !== null ? S.targetWGPA.toFixed(2) : "") + '" placeholder="\u2014">';
     let hint = maxGPAHintText();
-    return hint && (html += '<span id="target-max-hint" style="color:#888;margin-left:4px;">' + hint + "</span>"), (S.targetUWGPA !== null || S.targetWGPA !== null) && (html += '<button id="clear-target-btn" class="ant-btn ant-btn-link" style="font-size:11px;padding:0 4px;">' + t("\u6E05\u9664", "Clear") + "</button>"), html += "</div>", html;
+    return hint && (html += '<span id="target-max-hint" style="color:#888;margin-left:4px;">' + hint + "</span>"), html += '<button id="clear-target-btn" class="ant-btn ant-btn-link" style="font-size:11px;padding:0 4px;' + (S.targetUWGPA !== null || S.targetWGPA !== null ? "" : "display:none;") + '">' + t("\u6E05\u9664", "Clear") + "</button>", html += "</div>", html;
   }
   function computeSemesterCreditGPA(term) {
     let uw = 0, w = 0, cr = 0;
@@ -1916,44 +1993,44 @@
     }
     return cr === 0 ? null : { uw: uw / cr, w: w / cr };
   }
+  function _examPartHTML(label, target, needed, impossible, overCeiling, ceiling) {
+    let targetText = target != null && !isNaN(target) ? target.toFixed(2) : "\u2014";
+    if (needed == null)
+      return label + " " + t("\u76EE\u6807 ", "target ") + targetText + ' <span style="color:#d4380d;">' + t("\u9AD8\u4E8E\u672C\u79D1\u4E0A\u9650 ", "above course ceiling ") + ceiling.toFixed(2) + "</span>";
+    let s = label + " " + t("\u76EE\u6807", "target") + " " + targetText + " " + t("\u9700\u8003\u2265", "need E\u2265") + '<span style="color:#fa8c16;font-weight:600;">' + needed.toFixed(2) + "</span>";
+    return impossible ? s += ' <span style="color:#d4380d;">' + t("\u671F\u672B\u6EE1\u5206\u4ECD\u4E0D\u591F", "100 is not enough either") + "</span>" : overCeiling && (s += ' <span style="color:#d4380d;">' + t("\u672C\u79D1\u4E0A\u9650 ", "course ceiling ") + ceiling.toFixed(2) + "</span>"), s;
+  }
+  function _examDetailHTML(info) {
+    if (S.targetUWGPA === null && S.targetWGPA === null) return "";
+    if (info.focusSem === null)
+      return info.finished ? '<div style="color:#d4380d;font-size:11px;margin-top:4px;">' + t("\u6240\u6709\u671F\u672B\u8003\u8BD5\u5747\u5DF2\u7ED3\u675F\uFF0C\u65E0\u6CD5\u8FDB\u884C\u671F\u672B\u6A21\u62DF", "All final exams completed \u2014 exam simulation unavailable") + "</div>" : '<div style="color:#888;font-size:11px;margin-top:4px;">' + t("\u6682\u65E0\u671F\u672B\u6210\u7EE9\uFF0C\u65E0\u6CD5\u63A8\u7B97", "No final exam data \u2014 cannot calculate") + "</div>";
+    if (!info.rows.length)
+      return '<div style="color:#888;font-size:11px;margin-top:4px;">' + t("\u6240\u6709\u79D1\u76EE" + info.focusSem + "\u5B66\u671F\u5747\u5DF2\u8003\u5B8C", "All courses " + info.focusSem + " term are done") + "</div>";
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+    for (let r of info.rows) {
+      let wb = r.course.weightBonus || 0, cellHtml = '<span style="font-weight:500;">' + escapeHtml(r.course.name) + '</span> <span style="color:#888;">' + r.term + "</span>", parts = [];
+      S.targetUWGPA !== null && parts.push(_examPartHTML("UW", r.targetUW, r.neededUW, r.impossibleUW, r.overCeilingUW, 4)), S.targetWGPA !== null && parts.push(_examPartHTML("W", r.targetW, r.neededW, r.impossibleW, r.overCeilingW, 4 + wb)), parts.length && (cellHtml += " \u2014 " + parts.join(" | "), r.gap.atMax && (cellHtml += ' <span style="color:#888;">(P\u226593)</span>')), html += '<tr><td style="padding:4px 6px;border:1px solid #eee;">' + cellHtml + "</td></tr>";
+    }
+    return html += "</table>", html;
+  }
+  function _examSummaryHTML(info) {
+    let label = info.focusSem === "S1" ? t("\u7B2C\u4E00\u5B66\u671F", "Semester 1") : t("\u7B2C\u4E8C\u5B66\u671F", "Semester 2"), need = 0;
+    for (let r of info.rows) {
+      let uwNeed = S.targetUWGPA !== null && r.neededUW !== null && r.neededUW > 5e-3, wNeed = S.targetWGPA !== null && r.neededW !== null && r.neededW > 5e-3;
+      (uwNeed || wNeed) && need++;
+    }
+    let note = "";
+    return info.estimated && (note = ' <span style="color:#8c8c8c;">' + (info.courseLevel ? t("\uFF08\u6682\u65E0\u5B66\u671F\u6210\u7EE9\uFF0C\u6309\u5355\u79D1\u76EE\u6807\u63A8\u7B97\uFF09", " (no term data \u2014 per-course target)") : t("\uFF08\u7F3A\u53E6\u4E00\u5B66\u671F\u6210\u7EE9\uFF0C\u6309\u5176\u81EA\u8EAB\u6C34\u5E73\u63A8\u7B97\uFF09", " (other term has no grades \u2014 estimated from this one)")) + "</span>"), info.noP > 0 && (note += ' <span style="color:#8c8c8c;">' + t("\uFF08\u53E6\u6709 ", " (") + info.noP + t(" \u79D1\u6682\u65E0\u5E73\u65F6\u6210\u7EE9\uFF09", " courses have no P yet)") + "</span>"), need > 0 ? '<span style="color:#fa8c16;">' + t("\u671F\u672B\u6A21\u62DF \u2014 " + label + "\uFF1A", "Exam Simulation \u2014 " + label + ": ") + need + " " + t("\u79D1\u9700\u63D0\u5347\u4EE5\u8FBE\u5230\u5E73\u5747\u76EE\u6807", " courses need improvement for avg target") + "</span>" + note : info.rows.length > 0 ? t("\u671F\u672B\u6A21\u62DF \u2014 " + label + "\uFF1A", "Exam Simulation \u2014 " + label + ": ") + info.rows.length + " " + t("\u79D1\u671F\u672B\u5F85\u8003\uFF0C\u6700\u4F4E\u6240\u9700\u5206\u6570 0", " finals pending, minimum required score 0") + note : '<span style="color:#52c41a;">' + t("\u671F\u672B\u6A21\u62DF \u2014 " + label + "\uFF1A\u6240\u6709\u79D1\u76EE\u5DF2\u8FBE\u6807", "Exam Simulation \u2014 " + label + ": all courses met") + "</span>" + note;
+  }
   function buildTargetDetailTable() {
     if (S.targetUWGPA === null && S.targetWGPA === null) return "";
     let rows = [];
-    if (S.targetGPAMode === "exam") {
-      let focusSem = getExamFocusSemester();
-      if (focusSem === null)
-        return hasAnyPData() ? '<div style="color:#d4380d;font-size:11px;margin-top:4px;">' + t("\u6240\u6709\u671F\u672B\u8003\u8BD5\u5747\u5DF2\u7ED3\u675F\uFF0C\u65E0\u6CD5\u8FDB\u884C\u671F\u672B\u6A21\u62DF", "All final exams completed \u2014 exam simulation unavailable") + "</div>" : '<div style="color:#888;font-size:11px;margin-top:4px;">' + t("\u6682\u65E0\u671F\u672B\u6210\u7EE9\uFF0C\u65E0\u6CD5\u63A8\u7B97", "No final exam data \u2014 cannot calculate") + "</div>";
-      for (let course of S.simCourses) {
-        let dg = getExamDisplayGap(course, focusSem === "S1" ? "s1" : "s2");
-        dg.locked || dg.uwNeededP === null && dg.wNeededP === null && (dg.currentUW === null && dg.currentW === null || !(S.targetUWGPA !== null && dg.currentUW !== null || S.targetWGPA !== null && dg.currentW !== null)) || rows.push({
-          course,
-          term: focusSem,
-          gap: dg,
-          neededUW: dg.uwNeededP,
-          neededW: dg.wNeededP,
-          atMax: dg.atMax,
-          targetCourseUW: dg.targetCourseUW,
-          targetCourseW: dg.targetCourseW
-        });
-      }
-      if (!rows.length)
-        return '<div style="color:#888;font-size:11px;margin-top:4px;">' + t("\u6240\u6709\u79D1\u76EE" + focusSem + "\u5B66\u671F\u5747\u5DF2\u8003\u5B8C\u6216\u8FBE\u6807", "All courses " + focusSem + " term are done or at target") + "</div>";
-      let html2 = '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
-      for (let { course, term, gap, neededUW, neededW, atMax, targetCourseUW, targetCourseW } of rows) {
-        html2 += "<tr>";
-        let cellHtml = '<span style="font-weight:500;">' + escapeHtml(course.name) + '</span> <span style="color:#888;">' + term + "</span>";
-        {
-          let parts = [];
-          S.targetUWGPA !== null && neededUW !== null && (neededUW < 0.01 ? parts.push('UW <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6807", "met") + "</span>") : parts.push("UW " + t("\u76EE\u6807", "target") + " " + targetCourseUW.toFixed(2) + " " + t("\u9700\u8003\u2265", "need E\u2265") + '<span style="color:#fa8c16;font-weight:600;">' + neededUW.toFixed(2) + "</span>")), S.targetWGPA !== null && neededW !== null && (neededW < 0.01 ? parts.push('W <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6807", "met") + "</span>") : parts.push("W " + t("\u76EE\u6807", "target") + " " + targetCourseW.toFixed(2) + " " + t("\u9700\u8003\u2265", "need E\u2265") + '<span style="color:#fa8c16;font-weight:600;">' + neededW.toFixed(2) + "</span>")), parts.length ? (cellHtml += " \u2014 " + parts.join(" | "), atMax && (cellHtml += ' <span style="color:#888;">(P\u226593)</span>')) : atMax && (cellHtml += ' \u2014 <span style="color:#888;">' + t("P\u5DF2\u8FBEA\u7EA7", "P at A-level") + "</span>");
-        }
-        html2 += '<td style="padding:4px 6px;border:1px solid #eee;">' + cellHtml + "</td>", html2 += "</tr>";
-      }
-      return html2 += "</table>", html2;
-    }
+    if (S.targetGPAMode === "exam")
+      return _examDetailHTML(buildExamRows());
     for (let course of S.simCourses)
       for (let term of ["S1", "S2"]) {
         let gap = computeTargetGap(course, term === "S1" ? "s1" : "s2");
-        if (gap.uw === null && gap.w === null || gap.locked) continue;
+        if (gap.currentUW === null && gap.currentW === null || gap.locked) continue;
         let maxTermGPA = computeMaxTermGPA(course, term);
         rows.push({ course, term, gap, maxTermGPA });
       }
@@ -1962,7 +2039,7 @@
         for (let course of S.simCourses)
           for (let term of ["S1", "S2"]) {
             let g = computeTargetGap(course, term === "S1" ? "s1" : "s2");
-            if ((g.uw !== null || g.w !== null) && !g.locked)
+            if ((g.currentUW !== null || g.currentW !== null) && !g.locked)
               return !1;
           }
         return !0;
@@ -1973,51 +2050,33 @@
       let cellHtml = '<span style="font-weight:500;">' + escapeHtml(course.name) + '</span> <span style="color:#888;">' + term + "</span>";
       {
         let gapParts = [];
-        S.targetUWGPA !== null && gap.uwGap !== null && (gap.uwGap < 5e-3 ? gapParts.push('UW <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6807", "met") + "</span>") : gap.atMax ? gapParts.push('UW <span style="color:#fa8c16;">' + t("P\u5DF2\u8FBEA\u7EA7\u4E0A\u9650\uFF0C\u8DDD\u76EE\u6807\u5DEE", "P at A-level max, gap ") + gap.uwGap.toFixed(2) + "</span>") : gapParts.push('UW <span style="color:#fa8c16;">' + t("\u76EE\u6807\u9700\u5E73\u65F6\u6210\u7EE9 +", "target need P +") + gap.uwGap.toFixed(2) + "</span>")), S.targetWGPA !== null && gap.wGap !== null && (gap.wGap < 5e-3 ? gapParts.push('W <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6807", "met") + "</span>") : gap.atMax ? gapParts.push('W <span style="color:#fa8c16;">' + t("P\u5DF2\u8FBEA\u7EA7\u4E0A\u9650\uFF0C\u8DDD\u76EE\u6807\u5DEE", "P at A-level max, gap ") + gap.wGap.toFixed(2) + "</span>") : gapParts.push('W <span style="color:#fa8c16;">' + t("\u76EE\u6807\u9700\u5E73\u65F6\u6210\u7EE9 +", "target need P +") + gap.wGap.toFixed(2) + "</span>")), gapParts.length ? (cellHtml += " \u2014 " + gapParts.join(", "), gap.atMax && (cellHtml += ' <span style="color:#d4380d;font-size:10px;">' + t("(P\u5DF2\u8FBEA\u7EA7\u4E0A\u9650)", "(P at A-level max)") + "</span>")) : gap.atMax ? cellHtml += ' \u2014 <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6700\u5927GPA\u4E14\u8FBE\u6807", "Max GPA reached & target met") + "</span>" : cellHtml += ' \u2014 <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6807", "met") + "</span>";
+        S.targetUWGPA !== null && gap.uwGap !== null && (gap.uwGap < 5e-3 ? gapParts.push('UW <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6807", "met") + "</span>") : gap.atMax ? gapParts.push('UW <span style="color:#fa8c16;">' + t("P\u5DF2\u8FBEA\u7EA7\u4E0A\u9650\uFF0C\u8DDD\u76EE\u6807\u5DEE", "P at A-level max, gap ") + gap.uwGap.toFixed(2) + "</span>") : gapParts.push('UW <span style="color:#fa8c16;">' + t("\u76EE\u6807\u9700\u5E73\u65F6\u6210\u7EE9 +", "target need P +") + gap.uwGap.toFixed(2) + "</span>")), S.targetWGPA !== null && gap.wGap !== null && (gap.wGap < 5e-3 ? gapParts.push('W <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6807", "met") + "</span>") : gap.atMax ? gapParts.push('W <span style="color:#fa8c16;">' + t("P\u5DF2\u8FBEA\u7EA7\u4E0A\u9650\uFF0C\u8DDD\u76EE\u6807\u5DEE", "P at A-level max, gap ") + gap.wGap.toFixed(2) + "</span>") : gapParts.push('W <span style="color:#fa8c16;">' + t("\u76EE\u6807\u9700\u5E73\u65F6\u6210\u7EE9 +", "target need P +") + gap.wGap.toFixed(2) + "</span>")), gapParts.length ? (cellHtml += " \u2014 " + gapParts.join(", "), gap.atMax && (cellHtml += ' <span style="color:#d4380d;font-size:10px;">' + t("(P\u5DF2\u8FBEA\u7EA7\u4E0A\u9650)", "(P at A-level max)") + "</span>")) : gap.atMax ? cellHtml += ' \u2014 <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6700\u5927GPA\u4E14\u8FBE\u6807", "Max GPA reached & target met") + "</span>" : cellHtml += ' \u2014 <span style="color:#52c41a;">' + t("\u5DF2\u8FBE\u6807", "met") + "</span>", gap.overCeilingUW || gap.overCeilingW ? cellHtml += ' <span style="color:#d4380d;">' + t("\u76EE\u6807\u9AD8\u4E8E\u672C\u79D1\u4E0A\u9650\uFF0C\u672C\u79D1\u6700\u591A ", "above course ceiling, this course tops at ") + (gap.overCeilingW ? (4 + (course.weightBonus || 0)).toFixed(2) : "4.00") + "</span>" : (gap.taskCappedUW || gap.taskCappedW) && (cellHtml += ' <span style="color:#d4380d;">' + t("\u6309\u73B0\u6709\u4EFB\u52A1\u5168\u6EE1\u5206\u4E5F\u4E0D\u591F", "even full marks on current tasks fall short") + "</span>");
       }
       html += '<td style="padding:4px 6px;border:1px solid #eee;">' + cellHtml + "</td>", html += "</tr>";
     }
     return html += "</table>", html;
   }
-  function renderTargetGapSummary(root) {
+  function _setHtml(el, html) {
+    el && el.innerHTML !== html && (el.innerHTML = html);
+  }
+  function renderTargetGapSummary(root, withDetail) {
     let scope = root || document, summaryDiv = scope.querySelector("#target-gap-summary");
     if (!summaryDiv) return;
+    let detailDiv = scope.querySelector("#target-detail-table"), showDetail = withDetail !== !1;
     if (S.targetUWGPA === null && S.targetWGPA === null) {
-      summaryDiv.innerHTML = "";
+      _setHtml(summaryDiv, ""), _setHtml(detailDiv, "");
       return;
     }
     if (S.targetGPAMode === "exam") {
-      let focusSem = getExamFocusSemester();
-      if (focusSem === null)
-        summaryDiv.innerHTML = hasAnyPData() ? '<span style="color:#d4380d;">' + t("\u6240\u6709\u671F\u672B\u8003\u8BD5\u5747\u5DF2\u7ED3\u675F\uFF0C\u65E0\u6CD5\u8FDB\u884C\u671F\u672B\u6A21\u62DF", "All final exams completed \u2014 exam simulation unavailable") + "</span>" : '<span style="color:#888;">' + t("\u6682\u65E0\u671F\u672B\u6210\u7EE9\uFF0C\u65E0\u6CD5\u63A8\u7B97", "No final exam data \u2014 cannot calculate") + "</span>";
-      else {
-        let lockedGPA = computeSemesterCreditGPA(focusSem === "S1" ? "S2" : "S1"), curFocusGPA = computeSemesterCreditGPA(focusSem), belowC = 0;
-        for (let course of S.simCourses) {
-          let gap = computeTargetGap(course, focusSem === "S1" ? "s1" : "s2");
-          if (gap.uw === null && gap.w === null || gap.locked) continue;
-          let needsImprovement = !1;
-          if (S.targetUWGPA !== null && lockedGPA && curFocusGPA && gap.currentUW !== null) {
-            let uwGap = Math.max(0, 2 * S.targetUWGPA - lockedGPA.uw) - curFocusGPA.uw, targetCourseUW = Math.min(gap.currentUW + uwGap, 4), minF = getMinScoreForGPA(targetCourseUW);
-            minF !== null && (minF - gap.currentP * 0.8) / 0.2 > 5e-3 && (needsImprovement = !0);
-          }
-          if (!needsImprovement && S.targetWGPA !== null && lockedGPA && curFocusGPA && gap.currentW !== null) {
-            let wGap = Math.max(0, 2 * S.targetWGPA - lockedGPA.w) - curFocusGPA.w, targetCourseW = Math.min(gap.currentW + wGap, 4 + course.weightBonus), minF = getMinScoreForGPA(targetCourseW - course.weightBonus);
-            minF !== null && (minF - gap.currentP * 0.8) / 0.2 > 5e-3 && (needsImprovement = !0);
-          }
-          needsImprovement && belowC++;
-        }
-        let label = focusSem === "S1" ? t("\u7B2C\u4E00\u5B66\u671F", "Semester 1") : t("\u7B2C\u4E8C\u5B66\u671F", "Semester 2");
-        belowC > 0 ? summaryDiv.innerHTML = '<span style="color:#fa8c16;">' + t("\u671F\u672B\u6A21\u62DF \u2014 " + label + "\uFF1A", "Exam Simulation \u2014 " + label + ": ") + belowC + " " + t("\u79D1\u9700\u63D0\u5347\u4EE5\u8FBE\u5230\u5E73\u5747\u76EE\u6807", " courses need improvement for avg target") + "</span>" : summaryDiv.innerHTML = '<span style="color:#52c41a;">' + t("\u671F\u672B\u6A21\u62DF \u2014 " + label + "\uFF1A\u6240\u6709\u79D1\u76EE\u5DF2\u8FBE\u6807", "Exam Simulation \u2014 " + label + ": all courses met") + "</span>";
-      }
-      let detailDiv2 = scope.querySelector("#target-detail-table");
-      detailDiv2 && (detailDiv2.innerHTML = buildTargetDetailTable());
+      let info = buildExamRows();
+      info.focusSem === null ? _setHtml(summaryDiv, info.finished ? '<span style="color:#d4380d;">' + t("\u6240\u6709\u671F\u672B\u8003\u8BD5\u5747\u5DF2\u7ED3\u675F\uFF0C\u65E0\u6CD5\u8FDB\u884C\u671F\u672B\u6A21\u62DF", "All final exams completed \u2014 exam simulation unavailable") + "</span>" : '<span style="color:#888;">' + t("\u6682\u65E0\u671F\u672B\u6210\u7EE9\uFF0C\u65E0\u6CD5\u63A8\u7B97", "No final exam data \u2014 cannot calculate") + "</span>") : _setHtml(summaryDiv, _examSummaryHTML(info)), showDetail ? _setHtml(detailDiv, _examDetailHTML(info)) : _setHtml(detailDiv, "");
       return;
     }
     let s1Below = 0, s1Gap = 0, s2Below = 0, s2Gap = 0, lockedCount = 0, maxCount = 0, totalTerms = 0;
     for (let course of S.simCourses)
       for (let term of ["S1", "S2"]) {
         let gap = computeTargetGap(course, term === "S1" ? "s1" : "s2");
-        if (gap.uw === null && gap.w === null) continue;
+        if (gap.currentUW === null && gap.currentW === null) continue;
         if (totalTerms++, gap.locked) {
           lockedCount++;
           continue;
@@ -2028,10 +2087,10 @@
       }
     let activeTerms = totalTerms - lockedCount;
     if (lockedCount === totalTerms)
-      summaryDiv.innerHTML = '<span style="color:#d4380d;">' + t("\u6240\u6709\u5B66\u671F\u5747\u5DF2\u8003\u5B8C\u671F\u672B\uFF0C\u6210\u7EE9\u4E0D\u53EF\u66F4\u6539", "All semesters completed \u2014 grades cannot be changed") + "</span>";
+      _setHtml(summaryDiv, '<span style="color:#d4380d;">' + t("\u6240\u6709\u5B66\u671F\u5747\u5DF2\u8003\u5B8C\u671F\u672B\uFF0C\u6210\u7EE9\u4E0D\u53EF\u66F4\u6539", "All semesters completed \u2014 grades cannot be changed") + "</span>");
     else if (s1Below === 0 && s2Below === 0)
-      summaryDiv.innerHTML = '<span style="color:#52c41a;">' + t("\u6240\u6709\u79D1\u76EE\u5747\u5DF2\u8FBE\u6807", "All courses meet target") + "</span>";
-    else if (s1Below > 0 || s2Below > 0) {
+      _setHtml(summaryDiv, '<span style="color:#52c41a;">' + t("\u6240\u6709\u79D1\u76EE\u5747\u5DF2\u8FBE\u6807", "All courses meet target") + "</span>");
+    else {
       let parts = [];
       if (s1Below > 0) {
         let avg = (s1Gap / s1Below).toFixed(2);
@@ -2041,35 +2100,40 @@
         let avg = (s2Gap / s2Below).toFixed(2);
         parts.push("S2 " + s2Below + " " + t("\u79D1\u672A\u8FBE\u6807\uFF0C\u5E73\u5747\u9700\u63D0\u5347", " below, avg need") + " " + avg + " " + t("\u5E73\u65F6\u5206", " P pts"));
       }
-      summaryDiv.innerHTML = parts.join("\uFF1B");
-    } else
-      summaryDiv.innerHTML = '<span style="color:#52c41a;">' + t("\u6240\u6709\u79D1\u76EE\u5747\u5DF2\u8FBE\u6807", "All courses meet target") + "</span>";
-    let detailDiv = scope.querySelector("#target-detail-table");
-    detailDiv && (detailDiv.innerHTML = buildTargetDetailTable());
+      _setHtml(summaryDiv, parts.join("\uFF1B"));
+    }
+    showDetail ? _setHtml(detailDiv, buildTargetDetailTable()) : _setHtml(detailDiv, "");
   }
   function attachTargetGPAEvents(root, after) {
     let scope = root || document, refresh = typeof after == "function" ? after : refreshAllViews, uwInput = scope.querySelector("#target-uw-input"), wInput = scope.querySelector("#target-w-input"), clearBtn = scope.querySelector("#clear-target-btn"), modeSelect = scope.querySelector("#target-mode-select");
     if (!uwInput || !wInput) return;
+    function syncInputs() {
+      let uwText = S.targetUWGPA !== null ? S.targetUWGPA.toFixed(2) : "", wText = S.targetWGPA !== null ? S.targetWGPA.toFixed(2) : "";
+      uwInput.value !== uwText && (uwInput.value = uwText), wInput.value !== wText && (wInput.value = wText);
+    }
+    function syncClearBtn() {
+      clearBtn && (clearBtn.style.display = S.targetUWGPA !== null || S.targetWGPA !== null ? "" : "none");
+    }
     function applyTargets() {
       let uwVal = uwInput.value.trim(), wVal = wInput.value.trim();
       S.targetUWGPA = uwVal !== "" ? parseFloat(uwVal) : null, S.targetWGPA = wVal !== "" ? parseFloat(wVal) : null, S.targetUWGPA !== null && isNaN(S.targetUWGPA) && (S.targetUWGPA = null), S.targetWGPA !== null && isNaN(S.targetWGPA) && (S.targetWGPA = null);
       let maxGPA = computeOverallMaxGPA();
-      S.targetUWGPA !== null && (S.targetUWGPA < 0 && (S.targetUWGPA = 0), maxGPA && S.targetUWGPA > maxGPA.uw && (S.targetUWGPA = maxGPA.uw)), S.targetWGPA !== null && (S.targetWGPA < 0 && (S.targetWGPA = 0), maxGPA && S.targetWGPA > maxGPA.w && (S.targetWGPA = maxGPA.w)), markDirty(), refresh();
+      S.targetUWGPA !== null && (S.targetUWGPA < 0 && (S.targetUWGPA = 0), maxGPA && S.targetUWGPA > maxGPA.uw && (S.targetUWGPA = maxGPA.uw)), S.targetWGPA !== null && (S.targetWGPA < 0 && (S.targetWGPA = 0), maxGPA && S.targetWGPA > maxGPA.w && (S.targetWGPA = maxGPA.w)), syncInputs(), syncClearBtn(), markDirty(), refresh();
     }
     function applyMode() {
       if (modeSelect) {
         S.targetGPAMode = modeSelect.value === "exam" ? "exam" : "subject";
         let maxGPA = computeOverallMaxGPA();
-        S.targetUWGPA !== null && maxGPA && S.targetUWGPA > maxGPA.uw && (S.targetUWGPA = maxGPA.uw), S.targetWGPA !== null && maxGPA && S.targetWGPA > maxGPA.w && (S.targetWGPA = maxGPA.w), markDirty(), refresh();
+        S.targetUWGPA !== null && maxGPA && S.targetUWGPA > maxGPA.uw && (S.targetUWGPA = maxGPA.uw), S.targetWGPA !== null && maxGPA && S.targetWGPA > maxGPA.w && (S.targetWGPA = maxGPA.w), syncInputs(), syncClearBtn(), markDirty(), refresh();
       }
     }
-    uwInput.addEventListener("blur", applyTargets), wInput.addEventListener("blur", applyTargets), uwInput.addEventListener("keypress", (e) => {
+    uwInput.addEventListener("blur", applyTargets), wInput.addEventListener("blur", applyTargets), uwInput.addEventListener("keydown", (e) => {
       e.key === "Enter" && (e.preventDefault(), applyTargets());
-    }), wInput.addEventListener("keypress", (e) => {
+    }), wInput.addEventListener("keydown", (e) => {
       e.key === "Enter" && (e.preventDefault(), applyTargets());
     }), modeSelect && modeSelect.addEventListener("change", applyMode), clearBtn && clearBtn.addEventListener("click", () => {
-      S.targetUWGPA = null, S.targetWGPA = null, uwInput.value = "", wInput.value = "", markDirty(), refresh();
-    }), setTimeout(() => renderTargetGapSummary(scope), 100);
+      S.targetUWGPA = null, S.targetWGPA = null, syncInputs(), syncClearBtn(), markDirty(), refresh();
+    }), syncClearBtn(), setTimeout(() => renderTargetGapSummary(scope), 100);
   }
   var _targetGapCache, _examDisplayCache, init_gpa_target = __esm({
     "v8.30/gpa-target.js"() {
@@ -2077,7 +2141,7 @@
       init_utils();
       init_ui();
       _targetGapCache = /* @__PURE__ */ new Map();
-      _examDisplayCache = { focusSem: null, lockedGPA: null, curFocusGPA: null, computed: !1 };
+      _examDisplayCache = { focusSem: null, basis: null, curFocusGPA: null, estimated: !1, computed: !1 };
     }
   });
 
@@ -2579,6 +2643,82 @@
     }
     return { value, base: report || computedOrig, computedOrig, report };
   }
+  function cumulativeCourseValue(course, sim) {
+    if (!course || !(course.credit > 0)) return null;
+    let orig = course.originalGrades || {}, live = (sim ? course.simGrades : course.originalGrades) || {}, value;
+    if (orig.eoy !== null && orig.eoy !== void 0 ? value = orig.eoy : live.s2f !== null && live.s2f !== void 0 ? value = live.s2f : value = live.s1f, value == null || isNaN(value)) return null;
+    let letter = scoreToLetter(value);
+    if (!letter) return null;
+    let base = LETTER_TO_GPA.get(letter);
+    return base == null ? null : { points: (base + (course.weightBonus || 0)) * course.credit, credit: course.credit };
+  }
+  function cumulativePool(entries, sim, upToIdx) {
+    let points = 0, credits = 0, limit = upToIdx == null ? entries.length - 1 : upToIdx;
+    for (let i = 0; i <= limit && i < entries.length; i++) {
+      let list = (sim ? entries[i].simCourses : entries[i].originalCourses) || [];
+      for (let c of list) {
+        let v = cumulativeCourseValue(c, sim);
+        v && (points += v.points, credits += v.credit);
+      }
+    }
+    return credits <= 0 ? null : { points, credits, gpa: points / credits };
+  }
+  function publishedCumulative(entry) {
+    if (!entry) return null;
+    let v = entry.cumulativeGPA;
+    return typeof v == "number" && !isNaN(v) ? v : null;
+  }
+  function multiYearCumulativeOf(idx) {
+    let entries = S.multiYearEntries || [];
+    if (idx < 0 || idx >= entries.length) return null;
+    let poolSim = cumulativePool(entries, !0, idx), poolOrig = cumulativePool(entries, !1, idx), anchorIdx = -1;
+    for (let j = idx; j >= 0; j--)
+      if (publishedCumulative(entries[j]) !== null) {
+        anchorIdx = j;
+        break;
+      }
+    let offset = 0, published = null;
+    if (anchorIdx >= 0) {
+      published = publishedCumulative(entries[anchorIdx]);
+      let poolOrigAnchor = cumulativePool(entries, !1, anchorIdx);
+      poolOrigAnchor && (offset = published - poolOrigAnchor.gpa);
+    }
+    let raw = poolSim ? poolSim.gpa : null, baseOrig = poolOrig ? poolOrig.gpa : null;
+    return {
+      display: raw !== null ? raw + offset : null,
+      noSim: baseOrig !== null ? baseOrig + offset : null,
+      raw,
+      offset,
+      published,
+      points: poolSim ? poolSim.points : null,
+      credits: poolSim ? poolSim.credits : null
+    };
+  }
+  function multiYearCumulativeReport() {
+    return (S.multiYearEntries || []).map((e, i) => {
+      let c = multiYearCumulativeOf(i), r4 = (v) => v == null ? null : Number(v.toFixed(4)), r2 = (v) => v == null ? null : Number(v.toFixed(2));
+      return {
+        grade: e.grade,
+        yearValue: e.yearValue,
+        points: c ? r4(c.points) : null,
+        credits: c ? c.credits : null,
+        raw: c ? r4(c.raw) : null,
+        published: c ? c.published : null,
+        offset: c ? r4(c.offset) : null,
+        display: c ? r2(c.display) : null
+      };
+    });
+  }
+  function cgpaTitle() {
+    return t(
+      "\u7D2F\u8BA1GPA\uFF1AG9 \u8D77\u6240\u6709\u8BA1\u5206\u8BFE\u7A0B\u6309\u5B66\u5206\u52A0\u6743\u6C47\u603B\uFF08\u542B AP/ECP \u52A0\u6743\uFF09\uFF1B\u53EA\u8BFB\u3001\u4E0D\u53C2\u4E0E\u300C\u5E73\u5747GPA\u300D",
+      "Cumulative GPA: credit-weighted over every graded course since G9 (AP/ECP weighting included). Read-only, not part of the average."
+    );
+  }
+  function formatCumulativeGPA(cum) {
+    let val = cum ? cum.display : null, base = cum ? cum.noSim : null, hasDiff = val !== null && base !== null && Math.abs(val - base) > 5e-3, diffStr = hasDiff ? " (" + formatDiff(val - base) + ")" : "";
+    return '<span style="' + (hasDiff ? "font-weight:bold;" : "") + '" title="' + cgpaTitle() + '">' + (val !== null ? val.toFixed(2) : "\u2014") + "</span>" + diffStr;
+  }
   function buildMultiYearGradeTable() {
     if (!S.multiYearEntries.length) return `<div style="padding:20px;text-align:center;">${t("\u6682\u65E0\u591A\u5E74\u7EA7\u6570\u636E", "No multi-year data")}</div>`;
     function formatEditableGPA(effective, orig, grade, semester) {
@@ -2590,11 +2730,11 @@
       let uw = effective ? effective.uw : override.uw !== null && override.uw !== void 0 ? override.uw : null, w = effective ? effective.w : override.w !== null && override.w !== void 0 ? override.w : null, origUW = orig ? orig.uw : null, origW = orig ? orig.w : null;
       return "UW: " + fmtVal(uw, origUW, "uw", "#1890ff") + " W: " + fmtVal(w, origW, "w", "#cf1322");
     }
-    let html = '<div style="overflow-x:auto;max-width:100%;"><table style="border-collapse:collapse;font-size:13px;min-width:700px;">';
-    html += '<thead><tr style="background:#fafafa;">', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">${t("\u5E74\u7EA7", "Grade")}</th>`, html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S1F GPA</th>', html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S2F GPA</th>', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${t("\u5B66\u5E74GPA", "Annual GPA")}</th>`, html += "</tr></thead><tbody>";
-    for (let entry of S.multiYearEntries) {
-      let grade = entry.grade, origS1F = computeColumnGPASummary(entry.originalCourses, (c) => c.originalGrades.s1f), origS2F = computeColumnGPASummary(entry.originalCourses, (c) => c.originalGrades.s2f), ann = multiYearAnnualOf(entry), origAnnual = ann.base, simS1F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s1f), simS2F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s2f), effS1F = getEffectiveMultiYearGPA(grade, "S1F", simS1F), effS2F = getEffectiveMultiYearGPA(grade, "S2F", simS2F);
-      html += "<tr>", html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;font-weight:600;">${grade}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f0f8ff;">${formatEditableGPA(effS1F, origS1F, grade, "S1F")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f0f8ff;">${formatEditableGPA(effS2F, origS2F, grade, "S2F")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${formatEditableGPA(ann.value, origAnnual, grade, "Annual")}</td>`, html += "</tr>";
+    let html = '<div style="overflow-x:auto;max-width:100%;"><table style="border-collapse:collapse;font-size:13px;min-width:860px;">';
+    html += '<thead><tr style="background:#fafafa;">', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">${t("\u5E74\u7EA7", "Grade")}</th>`, html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S1F GPA</th>', html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S2F GPA</th>', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${t("\u5B66\u5E74GPA", "Annual GPA")}</th>`, html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:${CGPA_TINT};" title="${cgpaTitle()}">${t("\u7D2F\u8BA1GPA", "Cumulative GPA")}</th>`, html += "</tr></thead><tbody>";
+    for (let idx = 0; idx < S.multiYearEntries.length; idx++) {
+      let entry = S.multiYearEntries[idx], grade = entry.grade, origS1F = computeColumnGPASummary(entry.originalCourses, (c) => c.originalGrades.s1f), origS2F = computeColumnGPASummary(entry.originalCourses, (c) => c.originalGrades.s2f), ann = multiYearAnnualOf(entry), origAnnual = ann.base, simS1F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s1f), simS2F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s2f), effS1F = getEffectiveMultiYearGPA(grade, "S1F", simS1F), effS2F = getEffectiveMultiYearGPA(grade, "S2F", simS2F);
+      html += "<tr>", html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;font-weight:600;">${grade}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f0f8ff;">${formatEditableGPA(effS1F, origS1F, grade, "S1F")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f0f8ff;">${formatEditableGPA(effS2F, origS2F, grade, "S2F")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${formatEditableGPA(ann.value, origAnnual, grade, "Annual")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:${CGPA_TINT};" data-ints-cgpa-grade="${grade}">${formatCumulativeGPA(multiYearCumulativeOf(idx))}</td>`, html += "</tr>";
     }
     html += "</tbody></table>";
     let allAnnuals = [];
@@ -2616,24 +2756,24 @@
     let svg = document.getElementById("gpa-trend-svg");
     if (!svg) return;
     let dataHash = "";
-    for (let entry of S.multiYearEntries) {
-      let effective = multiYearAnnualOf(entry).value;
-      dataHash += entry.grade + "|" + (effective ? effective.uw + "," + effective.w : "null") + ";";
+    for (let i = 0; i < S.multiYearEntries.length; i++) {
+      let entry = S.multiYearEntries[i], effective = multiYearAnnualOf(entry).value, cum = multiYearCumulativeOf(i);
+      dataHash += entry.grade + "|" + (effective ? effective.uw + "," + effective.w : "null") + "|" + (cum && cum.display !== null ? cum.display : "null") + ";";
     }
     if (svg.dataset.hash === dataHash) return;
     svg.dataset.hash = dataHash;
     let W = 500, H = 400, margin = { top: 25, right: 30, bottom: 40, left: 55 }, pw = W - margin.left - margin.right, ph = H - margin.top - margin.bottom, dataPoints = [];
-    for (let entry of S.multiYearEntries) {
-      let effective = multiYearAnnualOf(entry).value;
-      effective ? dataPoints.push({ grade: entry.grade, uw: effective.uw, w: effective.w }) : dataPoints.push({ grade: entry.grade, uw: null, w: null });
+    for (let i = 0; i < S.multiYearEntries.length; i++) {
+      let entry = S.multiYearEntries[i], effective = multiYearAnnualOf(entry).value, cum = multiYearCumulativeOf(i), cgpa = cum && cum.display !== null ? cum.display : null;
+      effective ? dataPoints.push({ grade: entry.grade, uw: effective.uw, w: effective.w, cgpa }) : dataPoints.push({ grade: entry.grade, uw: null, w: null, cgpa });
     }
-    let validPoints = dataPoints.filter((p) => p.uw !== null || p.w !== null), allNull = validPoints.length === 0, svgNS = "http://www.w3.org/2000/svg";
+    let validPoints = dataPoints.filter((p) => p.uw !== null || p.w !== null || p.cgpa !== null), allNull = validPoints.length === 0, svgNS = "http://www.w3.org/2000/svg";
     if (svg.innerHTML = "", allNull) {
       let txt = document.createElementNS(svgNS, "text");
       txt.setAttribute("x", W / 2), txt.setAttribute("y", H / 2), txt.setAttribute("text-anchor", "middle"), txt.setAttribute("fill", "#999"), txt.setAttribute("font-size", "14"), txt.textContent = t("\u6682\u65E0\u6210\u7EE9\u6570\u636E", "No grade data"), svg.appendChild(txt);
       return;
     }
-    let allUWVals = validPoints.map((p) => p.uw).filter((v) => v !== null), allWVals = validPoints.map((p) => p.w).filter((v) => v !== null), allVals = [...allUWVals, ...allWVals], maxGPA = Math.max(...allVals, 4), yMax = Math.ceil(maxGPA * 1.15 / 0.5) * 0.5;
+    let allUWVals = validPoints.map((p) => p.uw).filter((v) => v !== null), allWVals = validPoints.map((p) => p.w).filter((v) => v !== null), allCGPAVals = validPoints.map((p) => p.cgpa).filter((v) => v !== null), allVals = [...allUWVals, ...allWVals, ...allCGPAVals], maxGPA = Math.max(...allVals, 4), yMax = Math.ceil(maxGPA * 1.15 / 0.5) * 0.5;
     yMax < 4.5 && (yMax = 4.5);
     let avgUW = allUWVals.length > 0 ? allUWVals.reduce((s, v) => s + v, 0) / allUWVals.length : null, avgW = allWVals.length > 0 ? allWVals.reduce((s, v) => s + v, 0) / allWVals.length : null;
     function xPos(i) {
@@ -2693,7 +2833,7 @@
         inner.setAttribute("cx", cx), inner.setAttribute("cy", cy), inner.setAttribute("r", "2"), inner.setAttribute("fill", "#fff"), inner.style.pointerEvents = "none", svg.appendChild(inner);
       }
     }
-    drawDataLine((p) => p.uw, "#1890ff", "UW"), drawDataLine((p) => p.w, "#cf1322", "W");
+    drawDataLine((p) => p.uw, "#1890ff", "UW"), drawDataLine((p) => p.w, "#cf1322", "W"), drawDataLine((p) => p.cgpa, CGPA_COLOR, "CGPA");
     let lg = document.createElementNS(svgNS, "g");
     lg.setAttribute("transform", `translate(${margin.left + 10}, ${margin.top})`);
     let r1 = document.createElementNS(svgNS, "rect");
@@ -2703,7 +2843,11 @@
     let r2 = document.createElementNS(svgNS, "rect");
     r2.setAttribute("x", 40), r2.setAttribute("y", 0), r2.setAttribute("width", 14), r2.setAttribute("height", 3), r2.setAttribute("fill", "#cf1322"), lg.appendChild(r2);
     let t22 = document.createElementNS(svgNS, "text");
-    t22.setAttribute("x", 58), t22.setAttribute("y", 5), t22.setAttribute("fill", "#333"), t22.setAttribute("font-size", "11"), t22.textContent = "W", lg.appendChild(t22), svg.appendChild(lg);
+    t22.setAttribute("x", 58), t22.setAttribute("y", 5), t22.setAttribute("fill", "#333"), t22.setAttribute("font-size", "11"), t22.textContent = "W", lg.appendChild(t22);
+    let r3 = document.createElementNS(svgNS, "rect");
+    r3.setAttribute("x", 80), r3.setAttribute("y", 0), r3.setAttribute("width", 14), r3.setAttribute("height", 3), r3.setAttribute("fill", CGPA_COLOR), lg.appendChild(r3);
+    let t32 = document.createElementNS(svgNS, "text");
+    t32.setAttribute("x", 98), t32.setAttribute("y", 5), t32.setAttribute("fill", "#333"), t32.setAttribute("font-size", "11"), t32.textContent = "CGPA", lg.appendChild(t32), svg.appendChild(lg);
   }
   function registerMultiYearHost(el) {
     el && _multiYearHosts.add(el);
@@ -2756,7 +2900,7 @@
     _courseChangeListener = fn;
   }
   function notifyCourseChanged(courseIdx) {
-    if (_courseChangeListener)
+    if (invalidateTargetGapCache(), !!_courseChangeListener)
       try {
         _courseChangeListener(courseIdx);
       } catch (e) {
@@ -2764,7 +2908,7 @@
       }
   }
   function notifyAllCoursesChanged() {
-    if (_courseChangeListener)
+    if (invalidateTargetGapCache(), !!_courseChangeListener)
       try {
         _courseChangeListener(-1);
       } catch (e) {
@@ -3038,7 +3182,7 @@
       handle.setBody('<div class="iw-err">' + escapeHtml(msg) + "</div>"), console.error("[\u660E\u7EC6] \u6E32\u67D3\u5931\u8D25:", e), recordError("\u79D1\u76EE\u660E\u7EC6\u6E32\u67D3", e);
     }
   }
-  var _multiYearHosts, _courseChangeListener, DETAIL_KIND, _detailRenders, DETAIL_COLOR_UP, DETAIL_COLOR_DOWN, DETAIL_DELTA_EPS, init_ui = __esm({
+  var CGPA_COLOR, CGPA_TINT, _multiYearHosts, _courseChangeListener, DETAIL_KIND, _detailRenders, DETAIL_COLOR_UP, DETAIL_COLOR_DOWN, DETAIL_DELTA_EPS, init_ui = __esm({
     "v8.30/ui.js"() {
       init_state();
       init_utils();
@@ -3046,6 +3190,7 @@
       init_simulation();
       init_diagnose();
       init_win_shell();
+      CGPA_COLOR = "#52c41a", CGPA_TINT = "#f6ffed";
       _multiYearHosts = /* @__PURE__ */ new Set();
       _courseChangeListener = null;
       DETAIL_KIND = "detail", _detailRenders = /* @__PURE__ */ new Map(), DETAIL_COLOR_UP = "#52c41a", DETAIL_COLOR_DOWN = "#d4380d", DETAIL_DELTA_EPS = 5e-3;
@@ -4780,19 +4925,16 @@
       !e.target || !e.target.closest || !e.target.closest("#" + TARGET_TOGGLE_ID) || (e.preventDefault(), _targetStripOpen = !_targetStripOpen, _renderToolbar());
     })));
     let ctl = host.querySelector("#ints-calc-targetctl"), has = _hasTargetGPA();
-    ctl && (!ctl.getAttribute("data-ints-built") || _targetHasState !== has) && (ctl.setAttribute("data-ints-built", "1"), ctl.innerHTML = buildTargetGPAControlsHTML("display:flex;align-items:center;gap:6px;"), _targetHasState = has, attachTargetGPAEvents(ctl, guardListener("\u5185\u8054\u76EE\u6807GPA", _onTargetChanged)));
+    ctl && !ctl.getAttribute("data-ints-built") && (ctl.setAttribute("data-ints-built", "1"), ctl.innerHTML = buildTargetGPAControlsHTML("display:flex;align-items:center;gap:6px;"), attachTargetGPAEvents(ctl, guardListener("\u5185\u8054\u76EE\u6807GPA", _onTargetChanged)));
+    let clearBtn = ctl && ctl.querySelector("#clear-target-btn");
+    clearBtn && (clearBtn.style.display = has ? "" : "none");
     let hint = ctl && ctl.querySelector("#target-max-hint");
     if (hint) {
       let hintText = maxGPAHintText();
       hintText ? hint.textContent = hintText : hint.remove();
     }
     let btn = host.querySelector("#" + TARGET_TOGGLE_ID), open = _targetStripOpen && has;
-    if (btn && (btn.style.display = has ? "" : "none", btn.innerHTML = iconChevron(open) + "<span>" + t("\u660E\u7EC6", "Detail") + "</span>", btn.style.color = open ? COLOR_ACTIVE : COLOR_IDLE), open) safe("\u5185\u8054\u76EE\u6807GPA\u660E\u7EC6", () => renderTargetGapSummary(host));
-    else {
-      let sum = host.querySelector("#target-gap-summary"), det = host.querySelector("#target-detail-table");
-      sum && (sum.innerHTML = ""), det && (det.innerHTML = "");
-    }
-    return host;
+    return btn && (btn.style.display = has ? "" : "none", btn.innerHTML = iconChevron(open) + "<span>" + t("\u660E\u7EC6", "Detail") + "</span>", btn.style.color = open ? COLOR_ACTIVE : COLOR_IDLE), safe("\u5185\u8054\u76EE\u6807GPA\u660E\u7EC6", () => renderTargetGapSummary(host, open)), host;
   }
   function _renderCalcOverview() {
     let host = _menuHostFor("show"), btn = document.getElementById(OVERVIEW_TOGGLE_ID);
@@ -5178,7 +5320,7 @@
     ].forEach((id) => {
       let el = document.getElementById(id);
       el && el.remove();
-    }), ovHost && safe("\u603B\u89C8\u5BBF\u4E3B\u53CD\u6CE8\u518C", () => unregisterMultiYearHost(ovHost)), document.querySelectorAll("[data-ints-term]").forEach((el) => el.remove()), _targetStripOpen = !1, _targetHasState = null, _calcOpen = !1, _overviewOpen = !1, _overviewLoaded = !1, _overviewFailed = !1, _overviewSig = "", document.querySelectorAll("[" + INLINE_ATTR + "]").forEach((el) => {
+    }), ovHost && safe("\u603B\u89C8\u5BBF\u4E3B\u53CD\u6CE8\u518C", () => unregisterMultiYearHost(ovHost)), document.querySelectorAll("[data-ints-term]").forEach((el) => el.remove()), _targetStripOpen = !1, _calcOpen = !1, _overviewOpen = !1, _overviewLoaded = !1, _overviewFailed = !1, _overviewSig = "", document.querySelectorAll("[" + INLINE_ATTR + "]").forEach((el) => {
       el.removeAttribute(INLINE_ATTR), el.removeAttribute("data-ints-clickable"), el.style.cursor = "", el.removeAttribute("title"), _restoreScoreCell(el);
       let box = el.querySelector("[data-ints-sim]");
       box && box.remove();
@@ -5206,7 +5348,7 @@
     }
     _isPointsPage() ? _start() : stopPointsInline();
   }
-  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, _targetHasState, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
+  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
     "v8.30/inline-points.js"() {
       init_state();
       init_utils();
@@ -5233,7 +5375,7 @@
       };
       IE_KIND = "editor", IE_F_IDS = { s1: "s1", s2: "s2" };
       ALL_FIELDS = ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"], FIELD_LABEL = { s1p: "S1P", s1e: "S1E", s1f: "S1F", s2p: "S2P", s2e: "S2E", s2f: "S2F" }, FIELD_BY_LABEL = { S1P: "s1p", S1E: "s1e", S1F: "s1f", S2P: "s2p", S2E: "s2e", S2F: "s2f", EOY: "eoy" }, FIELD_ORDER = { S1P: 0, S1E: 1, S1F: 2, S2P: 3, S2E: 4, S2F: 5, EOY: 6 };
-      SYNTH_PREFIX = "ints_", TOGGLE_ID = "ints-inline-cols-btn", TERM_ID = "ints-inline-term", TARGET_TOGGLE_ID = "ints-inline-target-btn", _targetStripOpen = !1, _targetHasState = null, COLOR_IDLE = "#1890ff", COLOR_ACTIVE = "#26b889";
+      SYNTH_PREFIX = "ints_", TOGGLE_ID = "ints-inline-cols-btn", TERM_ID = "ints-inline-term", TARGET_TOGGLE_ID = "ints-inline-target-btn", _targetStripOpen = !1, COLOR_IDLE = "#1890ff", COLOR_ACTIVE = "#26b889";
       _vm = null, _savedHeaders = null, _colsExpanded = !1, _colsSig = null;
       _savedColSig = "";
       MENU_CALC_ID = "ints-inline-menu-calc", MENU_SHOW_ID = "ints-inline-menu-show", MENU_CALC_TRIGGER_ID = "ints-inline-calc-menu-btn", MENU_SHOW_TRIGGER_ID = "ints-inline-show-menu-btn", MENU_PANEL_ATTR = "data-ints-menupanel", VTASK_BTN_ID = "ints-inline-vtask-btn", MENU_Z = 50, _openMenu = null, _menuOutside = null, _menuEsc = null;
@@ -5617,6 +5759,7 @@
       init_year_data();
       init_simulation();
       init_ui();
+      init_gpa_target();
       init_win_shell();
       init_diagnose();
       window.addEventListener("error", (e) => {
@@ -5693,6 +5836,8 @@
         autoCalibrateStarredCourses,
         showSubjectDetailModal,
         refreshSubjectDetailWindows,
+        targetExamRows: getExamTargetRows,
+        multiYearCgpa: multiYearCumulativeReport,
         listWindows,
         countWindows,
         closeTopWindow,
