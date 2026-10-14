@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.2
+// @version      1.02.3
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -2633,7 +2633,12 @@
     return value == null || reportVal == null || computedOrigVal == null ? value : reportVal + (value - computedOrigVal);
   }
   function multiYearAnnualOf(entry) {
-    let computedOrig = computeAnnualGPA(entry.originalCourses, (c) => c.originalGrades.s1f, (c) => c.originalGrades.s2f), report = entry.annualGPA !== null && entry.annualGPA !== void 0 && entry.cumulativeGPA !== null && entry.cumulativeGPA !== void 0 ? { uw: entry.cumulativeGPA, w: entry.annualGPA } : null, simS1F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s1f), simS2F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s2f), effS1F = getEffectiveMultiYearGPA(entry.grade, "S1F", simS1F), effS2F = getEffectiveMultiYearGPA(entry.grade, "S2F", simS2F), simAnnual = computeAnnualFromSemesters(effS1F, effS2F), value = getEffectiveMultiYearGPA(entry.grade, "Annual", simAnnual);
+    let computedOrig = computeAnnualGPA(entry.originalCourses, (c) => c.originalGrades.s1f, (c) => c.originalGrades.s2f), report = entry.annualGPA !== null && entry.annualGPA !== void 0 && entry.cumulativeGPA !== null && entry.cumulativeGPA !== void 0 ? { uw: entry.cumulativeGPA, w: entry.annualGPA } : null, simS1F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s1f), simS2F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s2f), effS1F = getEffectiveMultiYearGPA(entry.grade, "S1F", simS1F), effS2F = getEffectiveMultiYearGPA(entry.grade, "S2F", simS2F), simAnnual = computeAnnualFromSemesters(effS1F, effS2F), plain = simAnnual || computedOrig;
+    plain && report && computedOrig && (plain = {
+      uw: _anchorAnnualComponent(plain.uw, report.uw, computedOrig.uw),
+      w: _anchorAnnualComponent(plain.w, report.w, computedOrig.w)
+    });
+    let value = getEffectiveMultiYearGPA(entry.grade, "Annual", simAnnual);
     if (value && report && computedOrig) {
       let ov = S.multiYearGPAOverrides[entry.grade + "_Annual"] || {}, uwOverridden = ov.uw !== null && ov.uw !== void 0, wOverridden = ov.w !== null && ov.w !== void 0;
       value = {
@@ -2641,7 +2646,10 @@
         w: wOverridden ? value.w : _anchorAnnualComponent(value.w, report.w, computedOrig.w)
       };
     }
-    return { value, base: report || computedOrig, computedOrig, report };
+    return { value, base: report || computedOrig, computedOrig, report, plain };
+  }
+  function CGPA_LABEL() {
+    return t("\u7D2F\u8BA1GPA", "Cumulative GPA");
   }
   function cumulativeCourseValue(course, sim) {
     if (!course || !(course.credit > 0)) return null;
@@ -2652,14 +2660,33 @@
     let base = LETTER_TO_GPA.get(letter);
     return base == null ? null : { points: (base + (course.weightBonus || 0)) * course.credit, credit: course.credit };
   }
+  function _yearOverride(grade) {
+    let out = { any: !1, hasUW: !1 };
+    for (let sem of ["S1F", "S2F", "Annual"]) {
+      let ov = S.multiYearGPAOverrides[grade + "_" + sem];
+      if (!ov) continue;
+      let uw = ov.uw !== null && ov.uw !== void 0, w = ov.w !== null && ov.w !== void 0;
+      !uw && !w || (out.any = !0, uw && (out.hasUW = !0));
+    }
+    return out;
+  }
   function cumulativePool(entries, sim, upToIdx) {
     let points = 0, credits = 0, limit = upToIdx == null ? entries.length - 1 : upToIdx;
     for (let i = 0; i <= limit && i < entries.length; i++) {
-      let list = (sim ? entries[i].simCourses : entries[i].originalCourses) || [];
+      let entry = entries[i], list = (sim ? entry.simCourses : entry.originalCourses) || [], yearPoints = 0, yearCredits = 0;
       for (let c of list) {
         let v = cumulativeCourseValue(c, sim);
-        v && (points += v.points, credits += v.credit);
+        v && (yearPoints += v.points, yearCredits += v.credit);
       }
+      let ov = sim && entry.grade ? _yearOverride(entry.grade) : null;
+      if (ov && ov.any && yearCredits > 0) {
+        let ann = multiYearAnnualOf(entry), shownW = ann.value ? ann.value.w : null;
+        if (shownW != null) {
+          let shownUW = ann.value ? ann.value.uw : null, plainUW = ann.plain ? ann.plain.uw : null, deltaUW = ov.hasUW && shownUW !== null && plainUW !== null ? shownUW - plainUW : 0;
+          yearPoints = (shownW + deltaUW) * yearCredits;
+        }
+      }
+      points += yearPoints, credits += yearCredits;
     }
     return credits <= 0 ? null : { points, credits, gpa: points / credits };
   }
@@ -2711,8 +2738,8 @@
   }
   function cgpaTitle() {
     return t(
-      "\u7D2F\u8BA1GPA\uFF1AG9 \u8D77\u6240\u6709\u8BA1\u5206\u8BFE\u7A0B\u6309\u5B66\u5206\u52A0\u6743\u6C47\u603B\uFF08\u542B AP/ECP \u52A0\u6743\uFF09\uFF1B\u53EA\u8BFB\u3001\u4E0D\u53C2\u4E0E\u300C\u5E73\u5747GPA\u300D",
-      "Cumulative GPA: credit-weighted over every graded course since G9 (AP/ECP weighting included). Read-only, not part of the average."
+      "\u7D2F\u8BA1GPA\uFF1AG9 \u8D77\u6240\u6709\u8BA1\u5206\u8BFE\u7A0B\u6309\u5B66\u5206\u52A0\u6743\u6C47\u603B\uFF08\u542B AP/ECP \u52A0\u6743\uFF09\uFF1B\u53EA\u8BFB\u3001\u4E0D\u53C2\u4E0E\u300C\u5E73\u5747GPA\u300D\uFF1B\u624B\u6539\u8FC7\u67D0\u4E00\u5E74\u7684 UW/W \u65F6\u8BE5\u5E74\u6309\u8868\u683C\u91CC\u663E\u793A\u7684\u5E74\u5EA6\u503C\u8BA1\u5165",
+      "Cumulative GPA: credit-weighted over every graded course since G9 (AP/ECP weighting included). Read-only, not part of the average. A hand-edited year counts with the annual value shown in the table."
     );
   }
   function formatCumulativeGPA(cum) {
@@ -2731,7 +2758,7 @@
       return "UW: " + fmtVal(uw, origUW, "uw", "#1890ff") + " W: " + fmtVal(w, origW, "w", "#cf1322");
     }
     let html = '<div style="overflow-x:auto;max-width:100%;"><table style="border-collapse:collapse;font-size:13px;min-width:860px;">';
-    html += '<thead><tr style="background:#fafafa;">', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">${t("\u5E74\u7EA7", "Grade")}</th>`, html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S1F GPA</th>', html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S2F GPA</th>', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${t("\u5B66\u5E74GPA", "Annual GPA")}</th>`, html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:${CGPA_TINT};" title="${cgpaTitle()}">${t("\u7D2F\u8BA1GPA", "Cumulative GPA")}</th>`, html += "</tr></thead><tbody>";
+    html += '<thead><tr style="background:#fafafa;">', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">${t("\u5E74\u7EA7", "Grade")}</th>`, html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S1F GPA</th>', html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S2F GPA</th>', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${t("\u5B66\u5E74GPA", "Annual GPA")}</th>`, html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:${CGPA_TINT};" title="${cgpaTitle()}">${CGPA_LABEL()}</th>`, html += "</tr></thead><tbody>";
     for (let idx = 0; idx < S.multiYearEntries.length; idx++) {
       let entry = S.multiYearEntries[idx], grade = entry.grade, origS1F = computeColumnGPASummary(entry.originalCourses, (c) => c.originalGrades.s1f), origS2F = computeColumnGPASummary(entry.originalCourses, (c) => c.originalGrades.s2f), ann = multiYearAnnualOf(entry), origAnnual = ann.base, simS1F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s1f), simS2F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s2f), effS1F = getEffectiveMultiYearGPA(grade, "S1F", simS1F), effS2F = getEffectiveMultiYearGPA(grade, "S2F", simS2F);
       html += "<tr>", html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;font-weight:600;">${grade}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f0f8ff;">${formatEditableGPA(effS1F, origS1F, grade, "S1F")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f0f8ff;">${formatEditableGPA(effS2F, origS2F, grade, "S2F")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${formatEditableGPA(ann.value, origAnnual, grade, "Annual")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:${CGPA_TINT};" data-ints-cgpa-grade="${grade}">${formatCumulativeGPA(multiYearCumulativeOf(idx))}</td>`, html += "</tr>";
@@ -2801,14 +2828,15 @@
     baseLine.setAttribute("x1", margin.left), baseLine.setAttribute("x2", W - margin.right), baseLine.setAttribute("y1", margin.top + ph), baseLine.setAttribute("y2", margin.top + ph), baseLine.setAttribute("stroke", "#999"), baseLine.setAttribute("stroke-width", "1"), svg.appendChild(baseLine);
     function drawAvgLine(val, color, label) {
       let y = yPos(val), line = document.createElementNS(svgNS, "line");
-      line.setAttribute("x1", margin.left), line.setAttribute("x2", W - margin.right), line.setAttribute("y1", y), line.setAttribute("y2", y), line.setAttribute("stroke", color), line.setAttribute("stroke-width", "1"), line.setAttribute("stroke-dasharray", "5,4"), svg.appendChild(line);
+      line.setAttribute("x1", margin.left), line.setAttribute("x2", W - margin.right), line.setAttribute("y1", y), line.setAttribute("y2", y), line.setAttribute("stroke", color), line.setAttribute("stroke-width", "1"), line.setAttribute("stroke-dasharray", "1,4"), line.setAttribute("stroke-opacity", "0.45"), svg.appendChild(line);
       let txt = document.createElementNS(svgNS, "text");
-      txt.setAttribute("x", W - margin.right - 8), txt.setAttribute("y", y - 6), txt.setAttribute("text-anchor", "end"), txt.setAttribute("fill", color), txt.setAttribute("font-size", "10"), txt.textContent = `${label} avg ${val.toFixed(2)}`, svg.appendChild(txt);
+      txt.setAttribute("x", W - margin.right - 8), txt.setAttribute("y", y - 6), txt.setAttribute("text-anchor", "end"), txt.setAttribute("fill", color), txt.setAttribute("fill-opacity", "0.6"), txt.setAttribute("font-size", "10"), txt.textContent = `${label} avg ${val.toFixed(2)}`, svg.appendChild(txt);
     }
     avgUW !== null && drawAvgLine(avgUW, "#1890ff", "UW"), avgW !== null && drawAvgLine(avgW, "#cf1322", "W");
     let svgContainer = svg.parentNode, tooltip = svgContainer.querySelector(".chart-custom-tooltip");
     tooltip || (tooltip = document.createElement("div"), tooltip.className = "chart-custom-tooltip", tooltip.style.cssText = "display:none;position:absolute;z-index:10;pointer-events:none;background:rgba(0,0,0,0.8);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;line-height:1.5;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);", svgContainer.appendChild(tooltip));
-    function drawDataLine(getY, color, label) {
+    function drawDataLine(getY, color, opts) {
+      opts = opts || {};
       let pts = [];
       for (let i = 0; i < dataPoints.length; i++) {
         let val = getY(dataPoints[i]);
@@ -2816,24 +2844,18 @@
       }
       if (pts.length === 0) return;
       let polyline = document.createElementNS(svgNS, "polyline");
-      polyline.setAttribute("points", pts.join(" ")), polyline.setAttribute("fill", "none"), polyline.setAttribute("stroke", color), polyline.setAttribute("stroke-width", "2"), polyline.setAttribute("stroke-linejoin", "round"), svg.appendChild(polyline);
+      polyline.setAttribute("points", pts.join(" ")), polyline.setAttribute("fill", "none"), polyline.setAttribute("stroke", color), polyline.setAttribute("stroke-width", opts.band ? "9" : "2"), polyline.setAttribute("stroke-linejoin", "round"), polyline.setAttribute("stroke-linecap", "round"), opts.band && polyline.setAttribute("stroke-opacity", "0.18"), opts.dash && polyline.setAttribute("stroke-dasharray", opts.dash), svg.appendChild(polyline);
       for (let i = 0; i < dataPoints.length; i++) {
         let val = getY(dataPoints[i]);
         if (val === null) continue;
-        let cx = xPos(i), cy = yPos(val), grade = dataPoints[i].grade, dot = document.createElementNS(svgNS, "circle");
-        dot.setAttribute("cx", cx), dot.setAttribute("cy", cy), dot.setAttribute("r", "5"), dot.setAttribute("fill", color), dot.style.cursor = "pointer", dot.addEventListener("mouseenter", (e) => {
-          let containerRect = svgContainer.getBoundingClientRect();
-          tooltip.innerHTML = `<strong>${grade}</strong> ${label}: ${val.toFixed(2)}`, tooltip.style.display = "block";
-          let tx = e.clientX - containerRect.left + 14, ty = e.clientY - containerRect.top - 30;
-          tx + 120 > containerRect.width && (tx = e.clientX - containerRect.left - 120), ty < 0 && (ty = e.clientY - containerRect.top + 14), tooltip.style.left = tx + "px", tooltip.style.top = ty + "px";
-        }), dot.addEventListener("mouseleave", () => {
-          tooltip.style.display = "none";
-        }), svg.appendChild(dot);
-        let inner = document.createElementNS(svgNS, "circle");
-        inner.setAttribute("cx", cx), inner.setAttribute("cy", cy), inner.setAttribute("r", "2"), inner.setAttribute("fill", "#fff"), inner.style.pointerEvents = "none", svg.appendChild(inner);
+        let cx = xPos(i), cy = yPos(val), dot = document.createElementNS(svgNS, "circle");
+        if (dot.setAttribute("cx", cx), dot.setAttribute("cy", cy), dot.setAttribute("r", "5"), opts.ring ? (dot.setAttribute("fill", "#fff"), dot.setAttribute("stroke", color), dot.setAttribute("stroke-width", "2")) : dot.setAttribute("fill", color), dot.style.pointerEvents = "none", svg.appendChild(dot), !opts.ring) {
+          let inner = document.createElementNS(svgNS, "circle");
+          inner.setAttribute("cx", cx), inner.setAttribute("cy", cy), inner.setAttribute("r", "2"), inner.setAttribute("fill", "#fff"), inner.style.pointerEvents = "none", svg.appendChild(inner);
+        }
       }
     }
-    drawDataLine((p) => p.uw, "#1890ff", "UW"), drawDataLine((p) => p.w, "#cf1322", "W"), drawDataLine((p) => p.cgpa, CGPA_COLOR, "CGPA");
+    drawDataLine((p) => p.cgpa, CGPA_COLOR, { band: !0 }), drawDataLine((p) => p.uw, "#1890ff"), drawDataLine((p) => p.w, "#cf1322"), drawDataLine((p) => p.cgpa, CGPA_COLOR, { dash: "6,3", ring: !0 });
     let lg = document.createElementNS(svgNS, "g");
     lg.setAttribute("transform", `translate(${margin.left + 10}, ${margin.top})`);
     let r1 = document.createElementNS(svgNS, "rect");
@@ -2847,7 +2869,30 @@
     let r3 = document.createElementNS(svgNS, "rect");
     r3.setAttribute("x", 80), r3.setAttribute("y", 0), r3.setAttribute("width", 14), r3.setAttribute("height", 3), r3.setAttribute("fill", CGPA_COLOR), lg.appendChild(r3);
     let t32 = document.createElementNS(svgNS, "text");
-    t32.setAttribute("x", 98), t32.setAttribute("y", 5), t32.setAttribute("fill", "#333"), t32.setAttribute("font-size", "11"), t32.textContent = "CGPA", lg.appendChild(t32), svg.appendChild(lg);
+    t32.setAttribute("x", 98), t32.setAttribute("y", 5), t32.setAttribute("fill", "#333"), t32.setAttribute("font-size", "11"), t32.textContent = CGPA_LABEL(), lg.appendChild(t32), svg.appendChild(lg);
+    let step = pw / (dataPoints.length - 1 || 1);
+    for (let i = 0; i < dataPoints.length; i++) {
+      let p = dataPoints[i];
+      if (p.uw === null && p.w === null && p.cgpa === null) continue;
+      let left = i === 0 ? margin.left - 6 : xPos(i) - step / 2, right = i === dataPoints.length - 1 ? W - margin.right + 6 : xPos(i) + step / 2, hit = document.createElementNS(svgNS, "rect");
+      hit.setAttribute("x", left), hit.setAttribute("y", margin.top), hit.setAttribute("width", Math.max(16, right - left)), hit.setAttribute("height", ph), hit.setAttribute("fill", "transparent"), hit.setAttribute("data-ints-grade", p.grade);
+      let showTip = (e) => {
+        let lines = ["<strong>" + p.grade + "</strong>"];
+        if (p.uw !== null && lines.push("UW: " + p.uw.toFixed(2)), p.w !== null && lines.push("W: " + p.w.toFixed(2)), p.cgpa !== null) {
+          let same = "";
+          p.uw !== null && Math.abs(p.cgpa - p.uw) <= 5e-3 ? same = t("\uFF08\u4E0E UW \u76F8\u540C\uFF09", " (same as UW)") : p.uw !== null && (same = t(
+            "\uFF08\u6BD4 UW " + (p.cgpa - p.uw > 0 ? "+" : "") + (p.cgpa - p.uw).toFixed(2) + "\uFF09",
+            " (" + (p.cgpa - p.uw > 0 ? "+" : "") + (p.cgpa - p.uw).toFixed(2) + " vs UW)"
+          )), lines.push(CGPA_LABEL() + ": " + p.cgpa.toFixed(2) + same);
+        }
+        tooltip.innerHTML = lines.join("<br>"), tooltip.style.display = "block";
+        let containerRect = svgContainer.getBoundingClientRect(), tx = e.clientX - containerRect.left + 14, ty = e.clientY - containerRect.top - 30;
+        tx + 170 > containerRect.width && (tx = e.clientX - containerRect.left - 170), ty < 0 && (ty = e.clientY - containerRect.top + 14), tooltip.style.left = tx + "px", tooltip.style.top = ty + "px";
+      };
+      hit.addEventListener("mousemove", showTip), hit.addEventListener("mouseleave", () => {
+        tooltip.style.display = "none";
+      }), svg.appendChild(hit);
+    }
   }
   function registerMultiYearHost(el) {
     el && _multiYearHosts.add(el);
@@ -2892,7 +2937,7 @@
       }
     }
     let simVal = simGPA && type === "uw" ? simGPA.uw : simGPA && type === "w" ? simGPA.w : null;
-    newVal !== null && simVal !== null && to3SigFigs(newVal) === to3SigFigs(simVal) ? (override[type] = null, override.uw === null && override.w === null && delete S.multiYearGPAOverrides[key]) : override[type] = newVal, renderAllMultiYearHosts(), markDirty();
+    newVal !== null && simVal !== null && to3SigFigs(newVal) === to3SigFigs(simVal) ? (override[type] = null, override.uw === null && override.w === null && delete S.multiYearGPAOverrides[key]) : (override[type] = newVal, override.uw === null && override.w === null && delete S.multiYearGPAOverrides[key]), renderAllMultiYearHosts(), markDirty();
     let gradeLabel = grade || "";
     showOverrideWarning(t("\u5DF2\u66F4\u65B0 " + gradeLabel + " " + semester + " " + type.toUpperCase() + " GPA\u8986\u76D6", "Updated " + gradeLabel + " " + semester + " " + type.toUpperCase() + " GPA override"));
   }
