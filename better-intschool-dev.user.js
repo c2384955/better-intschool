@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02
+// @version      1.02.1
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -739,10 +739,10 @@
         _deadlineCache: { ts: 0, data: [] },
         _deadlineAllTasks: [],
         _deadlineCheckInFlight: !1,
-        // 截止提醒懒加载：checkedOnce = 这一页查过没有、CheckTrigger = 首次触发来源、FallbackArmed = 30 秒兜底
+        // 截止提醒懒加载：checkedOnce = 这一页查过没有、CheckTrigger = 首次触发来源
+        //（hover / nav / poll / visibility / direct；**没有定时兜底**，也没有 idle 这一种）
         _deadlineCheckedOnce: !1,
         _deadlineCheckTrigger: null,
-        _deadlineFallbackArmed: !1,
         _taskIgnore: {},
         _taskToggles: {},
         _taskMarks: {},
@@ -998,27 +998,22 @@
       return;
     }
     _floatTipBoundWrap = wrap, DL("[DDL] _bindFloatTipEvents: \u7ED1\u5B9A\u60AC\u505C\u4E8B\u4EF6\u5230\u65B0wrap"), wrap.addEventListener("mouseenter", function() {
+      _positionFloatTip();
+    }), wrap.addEventListener("mouseleave", _hideFloatTip), wrap.addEventListener("mousemove", function() {
       _onUserInterest("hover"), _positionFloatTip();
-    }), wrap.addEventListener("mouseleave", _hideFloatTip);
-  }
-  function armDeadlineFallback() {
-    _fallbackTimer || S._deadlineCheckedOnce || (S._deadlineFallbackArmed = !0, _fallbackTimer = setTimeout(function() {
-      _fallbackTimer = null, S._deadlineFallbackArmed = !1, DL("[DDL] \u515C\u5E95\u89E6\u53D1\uFF1A" + DEADLINE_LAZY_FALLBACK_MS / 1e3 + "s \u5185\u65E0\u4EA4\u4E92"), _onUserInterest("idle");
-    }, DEADLINE_LAZY_FALLBACK_MS));
-  }
-  function _clearFallback() {
-    _fallbackTimer && (clearTimeout(_fallbackTimer), _fallbackTimer = null), S._deadlineFallbackArmed = !1;
+    });
   }
   function _onUserInterest(reason) {
-    S._deadlineCheckedOnce || S._deadlineCheckInFlight || (S._deadlineCheckTrigger === null && (S._deadlineCheckTrigger = reason), _clearFallback(), checkUpcomingDeadlines());
+    S._deadlineCheckedOnce || S._deadlineCheckInFlight || (S._deadlineCheckTrigger === null && (S._deadlineCheckTrigger = reason), checkUpcomingDeadlines());
   }
   function getDeadlineState() {
     return {
       checkedOnce: !!S._deadlineCheckedOnce,
       trigger: S._deadlineCheckTrigger,
       inFlight: !!S._deadlineCheckInFlight,
-      fallbackArmed: !!S._deadlineFallbackArmed,
-      fallbackMs: DEADLINE_LAZY_FALLBACK_MS,
+      // 保留这两个字段只为诊断接口的字段形状稳定：定时兜底已整体删除 ⇒ 恒为"没武装、0 毫秒"
+      fallbackArmed: !1,
+      fallbackMs: 0,
       starts: _checkStarts,
       polling: !!_deadlinePollTimer
     };
@@ -1331,7 +1326,7 @@
       DL("[DDL] checkUpcomingDeadlines: \u5DF2\u6709\u8BF7\u6C42\u8FDB\u884C\u4E2D");
       return;
     }
-    S._deadlineCheckTrigger === null && (S._deadlineCheckTrigger = "direct"), S._deadlineCheckedOnce = !0, _checkStarts++, _clearFallback(), S._deadlineCheckInFlight = !0, _lastCheckTs = Date.now(), updateDeadlineIcon();
+    S._deadlineCheckTrigger === null && (S._deadlineCheckTrigger = "direct"), S._deadlineCheckedOnce = !0, _checkStarts++, S._deadlineCheckInFlight = !0, _lastCheckTs = Date.now(), updateDeadlineIcon();
     let allTasks = [], nowTs = Date.now();
     try {
       let resolved = await _resolveDeadlineCourses();
@@ -1404,7 +1399,7 @@
       DL("[DDL] updateDeadlineIcon: \u521B\u5EFA\u6309\u94AEwrap"), wrap = document.createElement("span"), wrap.id = "intschool-deadline-wrap", wrap.style.cssText = "position:relative;display:inline-flex;vertical-align:middle;", wrap.addEventListener("click", (e) => e.stopImmediatePropagation());
       let btn2 = document.createElement("button");
       btn2.type = "button", btn2.className = "ant-btn ant-btn-link", btn2.style.cssText = "margin-left:16px;color:#faad14;", btn2.id = "intschool-deadline-btn", btn2.addEventListener("click", (e) => {
-        e.stopPropagation(), e.preventDefault(), _positionFloatTip();
+        e.stopPropagation(), e.preventDefault(), _onUserInterest("hover"), _positionFloatTip();
       }), wrap.appendChild(btn2), _ensureFloatTip(), _bindFloatTipEvents(wrap), anchor.insertAdjacentElement(insertPos, wrap);
     }
     let btn = document.getElementById("intschool-deadline-btn");
@@ -1436,7 +1431,7 @@
     }, document.addEventListener("visibilitychange", _deadlineVisibilityHandler);
   }
   function stopDeadlinePolling() {
-    _deadlinePollTimer && (clearInterval(_deadlinePollTimer), _deadlinePollTimer = null), _deadlineVisibilityHandler && (document.removeEventListener("visibilitychange", _deadlineVisibilityHandler), _deadlineVisibilityHandler = null), _clearFallback(), _pollingStarted = !1;
+    _deadlinePollTimer && (clearInterval(_deadlinePollTimer), _deadlinePollTimer = null), _deadlineVisibilityHandler && (document.removeEventListener("visibilitychange", _deadlineVisibilityHandler), _deadlineVisibilityHandler = null), _pollingStarted = !1;
   }
   async function fetchGradeReportsForYear(schoolYearId) {
     let url = `${BASE_URL}/grade/grade-report/by-student?schoolYearId=${schoolYearId}`;
@@ -1446,13 +1441,13 @@
     let url = `${BASE_URL}/${requestUrl}?studentId=${studentId}&gradePeriodId=${gradePeriodId}`;
     return await apiRequest(url);
   }
-  var DEADLINE_POLL_INTERVAL, DEADLINE_VISIBILITY_MIN_INTERVAL, DEADLINE_BATCH_SIZE, DEADLINE_LAZY_FALLBACK_MS, _fallbackTimer, _pollingStarted, _checkStarts, _lastCheckTs, ZONE_PAD, _deadlineFloatTip, _deadlineFloatBox, _deadlineFloatTimer, _floatTipBoundWrap, _TASK_HREF_PATTERN, TYPE_ORDER, DEADLINE_ASSIGNMENT_TYPE, DEADLINE_RECORD_ONLY_TYPES, _getGradeBookDataFn, MARK_BTN_ID, DETAIL_TITLE_SELECTORS, DETAIL_BTN_SELECTORS, DEADLINE_NAV_MIN_INTERVAL, _lastNavPath, _lastNavRefreshTs, _deadlinePollTimer, _deadlineVisibilityHandler, init_deadline = __esm({
+  var DEADLINE_POLL_INTERVAL, DEADLINE_VISIBILITY_MIN_INTERVAL, DEADLINE_BATCH_SIZE, _pollingStarted, _checkStarts, _lastCheckTs, ZONE_PAD, _deadlineFloatTip, _deadlineFloatBox, _deadlineFloatTimer, _floatTipBoundWrap, _TASK_HREF_PATTERN, TYPE_ORDER, DEADLINE_ASSIGNMENT_TYPE, DEADLINE_RECORD_ONLY_TYPES, _getGradeBookDataFn, MARK_BTN_ID, DETAIL_TITLE_SELECTORS, DETAIL_BTN_SELECTORS, DEADLINE_NAV_MIN_INTERVAL, _lastNavPath, _lastNavRefreshTs, _deadlinePollTimer, _deadlineVisibilityHandler, init_deadline = __esm({
     "v8.30/deadline.js"() {
       init_state();
       init_utils();
       init_api();
       init_log();
-      DEADLINE_POLL_INTERVAL = 900 * 1e3, DEADLINE_VISIBILITY_MIN_INTERVAL = 120 * 1e3, DEADLINE_BATCH_SIZE = 4, DEADLINE_LAZY_FALLBACK_MS = 30 * 1e3, _fallbackTimer = null, _pollingStarted = !1, _checkStarts = 0;
+      DEADLINE_POLL_INTERVAL = 900 * 1e3, DEADLINE_VISIBILITY_MIN_INTERVAL = 120 * 1e3, DEADLINE_BATCH_SIZE = 4, _pollingStarted = !1, _checkStarts = 0;
       _lastCheckTs = 0, ZONE_PAD = 0, _deadlineFloatTip = null, _deadlineFloatBox = null, _deadlineFloatTimer = null, _floatTipBoundWrap = null, _TASK_HREF_PATTERN = "https://shc.intschool.cn/teaching/assignmentDetail/{id}?assignType=subjectClass";
       TYPE_ORDER = [
         "Homework",
@@ -3124,7 +3119,14 @@
       let idx = -1;
       if (uc.ci !== void 0 && uc.ci !== null && (idx = S.simCourses.findIndex((c) => c.courseId !== void 0 && c.courseId !== null && String(c.courseId) === String(uc.ci))), idx < 0 && uc.n && (idx = S.simCourses.findIndex((c) => c.name === uc.n)), idx < 0) continue;
       let course = S.simCourses[idx], orig = S.originalCourses[idx];
-      uc.e && course.simGrades && (uc.e.s1e !== void 0 && (course.simGrades.s1e = uc.e.s1e), uc.e.s2e !== void 0 && (course.simGrades.s2e = uc.e.s2e)), uc.op && (course.overrideP = { s1: uc.op.s1 === void 0 ? null : uc.op.s1, s2: uc.op.s2 === void 0 ? null : uc.op.s2 });
+      if (uc.e && course.simGrades) {
+        let schoolHas = (f) => {
+          let v = course.originalGrades ? course.originalGrades[f] : null;
+          return typeof v == "number" && !isNaN(v);
+        };
+        uc.e.s1e !== void 0 && !schoolHas("s1e") && (course.simGrades.s1e = uc.e.s1e), uc.e.s2e !== void 0 && !schoolHas("s2e") && (course.simGrades.s2e = uc.e.s2e);
+      }
+      uc.op && (course.overrideP = { s1: uc.op.s1 === void 0 ? null : uc.op.s1, s2: uc.op.s2 === void 0 ? null : uc.op.s2 });
       for (let te of uc.te || []) {
         let task = course.tasks.find((t4) => String(t4.entityId) === String(te.e));
         if (task && (task.simulatedScore = te.m), te.m === -1 && orig) {
@@ -3821,6 +3823,13 @@
       if (c.id && c.field !== "eoy") return c.id;
     return null;
   }
+  function _schoolScoreField() {
+    let want = _schoolColumnId();
+    if (want === null) return null;
+    for (let c of _siteHeaderIds)
+      if (c.id === want) return c.field || null;
+    return null;
+  }
   function _scoreTdIndex() {
     let want = _schoolColumnId();
     if (want === null) return -1;
@@ -3902,7 +3911,10 @@
       _markRowDone(tr), safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx));
       return;
     }
-    let simScore = _courseAnnual(course, "sim"), origScore = _courseAnnual(course, "orig"), delta = simScore !== null && origScore !== null ? simScore - origScore : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, simmed = valueIsSimulated(simScore, origScore), starred = !!(course.showStar && (course.showStar.s1 || course.showStar.s2)), gpaOrig = getGPAForScore(origScore, course.weightBonus), gpaSim = showDelta ? getGPAForScore(simScore, course.weightBonus) : null, inner = _cellInner(scoreTd), foreign = inner.innerHTML.indexOf("UW:") >= 0 && !inner.querySelector("[data-ints-sim]"), showGpa = !!gpaOrig && !foreign, box = scoreTd.querySelector("[data-ints-sim]"), shown = simScore !== null ? simScore : origScore, wrap0 = inner.querySelector("[" + SCORE_WRAP_ATTR + "]");
+    let scoreField = _schoolScoreField(), fieldScore = (g, f) => {
+      let v = g ? g[f] : null;
+      return typeof v == "number" && !isNaN(v) ? v : null;
+    }, simScore = scoreField ? fieldScore(course.simGrades, scoreField) : _courseAnnual(course, "sim"), origScore = scoreField ? fieldScore(course.originalGrades, scoreField) : _courseAnnual(course, "orig"), delta = simScore !== null && origScore !== null ? simScore - origScore : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, simmed = valueIsSimulated(simScore, origScore), starred = !!(course.showStar && (course.showStar.s1 || course.showStar.s2)), gpaOrig = getGPAForScore(origScore, course.weightBonus), gpaSim = showDelta ? getGPAForScore(simScore, course.weightBonus) : null, inner = _cellInner(scoreTd), foreign = inner.innerHTML.indexOf("UW:") >= 0 && !inner.querySelector("[data-ints-sim]"), showGpa = !!gpaOrig && !foreign, box = scoreTd.querySelector("[data-ints-sim]"), shown = simScore !== null ? simScore : origScore, wrap0 = inner.querySelector("[" + SCORE_WRAP_ATTR + "]");
     if (shown !== null) {
       let wrap = wrap0;
       if (!wrap) {
@@ -3926,7 +3938,7 @@
       let g = gpaSim || gpaOrig, changed = gpaSim && (Math.abs(gpaSim.uw - gpaOrig.uw) > 1e-3 || Math.abs(gpaSim.w - gpaOrig.w) > 1e-3), gu = changed ? gpaSim.uw - gpaOrig.uw : 0, gw = changed ? gpaSim.w - gpaOrig.w : 0, gDir = Math.abs(gu) > 1e-3 ? gu : gw, gColor = changed ? gDir > 0 ? COLOR_UP : COLOR_DOWN : "", tip = changed ? t(
         "\u6A21\u62DF\u540E GPA\uFF08\u539F UW: " + _num(gpaOrig.uw) + ", W: " + _num(gpaOrig.w) + "\uFF09",
         "Simulated GPA (was UW: " + _num(gpaOrig.uw) + ", W: " + _num(gpaOrig.w) + ")"
-      ) : t("\u672C\u8BFE\u7A0B GPA", "Course GPA");
+      ) : t("\u672C\u5217 GPA", "Column GPA");
       html += '<span style="' + (gColor ? "color:" + gColor + ";" : "") + '" title="' + escapeHtml(tip) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
     }
     starred && (html += '<span style="color:#f5222d;margin-left:4px;cursor:help;" title="' + escapeHtml(t(
@@ -3975,8 +3987,12 @@
     }
     return wrap.style.display = "none", wrap;
   }
+  function _clearCellTint(cell) {
+    cell && cell.style && cell.style.color && (cell.style.color = "");
+  }
   function _restoreFieldCell(cell) {
     if (!cell) return;
+    _clearCellTint(cell);
     let inner = _cellInner(cell), wrap = inner.querySelector("[" + FIELD_WRAP_ATTR + "]");
     if (wrap && wrap.parentNode) {
       for (; wrap.firstChild; ) wrap.parentNode.insertBefore(wrap.firstChild, wrap);
@@ -3997,7 +4013,7 @@
       return;
     }
     box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:10px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), strong ? box.classList.add("ints-gpa-strong") : box.classList.remove("ints-gpa-strong"), box.previousElementSibling !== null && inner.appendChild(box);
-    let html = '<span title="' + escapeHtml(t("\u672C\u8BFE\u7A0B GPA", "Course GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
+    let html = '<span title="' + escapeHtml(t("\u672C\u5217 GPA", "Column GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
     box.innerHTML !== html && (box.innerHTML = html);
   }
   function _renderFieldCell(cell, course, f, isSynth) {
@@ -4006,21 +4022,21 @@
     let inner = _cellInner(cell), orig = (course.originalGrades || {})[f], sim = (course.simGrades || {})[f], hasVal = (v) => typeof v == "number" && !isNaN(v), shown = hasVal(sim) ? sim : hasVal(orig) ? orig : null;
     if (_isExamField(f)) {
       _restoreFieldCell(cell);
-      let ours = isSynth || valueIsSimulated(sim, orig);
+      let ours = hasVal(shown) && !hasVal(orig);
       cell.style.color = ours ? SIM_BLUE : "", _renderFieldGpa(cell, inner, course, shown, ours);
       return;
     }
     cell.style.color = "";
     let simmed = valueIsSimulated(sim, orig) && shown !== null, gpaFrom = !simmed && !isSynth && (_a = _cellScoreNum(cell)) != null ? _a : shown;
     if (simmed) {
-      let wrap = _hideFieldSiteText(inner, f), siteText = wrap ? String(wrap.textContent || "").replace(/\s+/g, " ").trim() : "", parts = _siteScoreParts(siteText), oldScore = parts.raw || (hasVal(orig) ? _scoreNum(orig) : ""), oldLevel = parts.level || hasVal(orig) && scoreToLetter(orig) || "", delta = hasVal(sim) && hasVal(orig) ? sim - orig : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, block = inner.querySelector("[" + FIELD_BLOCK_ATTR + "]");
+      let wrap = _hideFieldSiteText(inner, f), siteText = wrap ? String(wrap.textContent || "").replace(/\s+/g, " ").trim() : "", parts = _siteScoreParts(siteText), oldScore = isSynth ? hasVal(orig) ? _scoreNum(orig) : "" : parts.raw || (hasVal(orig) ? _scoreNum(orig) : ""), oldLevel = isSynth ? hasVal(orig) && scoreToLetter(orig) || "" : parts.level || hasVal(orig) && scoreToLetter(orig) || "", delta = hasVal(sim) && hasVal(orig) ? sim - orig : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, block = inner.querySelector("[" + FIELD_BLOCK_ATTR + "]");
       if (!block) {
         block = document.createElement("div"), block.setAttribute(FIELD_BLOCK_ATTR, f);
         let old = inner.querySelector("[data-ints-sim]");
         old ? inner.insertBefore(block, old) : inner.appendChild(block);
       }
       let html = _pairLinesHtml(oldScore, oldLevel, shown, delta, showDelta, COL_DELTA_ATTR);
-      block.innerHTML !== html && (block.innerHTML = html), block.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + (siteText || oldScore) + (showDelta ? " \xB7 " + t("\u0394 ", "delta ") + _delta2(delta) : "");
+      block.innerHTML !== html && (block.innerHTML = html), block.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + (isSynth ? oldScore : siteText || oldScore) + (showDelta ? " \xB7 " + t("\u0394 ", "delta ") + _delta2(delta) : "");
     } else
       _restoreFieldCell(cell);
     _renderFieldGpa(cell, inner, course, gpaFrom, simmed);
@@ -4533,7 +4549,7 @@
       }), owned.forEach((f) => {
         vm.$set(row.customColumnScores, SYNTH_PREFIX + f, _fieldValue(_rowIndexOf(row), f));
       }));
-    }), vm.$forceUpdate && vm.$forceUpdate());
+    }), vm.$forceUpdate && vm.$forceUpdate(), _afterSiteRender(vm));
   }
   function _rowIndexOf(row) {
     if (!row || !S.simCourses) return -1;
@@ -4572,6 +4588,13 @@
       } catch (e) {
       }
     _schedule(DECORATE_DEBOUNCE_MS);
+  }
+  function _syncSiteColumns() {
+    if (!_colsExpanded) return !1;
+    let vm = _findGradeVm();
+    return vm ? (safe("\u5185\u8054\u5217\u5373\u65F6\u540C\u6B65", () => {
+      _captureOriginalIfNeeded(vm), _applyColumns(vm);
+    }), !0) : !1;
   }
   function _expandColumns(expand, opts) {
     let keepPref = !!(opts && opts.keepPref), vm = _findGradeVm();
@@ -4907,6 +4930,8 @@
       synthCols: headers.filter((h) => h && String(h.customColumnId === void 0 ? "" : h.customColumnId).indexOf(SYNTH_PREFIX) === 0).length,
       schoolCol: _schoolColumnId(),
       scoreIdx: _scoreTdIndex(),
+      // 成绩格跟的是哪个字段（null = 列名认不出、按学年分显示）——真机核对与自检报告都读它
+      scoreField: _schoolScoreField(),
       colTrace: _colTrace,
       // 首屏就绪门：等了几毫秒、走的是 idle 还是兜底
       bootGate: _bootGateStats
@@ -5110,6 +5135,7 @@
       if (!(!_isPointsPage() || !_inlineEnabled())) {
         if (courseIdx === -1) decoratePointsRows();
         else if (S.simCourses[courseIdx]) {
+          _syncSiteColumns();
           let tr = _rowForCourse(courseIdx);
           tr && _renderRow(tr, courseIdx), _renderGpa();
         }
@@ -5512,7 +5538,7 @@
       removeButton();
       return;
     }
-    updateDeadlineIcon(), armDeadlineFallback();
+    updateDeadlineIcon();
   }
   function removeButton() {
     let btn = document.getElementById(BUTTON_ID);
