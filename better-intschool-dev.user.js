@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.4
+// @version      1.02.5
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -408,18 +408,14 @@
     }
 `);
       GM_addStyle(`
-    /* \u8FD9\u91CC\u53EA\u5217\u9875\u9762\u5185\u8054\u89C6\u56FE\u7528\u5F97\u5230\u7684\u89C4\u5219\uFF1A\u9762\u677F\u4E13\u5C5E\u6837\u5F0F\uFF08#intschool-grade-panel-modal\u3001
-       #intschool-custom-grade-btn\u3001.editable-score/-exam/-pstar \u7B49\uFF09\u968F"\u5220\u9762\u677F\u3001\u6539\u7A97\u53E3\u58F3"
-       \u4E00\u5E76\u53BB\u6389\u4E86 \u2014\u2014 \u5B83\u4EEC\u9009\u62E9\u7684\u662F\u65E7\u9762\u677F\u7684 DOM\uFF0C\u7167\u7740\u7559\u7740\u53EA\u4F1A\u8BEF\u5BFC\u540E\u6765\u7684\u4EBA\u3002
-       \u9700\u8981\u90A3\u6279\u5916\u89C2\u65F6\u6309\u7A97\u53E3\u58F3\u7684\u7C7B\u540D\uFF08.ints-win*\uFF09\u91CD\u5199\uFF0C\u4E0D\u8981\u518D\u4ECE\u65E7\u9762\u677F\u7167\u6284\u3002 */
+    /* \u8FD9\u91CC\u53EA\u5217\u9875\u9762\u5185\u8054\u89C6\u56FE\u7528\u5F97\u5230\u7684\u89C4\u5219\uFF1B\u5355\u79D1\u7A97\u53E3\u4E0E\u79D1\u76EE\u660E\u7EC6\u7684\u5916\u89C2\u7EDF\u4E00\u8D70 .ints-win* \u8FD9\u4E00\u5957\u7C7B\u540D */
     .subject-detail-modal .editable-star-cat:hover { background: #ffe7ba; }
     /* ====================== \u901A\u7528\u7A97\u53E3\u58F3 ======================
        \u70B9\u6210\u7EE9\u683C\u6253\u5F00\u7684\u5355\u79D1\u7A97\u53E3\u3001\u4EE5\u53CA\u5B83\u7684\u300C\u79D1\u76EE\u660E\u7EC6\u300D\uFF0C\u5171\u7528\u8FD9\u4E00\u5957\u5916\u89C2\u3002
        \u89C2\u611F\u5BF9\u9F50\u7AD9\u70B9\u81EA\u5DF1\u7684 antd\uFF1A\u540C\u6837\u7684\u5706\u89D2/\u8FB9\u6846/\u9634\u5F71\u8272\uFF0C\u5B57\u53F7 12\u201313px\uFF0C\u4E3B\u8272 #1890ff\u3002
        **\u5B9A\u4F4D**\uFF1A\u7A97\u53E3\u662F .ant-table-body\uFF08\u6210\u7EE9\u518C\u81EA\u5DF1\u7684\u6EDA\u52A8\u5BB9\u5668\uFF09\u7684\u7EDD\u5BF9\u5B9A\u4F4D\u5B50\u8282\u70B9 \u2014\u2014
        \u8DDF\u968F\u6EDA\u52A8\u56E0\u6B64\u662F\u539F\u751F\u7684\uFF0C\u5E76\u4E14\u88AB\u8868\u5934/\u7B5B\u9009\u680F/\u5DE6\u4FA7\u5BFC\u822A\u680F\u5929\u7136\u6321\u4F4F\uFF08\u8BE6\u89C1 win-shell.js \u5934\u6CE8\uFF09\u3002
-       **\u5C42\u7EA7**\uFF1A\u7A97\u53E3\u5C42 30\u201339\uFF08\u884C\u5185\u9010\u7A97\u53E3\u9012\u589E\uFF09\uFF1A\u9AD8\u4E8E\u8868\u683C\u5185\u5BB9\uFF0C\u4F4E\u4E8E\u6211\u4EEC\u81EA\u5DF1\u7684\u5DE5\u5177\u680F/\u603B\u89C8
-       \uFF0840/41/50/60\uFF09\uFF0C\u66F4\u4F4E\u4E8E\u7AD9\u70B9\u81EA\u5DF1\u7684\u6D6E\u5C42\uFF08antd modal 1000+\uFF09\u2014\u2014 \u5B66\u6821\u6D6E\u5C42\u6C38\u8FDC\u4F18\u5148\u3002 */
+       **\u5C42\u7EA7**\uFF1A\u7A97\u53E3\u5C42 30\u201339\uFF08\u884C\u5185\u9010\u7A97\u53E3\u9012\u589E\uFF09\uFF0C\u6C38\u8FDC\u4F4E\u4E8E\u7AD9\u70B9\u81EA\u5DF1\u7684\u6D6E\u5C42 \u2014\u2014 \u5B8C\u6574\u5C42\u6B21\u89C1\u4E0B\u65B9 z-index \u5951\u7EA6\u3002 */
     .ints-win { background: #fff; border: 1px solid #e8e8e8; border-radius: 8px;
         box-shadow: 0 6px 22px rgba(0,0,0,0.18); font-size: 12px; color: rgba(0,0,0,0.85); }
     .ints-win-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
@@ -464,8 +460,8 @@
     @keyframes anticon-spin-once-anim { 100% { transform: rotate(360deg); } }
     .my-gpa-editable:hover { background: #e6f7ff !important; border-radius: 3px; }
     /* \u6210\u7EE9\u683C\u91CC\u90A3\u4E00\u679A GPA \u76D2\u5B50\uFF1A\u53EA\u5728"\u8FD9\u4E00\u683C\u88AB\u6A21\u62DF\u8FC7"\u65F6\u8DDF\u7740\u53D8\u9ED1\uFF08\u5E73\u65F6\u4FDD\u6301\u7070\u8272\u6B21\u8981\u5C42\u7EA7\uFF09\u3002
-       \u7528\u7C7B + !important \u8986\u76D6\u5185\u8054\u7684 color \u2014\u2014 \u4E09\u5904 GPA \u76D2\u5B50\u7684**\u5185\u8054\u6837\u5F0F**\u5FC5\u987B\u9010\u9879\u76F8\u540C
-       \uFF08P31_colGpaSameStyleAsScore \u6BD4\u7684\u5C31\u662F\u5185\u8054\u503C\uFF09\uFF0C\u6240\u4EE5\u989C\u8272\u5DEE\u5F02\u53EA\u80FD\u8D70\u6837\u5F0F\u8868\u3002 */
+       \u7528\u7C7B + !important \u8986\u76D6\u5185\u8054\u7684 color \u2014\u2014 \u4E09\u5904 GPA \u76D2\u5B50\u7684**\u5185\u8054\u6837\u5F0F**\u5FC5\u987B\u9010\u9879\u76F8\u540C\uFF0C
+       \u6240\u4EE5\u989C\u8272\u5DEE\u5F02\u53EA\u80FD\u8D70\u6837\u5F0F\u8868\u3002 */
     .ant-table-tbody [data-ints-sim].ints-gpa-strong { color: rgba(0, 0, 0, 0.88) !important; }
     /* ====================== \u6CE8\u5165\u5C42 z-index \u5951\u7EA6 ======================
        \u7AD9\u70B9\u81EA\u5DF1\u7528\u7684\u662F antd-vue 1.5\uFF0C\u5B83\u7684\u6D6E\u5C42 z-index \u662F\uFF1Amodal 1000 / message 1010 /
@@ -740,7 +736,7 @@
         _deadlineAllTasks: [],
         _deadlineCheckInFlight: !1,
         // 截止提醒懒加载：checkedOnce = 这一页查过没有、CheckTrigger = 首次触发来源
-        //（hover / nav / poll / visibility / direct；**没有定时兜底**，也没有 idle 这一种）
+        //（只有这五种：hover / nav / poll / visibility / direct）
         _deadlineCheckedOnce: !1,
         _deadlineCheckTrigger: null,
         _taskIgnore: {},
@@ -1011,7 +1007,7 @@
       checkedOnce: !!S._deadlineCheckedOnce,
       trigger: S._deadlineCheckTrigger,
       inFlight: !!S._deadlineCheckInFlight,
-      // 保留这两个字段只为诊断接口的字段形状稳定：定时兜底已整体删除 ⇒ 恒为"没武装、0 毫秒"
+      // 这两个字段恒为 false / 0：保留只为诊断接口的字段形状稳定
       fallbackArmed: !1,
       fallbackMs: 0,
       starts: _checkStarts,
@@ -3101,7 +3097,7 @@
       // 卡片可能很高：内容区按表格滚动容器的高度限高（超出在窗口内滚动，免得窗口高过容器被裁掉）
       maxBodyHeight: Math.max(160, Math.round(getShellBounds().height - 72)) + "px",
       titleHTML: _detailTitleHTML(course0, filterText),
-      // 保留老类名 subject-detail-modal：styles.js / darkmode.js 里有对应规则
+      // 沿用类名 subject-detail-modal：styles.js / darkmode.js 里有对应规则
       className: "subject-detail-modal",
       bodyHTML: '<div class="iw-note">' + t("\u6B63\u5728\u8BA1\u7B97\u2026", "Computing\u2026") + "</div>",
       footerHTML: '<button type="button" data-detail-act="apply" class="ant-btn ant-btn-link" style="color:#1890ff;">' + iconCheck() + "<span>" + t("\u5173\u95ED\u5E76\u5E94\u7528\u6A21\u62DF", "Close & Apply") + "</span></button>",
@@ -3581,8 +3577,7 @@
         entityId: virtualId,
         taskStudentId: virtualId,
         id: virtualId,
-        // 名字**派生、不可编辑**：`虚拟任务3 (作业)`。没有名称输入框，
-        // "把虚拟任务命名成期中考试再截图"这条路就堵住了（反序列化那侧还会再统一改写一次）。
+        // 名字**派生、不可编辑**：`虚拟任务3 (作业)`（反序列化时统一改写，没有名称输入框）
         name: virtualTaskName(virtualId, TYPE_KEYS[typeIdx]),
         typeName: TYPE_KEYS[typeIdx],
         score,
@@ -5116,7 +5111,7 @@
       synthCols: headers.filter((h) => h && String(h.customColumnId === void 0 ? "" : h.customColumnId).indexOf(SYNTH_PREFIX) === 0).length,
       schoolCol: _schoolColumnId(),
       scoreIdx: _scoreTdIndex(),
-      // 成绩格跟的是哪个字段（null = 列名认不出、按学年分显示）——真机核对与自检报告都读它
+      // 成绩格跟的是哪个字段（null = 列名认不出、按学年分显示）——自检报告里也读它
       scoreField: _schoolScoreField(),
       colTrace: _colTrace,
       // 首屏就绪门：等了几毫秒、走的是 idle 还是兜底
