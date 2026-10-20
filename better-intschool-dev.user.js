@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.5
+// @version      1.02.6
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -1634,20 +1634,24 @@
         colId && !colMap.has(field) && !colMap.has(field.toUpperCase()) && colMap.set(field, String(colId));
     return colMap;
   }
-  async function buildCurrentYearCourses(yearKey, yearValue) {
-    let gradeData = await getGradeBookData(yearKey), colMap = buildColumnMap(gradeData, yearValue), items = gradeData.gradeBookItems || [];
+  async function buildCurrentYearCourses(yearKey, yearValue, opts) {
+    let past = !!(opts && opts.isCurr === !1), rep = past ? _reportCourseMaps(opts && opts.reportContent) : null, gradeData = await getGradeBookData(yearKey), colMap = buildColumnMap(gradeData, yearValue), items = gradeData.gradeBookItems || [];
     S.creditMap || (S.creditMap = /* @__PURE__ */ new Map());
     let creditMapEmpty = S.creditMap.size === 0;
-    if (log(`[\u5F53\u524D\u5B66\u5E74] grade-book \u8FD4\u56DE: items=${items.length} customColumns=${(gradeData.customColumns || []).length} creditMap=${S.creditMap.size} \u6761`), creditMapEmpty && items.length && console.warn("[\u5F53\u524D\u5B66\u5E74] creditMap \u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u533A\u5206\u96F6\u5B66\u5206\u8BFE\u7A0B\uFF1B\u7F3A\u7701\u5B66\u5206\u6682\u6309 1 \u5904\u7406\uFF08\u51C6\u786E\u5B66\u5206\u4F9D\u8D56 schedule \u6570\u636E\uFF09"), items.length) {
+    if (log(`[${past ? "\u5F80\u671F" : "\u5F53\u524D"}\u5B66\u5E74] grade-book \u8FD4\u56DE: items=${items.length} customColumns=${(gradeData.customColumns || []).length} creditMap=${S.creditMap.size} \u6761` + (past ? ` \u62A5\u544A\u8BFE\u7A0B=${rep ? rep.grades.size : 0}` : "")), creditMapEmpty && items.length && console.warn("[\u5F53\u524D\u5B66\u5E74] creditMap \u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u533A\u5206\u96F6\u5B66\u5206\u8BFE\u7A0B\uFF1B\u7F3A\u7701\u5B66\u5206\u6682\u6309 1 \u5904\u7406\uFF08\u51C6\u786E\u5B66\u5206\u4F9D\u8D56 schedule \u6570\u636E\uFF09"), items.length) {
       let s0 = items[0];
       log("[\u5F53\u524D\u5B66\u5E74] \u6837\u4F8B\u6761\u76EE: " + JSON.stringify({ courseId: s0.courseId, courseName: s0.courseName, subject: s0.subject, creditFromMap: S.creditMap.get(s0.courseId) }));
     }
-    let allCourses = [];
+    let allCourses = [], pastKeep = [];
     for (let item of items) {
-      let credit = S.creditMap.get(item.courseId);
+      let nameKey = _reportNameKey(item.courseName), repCourse = rep ? rep.grades.get(nameKey) : null, repCredit = rep ? rep.credit.get(nameKey) : void 0, credit = repCredit !== void 0 ? repCredit : S.creditMap.get(item.courseId);
       credit === void 0 && (credit = creditMapEmpty ? 1 : 0);
       let rawGrades = { s1p: null, s1e: null, s1f: null, s2p: null, s2e: null, s2f: null }, mappedS1P = getScoreFromCustomColumns(item, colMap, "s1p"), mappedS1E = getScoreFromCustomColumns(item, colMap, "s1e"), mappedS1F = getScoreFromCustomColumns(item, colMap, "s1f"), mappedS2P = getScoreFromCustomColumns(item, colMap, "s2p"), mappedS2E = getScoreFromCustomColumns(item, colMap, "s2e"), mappedS2F = getScoreFromCustomColumns(item, colMap, "s2f");
       rawGrades.s1p = mappedS1P !== null ? mappedS1P : item.s1p !== void 0 && item.s1p !== null ? Number(item.s1p) : null, rawGrades.s1e = mappedS1E !== null ? mappedS1E : item.s1e !== void 0 && item.s1e !== null ? Number(item.s1e) : null, rawGrades.s1f = mappedS1F !== null ? mappedS1F : item.s1f !== void 0 && item.s1f !== null ? Number(item.s1f) : null, rawGrades.s2p = mappedS2P !== null ? mappedS2P : item.s2p !== void 0 && item.s2p !== null ? Number(item.s2p) : null, rawGrades.s2e = mappedS2E !== null ? mappedS2E : item.s2e !== void 0 && item.s2e !== null ? Number(item.s2e) : null, rawGrades.s2f = mappedS2F !== null ? mappedS2F : item.s2f !== void 0 && item.s2f !== null ? Number(item.s2f) : null;
+      let published = rawGrades.s1p !== null || rawGrades.s1e !== null || rawGrades.s1f !== null || rawGrades.s2p !== null || rawGrades.s2e !== null || rawGrades.s2f !== null;
+      past && repCourse && ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"].forEach((f) => {
+        rawGrades[f] === null && typeof repCourse[f] == "number" && !isNaN(repCourse[f]) && (rawGrades[f] = repCourse[f]);
+      }), past && credit <= 0 && (published || repCourse) && (credit = 1);
       let tasks = (item.taskScores || []).filter((t4) => !t4.endDate || getTermFromDate(t4.endDate, t4.term || t4.schoolYearTerm) !== null);
       tasks = tasks.map((t4) => {
         let entityId = parseInt(t4.entityId || t4.taskStudentId || t4.id, 10);
@@ -1656,7 +1660,7 @@
       for (let t4 of tasks)
         calibrationExcluded(yearKey, t4.entityId) && (t4.excluded = !0);
       let origS1P = calculateTermAverageByCategory(tasks, item.subject || item.courseName, "S1"), origS2P = calculateTermAverageByCategory(tasks, item.subject || item.courseName, "S2"), showStar = { s1: !1, s2: !1 };
-      origS1P !== null && rawGrades.s1p !== null && differsFromSchool(origS1P, rawGrades.s1p) ? showStar.s1 = !0 : origS1P !== null && (rawGrades.s1p = origS1P), origS2P !== null && rawGrades.s2p !== null && differsFromSchool(origS2P, rawGrades.s2p) ? showStar.s2 = !0 : origS2P !== null && (rawGrades.s2p = origS2P), rawGrades.s1f === null && (rawGrades.s1f = calcF(rawGrades.s1p, rawGrades.s1e)), rawGrades.s2f === null && (rawGrades.s2f = calcF(rawGrades.s2p, rawGrades.s2e)), allCourses.push({ name: item.courseName, courseId: item.courseId, credit, subject: item.subject || null, originalGrades: rawGrades, tasks, weightBonus: getWeightBonus(item.courseName), showStar });
+      past ? (rawGrades.s1p === null && origS1P !== null && (rawGrades.s1p = origS1P), rawGrades.s2p === null && origS2P !== null && (rawGrades.s2p = origS2P)) : (origS1P !== null && rawGrades.s1p !== null && differsFromSchool(origS1P, rawGrades.s1p) ? showStar.s1 = !0 : origS1P !== null && (rawGrades.s1p = origS1P), origS2P !== null && rawGrades.s2p !== null && differsFromSchool(origS2P, rawGrades.s2p) ? showStar.s2 = !0 : origS2P !== null && (rawGrades.s2p = origS2P)), rawGrades.s1f === null && (rawGrades.s1f = calcF(rawGrades.s1p, rawGrades.s1e)), rawGrades.s2f === null && (rawGrades.s2f = calcF(rawGrades.s2p, rawGrades.s2e)), allCourses.push({ name: item.courseName, courseId: item.courseId, credit, subject: item.subject || null, originalGrades: rawGrades, tasks, weightBonus: getWeightBonus(item.courseName), showStar }), past && (credit > 0 || published || repCourse) && pastKeep.push(allCourses[allCourses.length - 1]);
     }
     let zeroCreditCourses = allCourses.filter((c) => c.credit <= 0), validCourses = allCourses.filter((c) => c.credit > 0);
     zeroCreditCourses.length && log(`[\u5F53\u524D\u5B66\u5E74] \u96F6\u5B66\u5206\u8BFE\u7A0B ${zeroCreditCourses.length} \u95E8\uFF08\u9000\u73ED/\u975E\u5B66\u5206\uFF0C\u7528\u4E8E\u8865\u5168\u5339\u914D\uFF09\uFF0C\u6B63\u5B66\u5206 ${validCourses.length} \u95E8`);
@@ -1683,9 +1687,9 @@
     let usedZeroCredit = /* @__PURE__ */ new Set();
     for (let course of validCourses) {
       if (course.originalGrades.s1p === null && course.originalGrades.s1e === null) {
-        course.tasks = course.tasks.filter((t4) => getTermFromDate(t4.endDate, t4.termRaw) !== "S1");
         let bestIdx = findBestMatchIndexExclusive(course.name, "S1", usedZeroCredit);
         if (bestIdx >= 0) {
+          course.tasks = course.tasks.filter((t4) => getTermFromDate(t4.endDate, t4.termRaw) !== "S1");
           let bestMatch = zeroCreditCourses[bestIdx];
           mergeTasksForTerm(course, bestMatch, "S1");
           let newS1P = calculateTermAverageByCategory(course.tasks, course.subject || course.name, "S1");
@@ -1693,9 +1697,9 @@
         }
       }
       if (course.originalGrades.s2p === null && course.originalGrades.s2e === null) {
-        course.tasks = course.tasks.filter((t4) => getTermFromDate(t4.endDate, t4.termRaw) !== "S2");
         let bestIdx = findBestMatchIndexExclusive(course.name, "S2", usedZeroCredit);
         if (bestIdx >= 0) {
+          course.tasks = course.tasks.filter((t4) => getTermFromDate(t4.endDate, t4.termRaw) !== "S2");
           let bestMatch = zeroCreditCourses[bestIdx];
           mergeTasksForTerm(course, bestMatch, "S2");
           let newS2P = calculateTermAverageByCategory(course.tasks, course.subject || course.name, "S2");
@@ -1713,7 +1717,31 @@
         bestIdx >= 0 && zeroCreditCourses[bestIdx].originalGrades.s2e !== null && (course.originalGrades.s2e = zeroCreditCourses[bestIdx].originalGrades.s2e, course.originalGrades.s2f = calcF(course.originalGrades.s2p, course.originalGrades.s2e));
       }
     }
-    return validCourses;
+    return past && log(`[\u5F80\u671F\u5B66\u5E74] \u8BFE\u7A0B ${pastKeep.length} \u95E8\uFF08\u6210\u7EE9\u518C\u6761\u76EE ${allCourses.length}\uFF0C\u96F6\u5B66\u5206 ${zeroCreditCourses.length}\uFF09`), past ? pastKeep : validCourses;
+  }
+  function _reportNameKey(s) {
+    return String(s == null ? "" : s).replace(/\s+/g, " ").trim().toLowerCase();
+  }
+  function _reportCourseMaps(content) {
+    let credit = /* @__PURE__ */ new Map(), grades = /* @__PURE__ */ new Map();
+    if (!content) return { credit, grades };
+    let parsed = [];
+    try {
+      parsed = parseYearlyReport(content) || [];
+    } catch (e) {
+      parsed = [];
+    }
+    for (let c of parsed) {
+      let k = _reportNameKey(c.name);
+      k && (grades.set(k, c), typeof c.credit == "number" && c.credit > 0 && credit.set(k, c.credit));
+    }
+    for (let it of content.reportItems || []) {
+      let k = _reportNameKey(it && it.courseName);
+      if (!k) continue;
+      let v = parseFloat(it && it.credits);
+      !isNaN(v) && v > 0 && credit.set(k, v);
+    }
+    return { credit, grades };
   }
   var TERM_COLUMN_NAMES, init_courses = __esm({
     "v8.30/courses.js"() {
@@ -3637,6 +3665,24 @@
     let entry = S.yearDataCache.get(key);
     entry && entry.simCourses === S.simCourses && (!S.simCourses || !S.simCourses.length || (entry.simCourses = S.simCourses.slice(), log(`[\u7F13\u5B58] \u5DF2\u628A ${key} \u7684\u6A21\u62DF\u5C42\u4ECE\u6D3B\u5F15\u7528\u4E0A\u6458\u4E0B\u6765\uFF08${entry.simCourses.length} \u95E8\uFF09\uFF0C\u514D\u5F97\u8FD9\u6B21\u5207\u5B66\u5E74\u628A\u5B83\u4E00\u8D77\u6362\u6210\u53E6\u4E00\u5E74\u7684`)));
   }
+  async function _yearlyReport(yearKey) {
+    try {
+      let studentId = await getStudentId(), yearlyReport = (await fetchGradeReportsForYear(yearKey) || []).find((r) => {
+        var _a;
+        return r.gradePeriodType === "fullSchoolYear" || r.reportName && (r.reportName.includes("\u5E74\u5EA6") || ((_a = r.reportEnName) == null ? void 0 : _a.includes("Yearly")));
+      });
+      if (!yearlyReport) return null;
+      let content = await fetchReportContent(studentId, yearlyReport.requestUrl, yearlyReport.gradePeriodId);
+      return content ? {
+        content,
+        sectionName: content.sectionName || null,
+        annualGPA: typeof content.annualGPA == "number" ? content.annualGPA : null,
+        cumulativeGPA: typeof content.cumulativeGPA == "number" ? content.cumulativeGPA : null
+      } : null;
+    } catch (e) {
+      return console.warn(`[\u52A0\u8F7D] \u5E74\u5EA6\u62A5\u544A\u83B7\u53D6\u5931\u8D25: ${e && e.message}`), null;
+    }
+  }
   async function loadYearData(yearKey, yearValue, isCurr, opts) {
     let force = !!(opts && opts.force), navGen = S._navGeneration;
     S.activeSubModal = !1, S.loadingRequestCount = 0, S.expectedRequestCount = 3;
@@ -3655,21 +3701,15 @@
     log(`[\u52A0\u8F7D] \u5F00\u59CB\u52A0\u8F7D\u5B66\u5E74 ${yearValue}\uFF0C\u5F53\u524D\u5B66\u5E74=${isCurr}`);
     try {
       log(`[\u52A0\u8F7D] \u83B7\u53D6 ${yearValue} \u6210\u7EE9\u6570\u636E`), incLoadingCount();
-      let courses = await buildCurrentYearCourses(yearKey, yearValue);
+      let pastReport = isCurr ? null : await _yearlyReport(yearKey);
+      if (S._navGeneration !== navGen) return;
+      let courses = await buildCurrentYearCourses(yearKey, yearValue, { isCurr, reportContent: pastReport && pastReport.content });
       if (S._navGeneration !== navGen) return;
       S.originalCourses = courses, isCurr ? initSimCourses() : initReadOnlyCourses(), S.simYearKey = keyStr, isCurr && applyUserLayer(keyStr);
-      let sectionName = null, apiAnnualGPA = null, apiCumulativeGPA = null;
-      try {
-        let studentId = await getStudentId(), yearlyReport = (await fetchGradeReportsForYear(yearKey)).find((r) => {
-          var _a;
-          return r.gradePeriodType === "fullSchoolYear" || r.reportName && (r.reportName.includes("\u5E74\u5EA6") || ((_a = r.reportEnName) == null ? void 0 : _a.includes("Yearly")));
-        });
-        if (yearlyReport) {
-          let content = await fetchReportContent(studentId, yearlyReport.requestUrl, yearlyReport.gradePeriodId);
-          content && (sectionName = content.sectionName || null, apiAnnualGPA = typeof content.annualGPA == "number" ? content.annualGPA : null, apiCumulativeGPA = typeof content.cumulativeGPA == "number" ? content.cumulativeGPA : null);
-        }
-      } catch (e) {
-        console.warn(`[\u52A0\u8F7D] \u83B7\u53D6 ${yearValue} \u5E74\u7EA7\u4FE1\u606F\u5931\u8D25: ${e.message}`);
+      let sectionName = pastReport ? pastReport.sectionName : null, apiAnnualGPA = pastReport ? pastReport.annualGPA : null, apiCumulativeGPA = pastReport ? pastReport.cumulativeGPA : null;
+      if (isCurr) {
+        let curReport = await _yearlyReport(yearKey);
+        curReport && (sectionName = curReport.sectionName, apiAnnualGPA = curReport.annualGPA, apiCumulativeGPA = curReport.cumulativeGPA);
       }
       if (S.currentYearAnnualGPA = apiAnnualGPA, S.currentYearCumulativeGPA = apiCumulativeGPA, S.yearDataCache.set(keyStr, {
         originalCourses: courses,
@@ -3989,18 +4029,22 @@
   function td0Text(td) {
     return td ? String(td.textContent || "").replace(/\s+/g, "").slice(0, 20) : "(no-td)";
   }
+  function _isOwnHeaders(hs) {
+    return _ownHeadersSig ? hs.map((h) => h && h.customColumnId !== void 0 ? String(h.customColumnId) : "").join(",") === _ownHeadersSig : !1;
+  }
   function _captureSiteColumns(vm) {
     let hs = vm && vm.dynamicHeaders || [];
     if (!hs.length) return;
     for (let h of hs)
       if ((h && h.customColumnId !== void 0 ? String(h.customColumnId) : "").indexOf(SYNTH_PREFIX) === 0) return;
+    if (_isOwnHeaders(hs)) return;
     let ids = hs.map((h) => h && h.customColumnId !== void 0 ? String(h.customColumnId) : "").filter(Boolean);
     if (!ids.length) return;
     let sig = ids.slice().sort().join(",");
-    _siteColSig !== sig && (_siteColSig && _colsExpanded || (_siteColSig = sig, _siteHeaderIds = hs.map((h) => ({
+    _siteColSig !== sig && (_siteColSig = sig, _colsSig = null, _siteHeaderIds = hs.map((h) => ({
       id: h && h.customColumnId !== void 0 ? String(h.customColumnId) : "",
       field: _headerFieldOf(h)
-    }))));
+    })));
   }
   function _schoolColumnId() {
     for (let c of _siteHeaderIds)
@@ -4362,7 +4406,7 @@
           _clearVirtualCell(td);
           return;
         }
-        td.removeAttribute("data-ints-task"), mine && mine.remove(), siteSpan && (siteSpan.style.display = "");
+        _clearTaskDecorAttrs(td), mine && mine.remove(), siteSpan && (siteSpan.style.display = "");
         return;
       }
       let task = course.tasks[ti], sim = _taskSimOf(task), orig = typeof task.originalScore == "number" ? task.originalScore : null;
@@ -4381,18 +4425,26 @@
       })));
     });
   }
+  function _clearTaskDecorAttrs(td) {
+    if (!td || !td.getAttribute) return;
+    let wasOurs = td.getAttribute("data-ints-task") !== null || td._intsTaskClickBound === !0;
+    td.removeAttribute("data-ints-task"), td.removeAttribute("data-ints-taskbound"), wasOurs && (td.style && td.style.cursor && (td.style.cursor = ""), td.getAttribute("title") && td.removeAttribute("title"));
+  }
   function _clearTaskCells(tr) {
     tr && Array.prototype.forEach.call(tr.children, (td) => {
-      if (!td || !td.getAttribute) return;
-      if (td.getAttribute(VTASK_ATTR) !== null) {
-        _clearVirtualCell(td);
-        return;
+      if (!(!td || !td.getAttribute)) {
+        if (td.getAttribute(VTASK_ATTR) !== null) {
+          _clearVirtualCell(td);
+          return;
+        }
+        if (td.querySelector && td.querySelector(".task-title")) {
+          let mine = td.querySelector("[" + TASK_SCORE_ATTR + "]");
+          mine && mine.remove();
+          let siteSpan = _siteScoreSpan(td);
+          siteSpan && siteSpan.style.display === "none" && (siteSpan.style.display = "");
+        }
+        _clearTaskDecorAttrs(td);
       }
-      if (!td.querySelector || !td.querySelector(".task-title")) return;
-      let mine = td.querySelector("[" + TASK_SCORE_ATTR + "]");
-      mine && mine.remove();
-      let siteSpan = _siteScoreSpan(td);
-      siteSpan && siteSpan.style.display === "none" && (siteSpan.style.display = ""), td.removeAttribute("data-ints-task"), td.removeAttribute("data-ints-taskbound"), td.style.cursor && (td.style.cursor = ""), td.getAttribute("title") && td.removeAttribute("title");
     });
   }
   function _vtaskList(course) {
@@ -4711,7 +4763,9 @@
     return { score, level: scoreToLetter(Number(score)) };
   }
   function _applyColumns(vm) {
-    let isCurrYearNow = !!S.isCurrentYear, keepAll = (_savedHeaders || []).filter((h) => h && h.customColumnId !== void 0 && String(h.customColumnId).indexOf(SYNTH_PREFIX) !== 0), scoreColId = _schoolColumnId(), keep = keepAll.filter((h) => scoreColId !== null && String(h.customColumnId) === scoreColId || _headerVisibleUnderFilter(h)), keptNames = new Set(keepAll.map((h) => String(h.customColumnName || "").trim().toUpperCase())), owned = ALL_FIELDS.filter((f) => !keptNames.has(FIELD_LABEL[f])), visible = _activeFields().filter((f) => owned.indexOf(f) >= 0), headers = _sortFieldHeaders(keep.concat(visible.map((f) => ({
+    let isCurrYearNow = !!S.isCurrentYear, keepAll = (_savedHeaders && _savedHeaders.length ? _savedHeaders : vm && vm.dynamicHeaders || []).filter((h) => h && h.customColumnId !== void 0 && String(h.customColumnId).indexOf(SYNTH_PREFIX) !== 0);
+    if (!keepAll.length) return;
+    let scoreColId = _schoolColumnId(), keep = keepAll.filter((h) => scoreColId !== null && String(h.customColumnId) === scoreColId || _headerVisibleUnderFilter(h)), keptNames = new Set(keepAll.map((h) => String(h.customColumnName || "").trim().toUpperCase())), owned = ALL_FIELDS.filter((f) => !keptNames.has(FIELD_LABEL[f])), visible = _activeFields().filter((f) => owned.indexOf(f) >= 0), headers = _sortFieldHeaders(keep.concat(visible.map((f) => ({
       customColumnId: SYNTH_PREFIX + f,
       customColumnName: FIELD_LABEL[f]
     })))), sig = headers.map((h) => String(h.customColumnId)).join(","), rows = vm.data || [], keysMissing = !1;
@@ -4727,7 +4781,7 @@
         sig += ":" + (v.score === null ? "-" : v.score), SYNTH_PREFIX + f in cs || (keysMissing = !0);
       }
     }
-    !keysMissing && sig === _colsSig || (_colsSig = sig, vm.dynamicHeaders = headers, _synthThCache = null, rows.forEach((row) => {
+    !keysMissing && sig === _colsSig || (_colsSig = sig, vm.dynamicHeaders = headers, _ownHeadersSig = headers.map((h) => String(h.customColumnId)).join(","), _synthThCache = null, rows.forEach((row) => {
       row && (row.customColumnScores || vm.$set(row, "customColumnScores", {}), Object.keys(row.customColumnScores).forEach((k) => {
         k.indexOf(SYNTH_PREFIX) === 0 && owned.indexOf(k.slice(SYNTH_PREFIX.length)) < 0 && vm.$delete(row.customColumnScores, k);
       }), owned.forEach((f) => {
@@ -4758,9 +4812,9 @@
   }
   function _captureOriginalIfNeeded(vm) {
     let hs = vm && vm.dynamicHeaders || [];
-    if (!hs.length || _hasSynthetic(vm) || !hs.some((h) => h && String(h.customColumnId === void 0 ? "" : h.customColumnId).indexOf(SYNTH_PREFIX) !== 0)) return;
+    if (!hs.length || _hasSynthetic(vm) || _isOwnHeaders(hs) || !hs.some((h) => h && String(h.customColumnId === void 0 ? "" : h.customColumnId).indexOf(SYNTH_PREFIX) !== 0)) return;
     let sig = hs.map((h) => String(h.customColumnId === void 0 ? "" : h.customColumnId)).sort().join(",");
-    _savedColSig !== sig && (_savedColSig && _colsExpanded || (_savedColSig = sig, _savedHeaders = hs.slice()));
+    _savedColSig !== sig && (_savedColSig = sig, _colsSig = null, _savedHeaders = hs.slice());
   }
   function _persistColsExpanded(v) {
     S.colsExpanded = !!v, safe("\u5185\u8054\u5217\u5F00\u5173\u6301\u4E45\u5316", () => flushSave(!0));
@@ -4782,7 +4836,7 @@
   }
   function _expandColumns(expand, opts) {
     let keepPref = !!(opts && opts.keepPref), vm = _findGradeVm();
-    return vm ? (expand ? (_captureOriginalIfNeeded(vm), _captureSiteColumns(vm), _colsExpanded = !0, keepPref || _persistColsExpanded(!0), _applyColumns(vm), _afterSiteRender(vm), log("[\u5185\u8054] \u5DF2\u5C55\u5F00\u5168\u90E8\u6210\u7EE9\u5217: " + (vm.dynamicHeaders || []).map((h) => h.customColumnName).join(", "))) : (_colsExpanded = !1, keepPref || _persistColsExpanded(!1), _clearSyntheticColumns(vm), _savedHeaders !== null && (vm.dynamicHeaders = _savedHeaders.slice()), _savedHeaders = null, _savedColSig = "", _colsSig = null, _afterSiteRender(vm), log("[\u5185\u8054] \u5DF2\u8FD8\u539F\u4E3A\u7AD9\u70B9\u539F\u59CB\u6210\u7EE9\u5217")), _refreshEditorWindows(), !0) : (_colsExpanded = expand, keepPref || _persistColsExpanded(expand), safe("\u5185\u8054\u5217\u5F00\u5173\uFF08\u7EC4\u4EF6\u672A\u5C31\u7EEA\uFF09", () => {
+    return vm ? (expand ? (_captureOriginalIfNeeded(vm), _captureSiteColumns(vm), _colsExpanded = !0, keepPref || _persistColsExpanded(!0), _applyColumns(vm), _afterSiteRender(vm), log("[\u5185\u8054] \u5DF2\u5C55\u5F00\u5168\u90E8\u6210\u7EE9\u5217: " + (vm.dynamicHeaders || []).map((h) => h.customColumnName).join(", "))) : (_colsExpanded = !1, keepPref || _persistColsExpanded(!1), _clearSyntheticColumns(vm), _savedHeaders !== null && (vm.dynamicHeaders = _savedHeaders.slice()), _ownHeadersSig = "", _savedHeaders = null, _savedColSig = "", _colsSig = null, _afterSiteRender(vm), log("[\u5185\u8054] \u5DF2\u8FD8\u539F\u4E3A\u7AD9\u70B9\u539F\u59CB\u6210\u7EE9\u5217")), _refreshEditorWindows(), !0) : (_colsExpanded = expand, keepPref || _persistColsExpanded(expand), safe("\u5185\u8054\u5217\u5F00\u5173\uFF08\u7EC4\u4EF6\u672A\u5C31\u7EEA\uFF09", () => {
       throw new Error("\u672A\u627E\u5230\u6210\u7EE9\u518C\u7EC4\u4EF6\uFF0C\u7A0D\u540E\u91CD\u8BD5");
     }), !1);
   }
@@ -5129,9 +5183,7 @@
       if (idx < 0) {
         unmatched++;
         let box = tr.querySelector("[data-ints-sim]");
-        box && box.remove(), _restoreScoreCell(_scoreTdOf(tr)), Array.prototype.forEach.call(tr.children, (td) => {
-          td.getAttribute && td.getAttribute(VTASK_ATTR) !== null && _clearVirtualCell(td);
-        }), _markRowDone(tr);
+        box && box.remove(), _restoreScoreCell(_scoreTdOf(tr)), _clearTaskCells(tr), _markRowDone(tr);
         return;
       }
       used.add(idx), matched++, _renderRow(tr, idx);
@@ -5387,7 +5439,7 @@
     }
     _isPointsPage() ? _start() : stopPointsInline();
   }
-  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
+  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
     "v8.30/inline-points.js"() {
       init_state();
       init_utils();
@@ -5400,6 +5452,7 @@
       init_log();
       INLINE_ATTR = "data-ints-inline", ROW_ATTR = "data-ints-row", GPA_ID = "ints-inline-gpa", DECORATE_DEBOUNCE_MS = 300;
       _siteHeaderIds = [], _siteColSig = "", _colTrace = null;
+      _ownHeadersSig = "";
       SCORE_SIM_ATTR = "data-ints-simscore", SCORE_WRAP_ATTR = "data-ints-origwrap", SCORE_DELTA_ATTR = "data-ints-scoredelta", SCORE_DELTA_EPS = 5e-3;
       FIELD_CELL_SEARCH = [0, -1, 1];
       SIM_BLUE = "#1890ff", COL_DELTA_ATTR = "data-ints-coldelta", FIELD_WRAP_ATTR = "data-ints-fwrap", FIELD_BLOCK_ATTR = "data-ints-fsim";
