@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.7
+// @version      1.02.8
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -1644,9 +1644,9 @@
     }
     let allCourses = [], pastKeep = [];
     for (let item of items) {
-      let nameKey = _reportNameKey(item.courseName), repCourse = _reportPick(item, nameKey, rep, rep ? rep.grades : null, rep ? rep.gradesById : null), repCreditHit = _reportPick(item, nameKey, rep, rep ? rep.credit : null, rep ? rep.creditById : null), repCredit = repCreditHit === null ? void 0 : repCreditHit, credit = repCredit !== void 0 ? repCredit : S.creditMap.get(item.courseId);
+      let nameKey = _reportNameKey(item.courseName), repCreditHit = _reportPick(item, nameKey, null, void 0, rep, rep ? rep.credit : null, rep ? rep.creditById : null), repCredit = repCreditHit === null ? void 0 : repCreditHit, credit = repCredit !== void 0 ? repCredit : S.creditMap.get(item.courseId);
       credit === void 0 && (credit = creditMapEmpty ? 1 : 0);
-      let rawGrades = { s1p: null, s1e: null, s1f: null, s2p: null, s2e: null, s2f: null }, mappedS1P = getScoreFromCustomColumns(item, colMap, "s1p"), mappedS1E = getScoreFromCustomColumns(item, colMap, "s1e"), mappedS1F = getScoreFromCustomColumns(item, colMap, "s1f"), mappedS2P = getScoreFromCustomColumns(item, colMap, "s2p"), mappedS2E = getScoreFromCustomColumns(item, colMap, "s2e"), mappedS2F = getScoreFromCustomColumns(item, colMap, "s2f");
+      let repCourse = _reportPick(item, nameKey, _courseBaseKey(item.courseName), credit, rep, rep ? rep.grades : null, rep ? rep.gradesById : null), rawGrades = { s1p: null, s1e: null, s1f: null, s2p: null, s2e: null, s2f: null }, mappedS1P = getScoreFromCustomColumns(item, colMap, "s1p"), mappedS1E = getScoreFromCustomColumns(item, colMap, "s1e"), mappedS1F = getScoreFromCustomColumns(item, colMap, "s1f"), mappedS2P = getScoreFromCustomColumns(item, colMap, "s2p"), mappedS2E = getScoreFromCustomColumns(item, colMap, "s2e"), mappedS2F = getScoreFromCustomColumns(item, colMap, "s2f");
       rawGrades.s1p = mappedS1P !== null ? mappedS1P : item.s1p !== void 0 && item.s1p !== null ? Number(item.s1p) : null, rawGrades.s1e = mappedS1E !== null ? mappedS1E : item.s1e !== void 0 && item.s1e !== null ? Number(item.s1e) : null, rawGrades.s1f = mappedS1F !== null ? mappedS1F : item.s1f !== void 0 && item.s1f !== null ? Number(item.s1f) : null, rawGrades.s2p = mappedS2P !== null ? mappedS2P : item.s2p !== void 0 && item.s2p !== null ? Number(item.s2p) : null, rawGrades.s2e = mappedS2E !== null ? mappedS2E : item.s2e !== void 0 && item.s2e !== null ? Number(item.s2e) : null, rawGrades.s2f = mappedS2F !== null ? mappedS2F : item.s2f !== void 0 && item.s2f !== null ? Number(item.s2f) : null;
       let published = rawGrades.s1p !== null || rawGrades.s1e !== null || rawGrades.s1f !== null || rawGrades.s2p !== null || rawGrades.s2e !== null || rawGrades.s2f !== null;
       past && repCourse && ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"].forEach((f) => {
@@ -1722,9 +1722,13 @@
   function _reportNameKey(s) {
     return String(s == null ? "" : s).replace(/\s+/g, " ").trim().toLowerCase();
   }
+  function _courseBaseKey(s) {
+    let k = _reportNameKey(s);
+    return k ? (k = k.replace(/\s*\(\s*\d+\s*\)\s*$/, ""), k = k.replace(/\s+-\s*\d+\s*$/, ""), k = k.replace(/(^|\s)g(\d{2})(?=\.|\s|$)/g, "$1$2"), k.replace(/\s+/g, " ").trim()) : "";
+  }
   function _reportCourseMaps(content) {
-    let credit = /* @__PURE__ */ new Map(), creditById = /* @__PURE__ */ new Map(), grades = /* @__PURE__ */ new Map(), gradesById = /* @__PURE__ */ new Map(), dupId = /* @__PURE__ */ new Set();
-    if (!content) return { credit, creditById, grades, gradesById };
+    let credit = /* @__PURE__ */ new Map(), creditById = /* @__PURE__ */ new Map(), grades = /* @__PURE__ */ new Map(), gradesById = /* @__PURE__ */ new Map(), gradesByBase = /* @__PURE__ */ new Map(), dupId = /* @__PURE__ */ new Set();
+    if (!content) return { credit, creditById, grades, gradesById, gradesByBase };
     let putById = (map, id, v) => {
       if (id == null || id === "") return;
       let k = String(id);
@@ -1745,7 +1749,9 @@
     }
     for (let c of parsed) {
       let k = _reportNameKey(c.name);
-      k && (grades.set(k, c), typeof c.credit == "number" && c.credit > 0 && credit.set(k, c.credit)), putById(gradesById, c.courseId, c);
+      k && (grades.set(k, c), typeof c.credit == "number" && c.credit > 0 && credit.set(k, c.credit));
+      let bk = _courseBaseKey(c.name);
+      bk && (gradesByBase.has(bk) || gradesByBase.set(bk, []), gradesByBase.get(bk).push(c)), putById(gradesById, c.courseId, c);
     }
     for (let it of content.reportItems || []) {
       let v = parseFloat(it && it.credits);
@@ -1753,9 +1759,9 @@
       let k = _reportNameKey(it && it.courseName);
       k && credit.set(k, v), putById(creditById, it && it.courseId, v);
     }
-    return { credit, creditById, grades, gradesById };
+    return { credit, creditById, grades, gradesById, gradesByBase };
   }
-  function _reportPick(item, nameKey, maps, byName, byId) {
+  function _reportPick(item, nameKey, baseKey, itemCredit, maps, byName, byId) {
     if (!maps) return null;
     let hit = byName.get(nameKey);
     if (hit != null) return hit;
@@ -1763,7 +1769,11 @@
       let v = byId.get(String(item.courseId));
       if (v != null) return v;
     }
-    return null;
+    if (!baseKey) return null;
+    let cands = maps.gradesByBase ? maps.gradesByBase.get(baseKey) : null;
+    if (!cands || !cands.length) return null;
+    let same = cands.filter((c) => typeof c.credit == "number" && typeof itemCredit == "number" && Math.abs(c.credit - itemCredit) < 1e-3);
+    return same.length === 1 ? same[0] : null;
   }
   var TERM_COLUMN_NAMES, init_courses = __esm({
     "v8.30/courses.js"() {
@@ -4279,7 +4289,11 @@
       cell.style.color = ours ? SIM_BLUE : "", _renderFieldGpa(cell, inner, course, shown, ours);
       return;
     }
-    cell.style.color = "";
+    if (cell.style.color = "", !isSynth && !S.isCurrentYear && _cellScoreNum(cell) === null) {
+      let stale = cell.querySelector("[data-ints-sim]");
+      stale && stale.remove(), _restoreFieldCell(cell);
+      return;
+    }
     let simmed = valueIsSimulated(sim, orig) && shown !== null, gpaFrom = !simmed && !isSynth && (_a = _cellScoreNum(cell)) != null ? _a : shown;
     if (simmed) {
       let wrap = _hideFieldSiteText(inner, f), siteText = wrap ? String(wrap.textContent || "").replace(/\s+/g, " ").trim() : "", parts = _siteScoreParts(siteText), oldScore = isSynth ? hasVal(orig) ? _scoreNum(orig) : "" : parts.raw || (hasVal(orig) ? _scoreNum(orig) : ""), oldLevel = isSynth ? hasVal(orig) && scoreToLetter(orig) || "" : parts.level || hasVal(orig) && scoreToLetter(orig) || "", delta = hasVal(sim) && hasVal(orig) ? sim - orig : null, showDelta = delta !== null && Math.abs(delta) >= SCORE_DELTA_EPS, block = inner.querySelector("[" + FIELD_BLOCK_ATTR + "]");
