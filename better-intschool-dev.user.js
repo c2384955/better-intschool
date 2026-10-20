@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.6
+// @version      1.02.7
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -609,7 +609,7 @@
         let cacheObj = {};
         for (let [k, v] of S.yearDataCache) {
           let ser = { sectionName: v.sectionName, annualGPA: v.annualGPA, cumulativeGPA: v.cumulativeGPA, dataTs: v.dataTs || 0 };
-          if (v.originalCourses && (ser.oc = v.originalCourses.map((c) => _serCourse(c))), _isSchoolYear(k)) {
+          if (v.src && (ser.src = v.src), v.originalCourses && (ser.oc = v.originalCourses.map((c) => _serCourse(c))), _isSchoolYear(k)) {
             let sims = _simsForSave(k, v);
             sims && sims.length && (ser.sc = sims.map((c) => _serCourse(c)));
           }
@@ -650,7 +650,7 @@
         delete cacheObj._ts;
         for (let [k, v] of Object.entries(cacheObj)) {
           let restored = { sectionName: v.sectionName, annualGPA: v.annualGPA, cumulativeGPA: v.cumulativeGPA, dataTs: v.dataTs || 0 };
-          v.oc && (restored.originalCourses = v.oc.map((o) => _deserCourse(o))), v.sc && (restored.simCourses = v.sc.map((o) => _deserCourse(o))), v.vt !== void 0 && (restored.virtualTaskIdCounter = v.vt), S.yearDataCache.set(k, restored);
+          v.src && (restored.src = v.src), v.oc && (restored.originalCourses = v.oc.map((o) => _deserCourse(o))), v.sc && (restored.simCourses = v.sc.map((o) => _deserCourse(o))), v.vt !== void 0 && (restored.virtualTaskIdCounter = v.vt), S.yearDataCache.set(k, restored);
         }
       }
       let userStr = localStorage.getItem(STORAGE_KEY_USER);
@@ -1644,7 +1644,7 @@
     }
     let allCourses = [], pastKeep = [];
     for (let item of items) {
-      let nameKey = _reportNameKey(item.courseName), repCourse = rep ? rep.grades.get(nameKey) : null, repCredit = rep ? rep.credit.get(nameKey) : void 0, credit = repCredit !== void 0 ? repCredit : S.creditMap.get(item.courseId);
+      let nameKey = _reportNameKey(item.courseName), repCourse = _reportPick(item, nameKey, rep, rep ? rep.grades : null, rep ? rep.gradesById : null), repCreditHit = _reportPick(item, nameKey, rep, rep ? rep.credit : null, rep ? rep.creditById : null), repCredit = repCreditHit === null ? void 0 : repCreditHit, credit = repCredit !== void 0 ? repCredit : S.creditMap.get(item.courseId);
       credit === void 0 && (credit = creditMapEmpty ? 1 : 0);
       let rawGrades = { s1p: null, s1e: null, s1f: null, s2p: null, s2e: null, s2f: null }, mappedS1P = getScoreFromCustomColumns(item, colMap, "s1p"), mappedS1E = getScoreFromCustomColumns(item, colMap, "s1e"), mappedS1F = getScoreFromCustomColumns(item, colMap, "s1f"), mappedS2P = getScoreFromCustomColumns(item, colMap, "s2p"), mappedS2E = getScoreFromCustomColumns(item, colMap, "s2e"), mappedS2F = getScoreFromCustomColumns(item, colMap, "s2f");
       rawGrades.s1p = mappedS1P !== null ? mappedS1P : item.s1p !== void 0 && item.s1p !== null ? Number(item.s1p) : null, rawGrades.s1e = mappedS1E !== null ? mappedS1E : item.s1e !== void 0 && item.s1e !== null ? Number(item.s1e) : null, rawGrades.s1f = mappedS1F !== null ? mappedS1F : item.s1f !== void 0 && item.s1f !== null ? Number(item.s1f) : null, rawGrades.s2p = mappedS2P !== null ? mappedS2P : item.s2p !== void 0 && item.s2p !== null ? Number(item.s2p) : null, rawGrades.s2e = mappedS2E !== null ? mappedS2E : item.s2e !== void 0 && item.s2e !== null ? Number(item.s2e) : null, rawGrades.s2f = mappedS2F !== null ? mappedS2F : item.s2f !== void 0 && item.s2f !== null ? Number(item.s2f) : null;
@@ -1723,9 +1723,21 @@
     return String(s == null ? "" : s).replace(/\s+/g, " ").trim().toLowerCase();
   }
   function _reportCourseMaps(content) {
-    let credit = /* @__PURE__ */ new Map(), grades = /* @__PURE__ */ new Map();
-    if (!content) return { credit, grades };
-    let parsed = [];
+    let credit = /* @__PURE__ */ new Map(), creditById = /* @__PURE__ */ new Map(), grades = /* @__PURE__ */ new Map(), gradesById = /* @__PURE__ */ new Map(), dupId = /* @__PURE__ */ new Set();
+    if (!content) return { credit, creditById, grades, gradesById };
+    let putById = (map, id, v) => {
+      if (id == null || id === "") return;
+      let k = String(id);
+      if (dupId.has(k)) {
+        map.delete(k);
+        return;
+      }
+      if (map.has(k)) {
+        map.delete(k), dupId.add(k);
+        return;
+      }
+      map.set(k, v);
+    }, parsed = [];
     try {
       parsed = parseYearlyReport(content) || [];
     } catch (e) {
@@ -1733,15 +1745,25 @@
     }
     for (let c of parsed) {
       let k = _reportNameKey(c.name);
-      k && (grades.set(k, c), typeof c.credit == "number" && c.credit > 0 && credit.set(k, c.credit));
+      k && (grades.set(k, c), typeof c.credit == "number" && c.credit > 0 && credit.set(k, c.credit)), putById(gradesById, c.courseId, c);
     }
     for (let it of content.reportItems || []) {
-      let k = _reportNameKey(it && it.courseName);
-      if (!k) continue;
       let v = parseFloat(it && it.credits);
-      !isNaN(v) && v > 0 && credit.set(k, v);
+      if (isNaN(v) || v <= 0) continue;
+      let k = _reportNameKey(it && it.courseName);
+      k && credit.set(k, v), putById(creditById, it && it.courseId, v);
     }
-    return { credit, grades };
+    return { credit, creditById, grades, gradesById };
+  }
+  function _reportPick(item, nameKey, maps, byName, byId) {
+    if (!maps) return null;
+    let hit = byName.get(nameKey);
+    if (hit != null) return hit;
+    if (item && item.courseId !== void 0 && item.courseId !== null) {
+      let v = byId.get(String(item.courseId));
+      if (v != null) return v;
+    }
+    return null;
   }
   var TERM_COLUMN_NAMES, init_courses = __esm({
     "v8.30/courses.js"() {
@@ -3689,14 +3711,14 @@
     let keyStr = String(yearKey);
     if (_detachLiveSims(), S.yearDataCache.has(keyStr)) {
       let cached = S.yearDataCache.get(keyStr);
-      if (!!cached.originalCourses && (!isCurr || !force && isYearCacheFresh(keyStr) && cached.simCourses && cached.simCourses.length)) {
+      if (!!cached.originalCourses && (isCurr ? !force && isYearCacheFresh(keyStr) && cached.simCourses && cached.simCourses.length : cached.src === "book")) {
         S.originalCourses = cached.originalCourses, isCurr ? (S.simCourses = cached.simCourses, S.currentYearAnnualGPA = null, S.currentYearCumulativeGPA = null, S.virtualTaskIdCounter = cached.virtualTaskIdCounter || cached.simCourses.reduce((min, c) => {
           for (let t4 of c.tasks || []) t4.isVirtual && t4.entityId < min && (min = t4.entityId);
           return min;
         }, -1)) : (initReadOnlyCourses(), S.currentYearAnnualGPA = cached.annualGPA || null, S.currentYearCumulativeGPA = cached.cumulativeGPA || null), S.simYearKey = keyStr, refreshAllViews(), log(isCurr ? `[\u7F13\u5B58] \u4F7F\u7528\u7F13\u5B58\u7684\u5F53\u524D\u5B66\u5E74\u6A21\u62DF\u6570\u636E: ${yearValue}` : `[\u7F13\u5B58] \u4F7F\u7528\u7F13\u5B58\u7684\u5F80\u671F\u6570\u636E\uFF08\u53EA\u8BFB\uFF09: ${yearValue}`), isCurr && safeAsync("\u661F\u6807\u81EA\u52A8\u6821\u51C6", autoCalibrateStarredCourses);
         return;
       }
-      isCurr && log(`[\u7F13\u5B58] ${yearValue} \u7684\u6210\u7EE9\u518C\u7F13\u5B58\u5DF2\u8FC7\u671F\uFF08\u6216\u6CA1\u6709\u6A21\u62DF\u6570\u636E\uFF09` + (force ? "\uFF08\u672C\u6B21\u4E3A\u5BF9\u8D26\u5F3A\u5236\u91CD\u62C9\uFF09" : "") + "\uFF0C\u91CD\u65B0\u62C9\u53D6\uFF1B\u7528\u6237\u6570\u636E\u7A0D\u540E\u56DE\u8D34");
+      isCurr ? log(`[\u7F13\u5B58] ${yearValue} \u7684\u6210\u7EE9\u518C\u7F13\u5B58\u5DF2\u8FC7\u671F\uFF08\u6216\u6CA1\u6709\u6A21\u62DF\u6570\u636E\uFF09` + (force ? "\uFF08\u672C\u6B21\u4E3A\u5BF9\u8D26\u5F3A\u5236\u91CD\u62C9\uFF09" : "") + "\uFF0C\u91CD\u65B0\u62C9\u53D6\uFF1B\u7528\u6237\u6570\u636E\u7A0D\u540E\u56DE\u8D34") : log(`[\u7F13\u5B58] ${yearValue} \u7684\u7F13\u5B58\u6761\u76EE\u662F${cached && cached.src === "report" ? "\u5E74\u5EA6\u62A5\u544A" : "\u65E7\u683C\u5F0F"}\u7248\uFF08\u6CA1\u6709\u4EFB\u52A1/\u5B66\u79D1\uFF09\uFF0C\u6309\u6210\u7EE9\u518C\u91CD\u5EFA\u4E00\u4EFD`);
     }
     log(`[\u52A0\u8F7D] \u5F00\u59CB\u52A0\u8F7D\u5B66\u5E74 ${yearValue}\uFF0C\u5F53\u524D\u5B66\u5E74=${isCurr}`);
     try {
@@ -3718,7 +3740,8 @@
         sectionName,
         annualGPA: apiAnnualGPA,
         cumulativeGPA: apiCumulativeGPA,
-        dataTs: Date.now()
+        dataTs: Date.now(),
+        src: "book"
       }), markDirty(), S._navGeneration !== navGen) return;
       refreshAllViews(), S.expectedRequestCount = 0, log(`[\u52A0\u8F7D] \u5B8C\u6210\uFF0C\u5171 ${S.originalCourses.length} \u95E8\u8BFE\u7A0B`), isCurr && safeAsync("\u661F\u6807\u81EA\u52A8\u6821\u51C6", autoCalibrateStarredCourses);
     } catch (err) {
@@ -3818,7 +3841,9 @@
           // dataTs 要跟着走，别把保鲜期抹成每次都过期
           dataTs: existingCache.dataTs || Date.now(),
           simCourses: existingCache.simCourses || null,
-          virtualTaskIdCounter: existingCache.virtualTaskIdCounter || null
+          virtualTaskIdCounter: existingCache.virtualTaskIdCounter || null,
+          // 年度报告版：/points 的往期页面会据此重建一份成绩册版（别写成 'book'）
+          src: isCurr ? "book" : "report"
         });
       }
       return { y, keyStr, isCurr, sectionName, apiAnnualGPA, apiCumulativeGPA, courses };
