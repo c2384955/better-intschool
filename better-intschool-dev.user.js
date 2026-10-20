@@ -1018,7 +1018,7 @@
       checkedOnce: !!S._deadlineCheckedOnce,
       trigger: S._deadlineCheckTrigger,
       inFlight: !!S._deadlineCheckInFlight,
-      // 这两个字段恒为 false / 0：保留只为诊断接口的字段形状稳定
+      // 这两个字段恒为 false / 0：保留它们只为诊断取值的形状稳定
       fallbackArmed: !1,
       fallbackMs: 0,
       starts: _checkStarts,
@@ -3174,7 +3174,7 @@
       // 卡片可能很高：内容区按表格滚动容器的高度限高（超出在窗口内滚动，免得窗口高过容器被裁掉）
       maxBodyHeight: Math.max(160, Math.round(getShellBounds().height - 72)) + "px",
       titleHTML: _detailTitleHTML(course0, filterText),
-      // 沿用类名 subject-detail-modal：styles.js / darkmode.js 里有对应规则
+      // 沿用类名 subject-detail-modal：样式统一由 styles.js 提供
       className: "subject-detail-modal",
       bodyHTML: '<div class="iw-note">' + t("\u6B63\u5728\u8BA1\u7B97\u2026", "Computing\u2026") + "</div>",
       footerHTML: '<button type="button" data-detail-act="apply" class="ant-btn ant-btn-link" style="color:#1890ff;">' + iconCheck() + "<span>" + t("\u5173\u95ED\u5E76\u5E94\u7528\u6A21\u62DF", "Close & Apply") + "</span></button>",
@@ -3865,11 +3865,11 @@
           sectionName,
           annualGPA: apiAnnualGPA,
           cumulativeGPA: apiCumulativeGPA,
-          // dataTs 要跟着走，别把保鲜期抹成每次都过期
+          // dataTs 必须原样带过去：保鲜期按它算，抹掉就成了"每次都过期"
           dataTs: existingCache.dataTs || Date.now(),
           simCourses: existingCache.simCourses || null,
           virtualTaskIdCounter: existingCache.virtualTaskIdCounter || null,
-          // 年度报告版：/points 的往期页面会据此重建一份成绩册版（别写成 'book'）
+          // 年度报告版：/points 的往期页面会据此重建一份成绩册版
           src: isCurr ? "book" : "report"
         });
       }
@@ -5240,12 +5240,12 @@
   function getInlineStats() {
     let headers = _vm && _vm.dynamicHeaders || [];
     return __spreadProps(__spreadValues({}, _stats), {
-      // 诊断用：展开态决定小数位与列；合成列数与成绩格落点（自检报告里也读这几项）
+      // 展开态决定小数位与列；合成列数与成绩格落点一并给诊断
       colsExpanded: !!_colsExpanded,
       synthCols: headers.filter((h) => h && String(h.customColumnId === void 0 ? "" : h.customColumnId).indexOf(SYNTH_PREFIX) === 0).length,
       schoolCol: _schoolColumnId(),
       scoreIdx: _scoreTdIndex(),
-      // 成绩格跟的是哪个字段（null = 列名认不出、按学年分显示）——自检报告里也读它
+      // 成绩格跟的是哪个字段（null = 列名认不出、按学年分显示）
       scoreField: _schoolScoreField(),
       colTrace: _colTrace,
       // 首屏就绪门：等了几毫秒、走的是 idle 还是兜底
