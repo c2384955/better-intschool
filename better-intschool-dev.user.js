@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.8
+// @version      1.02.9
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -463,6 +463,17 @@
        \u7528\u7C7B + !important \u8986\u76D6\u5185\u8054\u7684 color \u2014\u2014 \u4E09\u5904 GPA \u76D2\u5B50\u7684**\u5185\u8054\u6837\u5F0F**\u5FC5\u987B\u9010\u9879\u76F8\u540C\uFF0C
        \u6240\u4EE5\u989C\u8272\u5DEE\u5F02\u53EA\u80FD\u8D70\u6837\u5F0F\u8868\u3002 */
     .ant-table-tbody [data-ints-sim].ints-gpa-strong { color: rgba(0, 0, 0, 0.88) !important; }
+    /* \u8868\u5934\u4E0B\u65B9\u7684\u5217 GPA\uFF1A\u5B57\u53F7/\u7070\u5EA6\u4E0E\u6210\u7EE9\u683C\u90A3\u4E00\u679A\u5B8C\u5168\u4E00\u81F4\uFF0C\u5185\u5BB9\u7531 th \u7684 data-ints-cgpa \u5C5E\u6027\u7ED9\u51FA */
+    .ant-table-thead th[data-ints-cgpa]::after {
+        content: attr(data-ints-cgpa);
+        display: block;
+        font-size: 10px;
+        line-height: 1.35;
+        margin-top: 1px;
+        color: rgba(0, 0, 0, 0.5);
+        font-weight: normal;
+        white-space: nowrap;
+    }
     /* ====================== \u6CE8\u5165\u5C42 z-index \u5951\u7EA6 ======================
        \u7AD9\u70B9\u81EA\u5DF1\u7528\u7684\u662F antd-vue 1.5\uFF0C\u5B83\u7684\u6D6E\u5C42 z-index \u662F\uFF1Amodal 1000 / message 1010 /
        popover 1030 / dropdown 1050 / tooltip 1060\u3002**\u5B66\u6821\u81EA\u5DF1\u7684\u6D6E\u5C42\u6C38\u8FDC\u4F18\u5148** \u2014\u2014
@@ -1642,16 +1653,22 @@
       let s0 = items[0];
       log("[\u5F53\u524D\u5B66\u5E74] \u6837\u4F8B\u6761\u76EE: " + JSON.stringify({ courseId: s0.courseId, courseName: s0.courseName, subject: s0.subject, creditFromMap: S.creditMap.get(s0.courseId) }));
     }
-    let allCourses = [], pastKeep = [];
+    let allCourses = [], pastKeep = [], eBackfilled = 0;
     for (let item of items) {
       let nameKey = _reportNameKey(item.courseName), repCreditHit = _reportPick(item, nameKey, null, void 0, rep, rep ? rep.credit : null, rep ? rep.creditById : null), repCredit = repCreditHit === null ? void 0 : repCreditHit, credit = repCredit !== void 0 ? repCredit : S.creditMap.get(item.courseId);
       credit === void 0 && (credit = creditMapEmpty ? 1 : 0);
       let repCourse = _reportPick(item, nameKey, _courseBaseKey(item.courseName), credit, rep, rep ? rep.grades : null, rep ? rep.gradesById : null), rawGrades = { s1p: null, s1e: null, s1f: null, s2p: null, s2e: null, s2f: null }, mappedS1P = getScoreFromCustomColumns(item, colMap, "s1p"), mappedS1E = getScoreFromCustomColumns(item, colMap, "s1e"), mappedS1F = getScoreFromCustomColumns(item, colMap, "s1f"), mappedS2P = getScoreFromCustomColumns(item, colMap, "s2p"), mappedS2E = getScoreFromCustomColumns(item, colMap, "s2e"), mappedS2F = getScoreFromCustomColumns(item, colMap, "s2f");
       rawGrades.s1p = mappedS1P !== null ? mappedS1P : item.s1p !== void 0 && item.s1p !== null ? Number(item.s1p) : null, rawGrades.s1e = mappedS1E !== null ? mappedS1E : item.s1e !== void 0 && item.s1e !== null ? Number(item.s1e) : null, rawGrades.s1f = mappedS1F !== null ? mappedS1F : item.s1f !== void 0 && item.s1f !== null ? Number(item.s1f) : null, rawGrades.s2p = mappedS2P !== null ? mappedS2P : item.s2p !== void 0 && item.s2p !== null ? Number(item.s2p) : null, rawGrades.s2e = mappedS2E !== null ? mappedS2E : item.s2e !== void 0 && item.s2e !== null ? Number(item.s2e) : null, rawGrades.s2f = mappedS2F !== null ? mappedS2F : item.s2f !== void 0 && item.s2f !== null ? Number(item.s2f) : null;
       let published = rawGrades.s1p !== null || rawGrades.s1e !== null || rawGrades.s1f !== null || rawGrades.s2p !== null || rawGrades.s2e !== null || rawGrades.s2f !== null;
-      past && repCourse && ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"].forEach((f) => {
+      if (past && repCourse && ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"].forEach((f) => {
         rawGrades[f] === null && typeof repCourse[f] == "number" && !isNaN(repCourse[f]) && (rawGrades[f] = repCourse[f]);
-      }), past && credit <= 0 && (published || repCourse) && (credit = 1);
+      }), past && credit <= 0 && (published || repCourse) && (credit = 1), past && credit > 0)
+        for (let term of ["s1", "s2"]) {
+          let f = term + "f", p = term + "p", e = term + "e";
+          if (rawGrades[e] !== null || typeof rawGrades[f] != "number" || typeof rawGrades[p] != "number") continue;
+          let guess = 5 * rawGrades[f] - 4 * rawGrades[p];
+          guess >= 0 && guess <= 100 && (rawGrades[e] = Math.round(guess * 100) / 100, eBackfilled++);
+        }
       let tasks = (item.taskScores || []).filter((t4) => !t4.endDate || getTermFromDate(t4.endDate, t4.term || t4.schoolYearTerm) !== null);
       tasks = tasks.map((t4) => {
         let entityId = parseInt(t4.entityId || t4.taskStudentId || t4.id, 10);
@@ -1717,7 +1734,7 @@
         bestIdx >= 0 && zeroCreditCourses[bestIdx].originalGrades.s2e !== null && (course.originalGrades.s2e = zeroCreditCourses[bestIdx].originalGrades.s2e, course.originalGrades.s2f = calcF(course.originalGrades.s2p, course.originalGrades.s2e));
       }
     }
-    return past && log(`[\u5F80\u671F\u5B66\u5E74] \u8BFE\u7A0B ${pastKeep.length} \u95E8\uFF08\u6210\u7EE9\u518C\u6761\u76EE ${allCourses.length}\uFF0C\u96F6\u5B66\u5206 ${zeroCreditCourses.length}\uFF09`), past ? pastKeep : validCourses;
+    return past && log(`[\u5F80\u671F\u5B66\u5E74] \u8BFE\u7A0B ${pastKeep.length} \u95E8\uFF08\u6210\u7EE9\u518C\u6761\u76EE ${allCourses.length}\uFF0C\u96F6\u5B66\u5206 ${zeroCreditCourses.length}\uFF09\uFF0C\u6309 P/F \u53CD\u63A8\u671F\u672B ${eBackfilled} \u6761`), past ? pastKeep : validCourses;
   }
   function _reportNameKey(s) {
     return String(s == null ? "" : s).replace(/\s+/g, " ").trim().toLowerCase();
@@ -4402,6 +4419,30 @@
       cell !== td && cell.querySelector("[data-ints-sim]") || (_renderFieldCell(cell, course, f, !0), _tr.items.push(i + ":" + f + ":field" + (cell.isConnected ? "" : "!disc")));
     }
   }
+  function _columnGpaOf(field) {
+    let courses = S.simCourses || [];
+    return computeColumnGPASummary(courses, (c) => {
+      if (field === "eoy") return (c.originalGrades || {}).eoy;
+      let v = (c.simGrades || c.originalGrades || {})[field];
+      return typeof v == "number" && !isNaN(v) ? v : null;
+    });
+  }
+  function _renderColumnGpa() {
+    let ths = _synthThs();
+    ths.length && ths.forEach((th) => {
+      if (!th.getAttribute || !th.setAttribute) return;
+      let f = _thFieldOf(th), g = f ? _columnGpaOf(f) : null;
+      if (!g) {
+        th.getAttribute(COLGPA_ATTR) !== null && th.removeAttribute(COLGPA_ATTR);
+        return;
+      }
+      let text = "(UW: " + _num(g.uw) + ", W: " + _num(g.w) + ")";
+      th.getAttribute(COLGPA_ATTR) !== text && (th.setAttribute(COLGPA_ATTR, text), th.getAttribute("title") || th.setAttribute("title", t(
+        "\u672C\u5217 GPA\uFF1A\u8FD9\u4E00\u5217\u6709\u5206\u6570\u7684\u8BFE\u7A0B\u6309\u5B66\u5206\u52A0\u6743\uFF08\u4E0E\u5B66\u5E74 GPA \u540C\u4E00\u5957\u7B97\u6CD5\uFF09",
+        "Column GPA: credit-weighted over the graded courses in this column"
+      )));
+    });
+  }
   function _taskKey(s) {
     return String(s == null ? "" : s).replace(/\s+/g, " ").trim().toLowerCase();
   }
@@ -5226,7 +5267,9 @@
         return;
       }
       used.add(idx), matched++, _renderRow(tr, idx);
-    }), safe("\u7A97\u53E3\u91CD\u65B0\u951A\u5B9A", _reanchorWindows), safe("\u5B66\u6821\u6570\u636E\u5BF9\u8D26", _checkSchoolDataDrift), _stats = { rows: rows.length, matched, unmatched, ts: Date.now() };
+    }), safe("\u7A97\u53E3\u91CD\u65B0\u951A\u5B9A", _reanchorWindows), safe("\u5185\u8054\u5217 GPA", () => {
+      _synthThCache = null, _renderColumnGpa();
+    }), safe("\u5B66\u6821\u6570\u636E\u5BF9\u8D26", _checkSchoolDataDrift), _stats = { rows: rows.length, matched, unmatched, ts: Date.now() };
   }
   function decoratePointsRows() {
     safe("points \u5185\u8054\u88C5\u9970", _decorate);
@@ -5433,7 +5476,7 @@
       vm && (_colsExpanded && (_clearSyntheticColumns(vm), _savedHeaders !== null && (vm.dynamicHeaders = _savedHeaders.slice())), _savedHeaders = null, _savedColSig = "", _colsSig = null, _structDirty = !1, _siteHeaderIds = [], _siteColSig = "", _synthThCache = null, _driftCheckedAt = 0, _driftRefreshing = !1);
     });
     let gpa = document.getElementById(GPA_ID);
-    gpa && gpa.remove(), _closeMenus();
+    gpa && gpa.remove(), Array.prototype.forEach.call(document.querySelectorAll("[" + COLGPA_ATTR + "]"), (th) => th.removeAttribute(COLGPA_ATTR)), _closeMenus();
     let ovHost = document.getElementById(OVERVIEW_VIEW_ID);
     [
       TERM_ID,
@@ -5478,7 +5521,7 @@
     }
     _isPointsPage() ? _start() : stopPointsInline();
   }
-  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
+  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, COLGPA_ATTR, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
     "v8.30/inline-points.js"() {
       init_state();
       init_utils();
@@ -5496,6 +5539,7 @@
       FIELD_CELL_SEARCH = [0, -1, 1];
       SIM_BLUE = "#1890ff", COL_DELTA_ATTR = "data-ints-coldelta", FIELD_WRAP_ATTR = "data-ints-fwrap", FIELD_BLOCK_ATTR = "data-ints-fsim";
       _synthThCache = null;
+      COLGPA_ATTR = "data-ints-cgpa";
       TASK_SCORE_ATTR = "data-ints-taskscore", TASK_INPUT_ATTR = "data-ints-taskinput", VTASK_ATTR = "data-ints-vtask-id", COLOR_UP = "#52c41a", COLOR_DOWN = "#d4380d";
       _taskEditing = null;
       VTASK_FALLBACK = {
