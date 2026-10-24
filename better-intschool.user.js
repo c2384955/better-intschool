@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.11
+// @version      1.02.12
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -409,7 +409,7 @@
        \u70B9\u6210\u7EE9\u683C\u6253\u5F00\u7684\u5355\u79D1\u7A97\u53E3\u3001\u4EE5\u53CA\u5B83\u7684\u300C\u79D1\u76EE\u660E\u7EC6\u300D\uFF0C\u5171\u7528\u8FD9\u4E00\u5957\u5916\u89C2\u3002
        \u89C2\u611F\u5BF9\u9F50\u7AD9\u70B9\u81EA\u5DF1\u7684 antd\uFF1A\u540C\u6837\u7684\u5706\u89D2/\u8FB9\u6846/\u9634\u5F71\u8272\uFF0C\u5B57\u53F7 12\u201313px\uFF0C\u4E3B\u8272 #1890ff\u3002
        **\u5B9A\u4F4D**\uFF1A\u7A97\u53E3\u662F .ant-table-body\uFF08\u6210\u7EE9\u518C\u81EA\u5DF1\u7684\u6EDA\u52A8\u5BB9\u5668\uFF09\u7684\u7EDD\u5BF9\u5B9A\u4F4D\u5B50\u8282\u70B9 \u2014\u2014
-       \u8DDF\u968F\u6EDA\u52A8\u56E0\u6B64\u662F\u539F\u751F\u7684\uFF0C\u5E76\u4E14\u88AB\u8868\u5934/\u7B5B\u9009\u680F/\u5DE6\u4FA7\u5BFC\u822A\u680F\u5929\u7136\u6321\u4F4F\uFF08\u8BE6\u89C1 win-shell.js \u5934\u6CE8\uFF09\u3002
+       \u8DDF\u968F\u6EDA\u52A8\u56E0\u6B64\u662F\u539F\u751F\u7684\uFF0C\u5E76\u4E14\u88AB\u8868\u5934/\u7B5B\u9009\u680F/\u5DE6\u4FA7\u5BFC\u822A\u680F\u5929\u7136\u6321\u4F4F\u3002
        **\u5C42\u7EA7**\uFF1A\u7A97\u53E3\u5C42 30\u201339\uFF08\u884C\u5185\u9010\u7A97\u53E3\u9012\u589E\uFF09\uFF0C\u6C38\u8FDC\u4F4E\u4E8E\u7AD9\u70B9\u81EA\u5DF1\u7684\u6D6E\u5C42 \u2014\u2014 \u5B8C\u6574\u5C42\u6B21\u89C1\u4E0B\u65B9 z-index \u5951\u7EA6\u3002 */
     .ints-win { background: #fff; border: 1px solid #e8e8e8; border-radius: 8px;
         box-shadow: 0 6px 22px rgba(0,0,0,0.18); font-size: 12px; color: rgba(0,0,0,0.85); }
@@ -491,7 +491,7 @@
     .virtual-task-modal .ant-modal-close { border: 0; background: transparent; cursor: pointer; }
     /* \u60AC\u6D6E\u63D0\u793A\uFF1A\u767D\u8272\u5361\u7247\u672C\u4F53\u3002**\u5224\u5B9A\u533A\u4E0E\u5361\u7247\u5916\u6846\u5B8C\u5168\u91CD\u5408**\uFF08padding:0\uFF09\u2014\u2014
        \u9F20\u6807\u79BB\u5F00\u5361\u7247\u5373\u8FDB\u5165 180ms \u9690\u85CF\u5012\u8BA1\u65F6\uFF1B\u6309\u94AE\u2192\u5361\u7247\u4E4B\u95F4\u90A3 8px \u7A7A\u9699\u7531\u8FD9 180ms \u515C\u4F4F
-       \uFF08deadline.js \u7684 _hideFloatTip\uFF09\uFF0C\u6240\u4EE5\u4E0D\u4F1A\u8BEF\u5173\u3002\u5224\u5B9A\u533A\u82E5\u6BD4\u5361\u7247\u5927\u4E00\u5708\uFF0C
+       \uFF08\u811A\u672C\u5728\u9F20\u6807\u79BB\u5F00\u540E\u5EF6\u8FDF 180ms \u6536\u8D77\uFF09\uFF0C\u6240\u4EE5\u4E0D\u4F1A\u8BEF\u5173\u3002\u5224\u5B9A\u533A\u82E5\u6BD4\u5361\u7247\u5927\u4E00\u5708\uFF0C
        \u89C6\u89C9\u4E0A\u4F1A\u591A\u51FA\u4E00\u4E2A\u770B\u4E0D\u89C1\u7684\u8FB9\u6846\u3002 */
     .intschool-deadline-tooltip-fixed {
         position: fixed;
@@ -752,7 +752,7 @@
         _errors: [],
         _navGeneration: 0,
         _autoCalibrateCounts: /* @__PURE__ */ new Map(),
-        // courseId → 本会话已自动校准次数（每科上限见 simulation.js）
+        // courseId → 本会话已自动校准次数（每科有上限）
         calibExcluded: /* @__PURE__ */ new Map(),
         // yearKey → Set(entityId)：校准确认不计分的任务（无 TTL，跨会话）
         _simGen: 0,
@@ -3935,7 +3935,7 @@
             simCourses: simCopy,
             annualGPA: data.annualGPA || null,
             cumulativeGPA: data.cumulativeGPA || null,
-            // 年级是推算来的（该年没有年度报告），只作诊断用
+            // chained = 这个年级是按锚点推算出来的（该年没有年度报告）
             chained: !!data.chained
           });
         } else
