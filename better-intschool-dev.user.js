@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.9
+// @version      1.02.10
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -2263,7 +2263,7 @@
       for (let [k, v] of S.creditMap) credits.push(k + "=" + v);
     } catch (e) {
     }
-    let starred = (S.originalCourses || []).filter((c) => c && c.showStar && (c.showStar.s1 || c.showStar.s2)).map((c) => c.name), zeroCredit = (S.originalCourses || []).filter((c) => c && !(c.credit > 0)).length, marks = Object.keys(S._taskMarks || {}), dt2 = S._deadlineAllTasks || [];
+    let starred = (S.originalCourses || []).filter((c) => c && c.showStar && (c.showStar.s1 || c.showStar.s2)).map((c) => c.name), zeroCredit = (S.originalCourses || []).filter((c) => c && !(c.credit > 0)).length, marks = Object.keys(S._taskMarks || {}), dt = S._deadlineAllTasks || [];
     return {
       creditMapSize: S.creditMap ? S.creditMap.size : 0,
       creditSample: credits.slice(0, 12).join(", ") + (credits.length > 12 ? " \u2026" : ""),
@@ -2272,12 +2272,12 @@
       starred: starred.length + (starred.length ? " [" + starred.join(" | ") + "]" : ""),
       marks: marks.length,
       markIds: marks.slice(0, 12).join(","),
-      ddlAll: dt2.length,
-      ddlDetected: dt2.filter((x) => x.detected).length,
-      ddlInferred: dt2.filter((x) => x.inferred && !x.ignored).length,
-      ddlIgnored: dt2.filter((x) => x.ignored).length,
+      ddlAll: dt.length,
+      ddlDetected: dt.filter((x) => x.detected).length,
+      ddlInferred: dt.filter((x) => x.inferred && !x.ignored).length,
+      ddlIgnored: dt.filter((x) => x.ignored).length,
       ddlIgnoreStore: getTaskIgnoreCount(),
-      ddlMarked: dt2.filter((x) => x.marked).length,
+      ddlMarked: dt.filter((x) => x.marked).length,
       ddlCacheAge: S._deadlineCache && S._deadlineCache.ts ? Math.round((Date.now() - S._deadlineCache.ts) / 1e3) + "s" : "\u65E0",
       yearCache: S.yearDataCache ? S.yearDataCache.size : 0,
       simCourses: (S.simCourses || []).length
@@ -2358,7 +2358,7 @@
       })(),
       diagLog: isLogOn() ? "\u5F00\u542F" : "\u5173\u95ED",
       build: getBuildChannel() === "dev" ? "\u5F00\u53D1\u4EF6" : "\u53D1\u5E03\u4EF6"
-    }, data = _dataSnapshot(), inline = _inlineSnapshot(), api = await _apiSnapshot(), errors = S._errors.slice(-5).map((e) => "  \xB7 [" + _fmtTs(e.ts) + "] " + e.label + ": " + e.msg), lines = [];
+    }, data = _dataSnapshot(), inline = _inlineSnapshot(), api = await _apiSnapshot(), dt = S._deadlineAllTasks || [], errors = S._errors.slice(-5).map((e) => "  \xB7 [" + _fmtTs(e.ts) + "] " + e.label + ": " + e.msg), lines = [];
     lines.push("===== Better Intschool \u81EA\u68C0\u62A5\u544A ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(Date.now())), lines.push(""), lines.push("[\u73AF\u5883]"), lines.push("  \u7248\u672C: " + env.version + "\uFF08" + env.build + "\uFF09    \u754C\u9762\u8BED\u8A00: " + env.locale + "    \u6807\u8BB0\u56FE\u6807: " + env.markIcon), lines.push("  \u9875\u9762: " + env.url + "    \u89C6\u53E3: " + env.viewport), lines.push("  \u767B\u5F55\u6001: token=" + env.token + "  schoolId=" + env.schoolId), lines.push("  \u81EA\u52A8\u6821\u51C6: " + env.autoCalibrate + "    \u8BCA\u65AD\u65E5\u5FD7: " + env.diagLog + "\uFF08__INTS_LOG(1) \u53EF\u5F00\uFF09"), lines.push("  \u6D4F\u89C8\u5668: " + env.ua), lines.push(""), lines.push("[\u63A5\u53E3]"), lines.push("  \u5B66\u5E74\u5217\u8868: " + api.yearList), lines.push("  \u5F53\u524D\u5B66\u5E74: key=" + S.currentYearKey + " value=" + S.currentYearValue + " isCurrentYear=" + S.isCurrentYear), lines.push("  grade-book: " + api.gradeBook + "    customColumns: " + api.customColumns + " [" + api.columns + "]"), api.firstCourse && lines.push("  \u9996\u95E8\u8BFE\u7A0B: " + api.firstCourse), lines.push(""), lines.push("[\u6570\u636E]"), lines.push("  \u5B66\u5206\u6620\u5C04: " + data.creditMapSize + " \u6761    " + (data.creditSample || "\uFF08\u7A7A\uFF09")), lines.push("  \u8BFE\u7A0B: " + data.courses + " \u95E8\uFF08\u96F6\u5B66\u5206 " + data.zeroCredit + "\uFF09    \u661F\u6807\u79D1\u76EE: " + data.starred), lines.push("  \u624B\u52A8\u6807\u8BB0: " + data.marks + (data.markIds ? " [" + data.markIds + "]" : "")), lines.push("  DDL: \u5168\u90E8 " + data.ddlAll + " / \u68C0\u6D4B\u5230 " + data.ddlDetected + " / \u7EBF\u4E0B " + data.ddlInferred + " / \u6807\u8BB0 " + data.ddlMarked + " / \u5DF2\u5FFD\u7565 " + data.ddlIgnoreStore + "    \u7F13\u5B58\u5E74\u9F84: " + data.ddlCacheAge), lines.push("    \u5224\u5B9A: type=" + DEADLINE_ASSIGNMENT_TYPE + " \u4E14\u672A\u63D0\u4EA4\uFF1B\u7EBF\u4E0A\u21D2\u68C0\u6D4B\u5230\uFF0C\u7EBF\u4E0B\u4E14\u672A\u8BB0\u5206\u21D2\u7EBF\u4E0B\u4EFB\u52A1\uFF1B\u8BB0\u5206\u578B\uFF08\u4E0D\u7B97\u5F85\u529E\uFF09: " + DEADLINE_RECORD_ONLY_TYPES.join("/"));
     let typed = dt.filter((x) => x.inferred || x.detected).map((x) => x.typeName).filter(Boolean);
     return lines.push("    \u53D6\u5230\u7C7B\u578B\u7684\u5F85\u529E: " + typed.length + " \u6761" + (typed.length ? "\uFF08" + Array.from(new Set(typed)).join(" / ") + "\uFF09" : "\uFF08\u4E00\u6761\u90FD\u6CA1\u6709 \u21D2 \u53EF\u80FD grade-book \u91CC\u6CA1\u6709\u8FD9\u4E9B\u4EFB\u52A1\uFF09")), lines.push("  \u7F13\u5B58: \u5B66\u5E74 " + data.yearCache + " \u6761    \u6A21\u62DF\u8BFE\u7A0B " + data.simCourses + " \u95E8"), lines.push("  /points \u5185\u8054: \u8BE6\u60C5\uFF1A" + inline.colsExpanded + "    \u5408\u6210\u5217\u6570\uFF1A" + inline.synthCols), lines.push(""), lines.push("[\u6743\u91CD] \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [Homework/In-Class/Projects/Tests/Quizzes]"), _weightsSnapshot().forEach((l) => lines.push(l)), lines.push(""), lines.push("[\u5F02\u5E38\u8BB0\u5F55] " + S._errors.length + " \u6761" + (errors.length ? `
