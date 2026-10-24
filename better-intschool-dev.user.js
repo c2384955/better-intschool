@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.10
+// @version      1.02.11
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -967,6 +967,18 @@
       clearTimeout(_deadlineFloatTimer);
     }), _deadlineFloatTip.addEventListener("mouseleave", _hideFloatTip);
   }
+  function _tipVisible() {
+    return !!_deadlineFloatTip && _deadlineFloatTip.isConnected && _deadlineFloatTip.style.display !== "none";
+  }
+  function _repositionIfVisible() {
+    _tipVisible() && (_positionFloatTip(), typeof requestAnimationFrame == "function" && requestAnimationFrame(() => {
+      if (_tipVisible())
+        try {
+          _positionFloatTip();
+        } catch (e) {
+        }
+    }));
+  }
   function _positionFloatTip() {
     clearTimeout(_deadlineFloatTimer);
     let btn = document.getElementById("intschool-deadline-btn");
@@ -985,10 +997,8 @@
     }
     let rect = btn.getBoundingClientRect();
     _deadlineFloatTip.style.visibility = "hidden", _deadlineFloatTip.style.display = "block", _deadlineFloatTip.style.left = "0", _deadlineFloatTip.style.top = "0";
-    let tw = _deadlineFloatBox.offsetWidth, th = _deadlineFloatBox.offsetHeight;
-    _deadlineFloatTip.style.visibility = "";
-    let margin = 8, left = rect.left + rect.width / 2 - tw / 2, top = rect.bottom + 8;
-    left < margin && (left = margin), left + tw > window.innerWidth - margin && (left = window.innerWidth - tw - margin), top + th > window.innerHeight - margin && (top = rect.top - th - 8), _deadlineFloatTip.style.left = left - ZONE_PAD + "px", _deadlineFloatTip.style.top = top - ZONE_PAD + "px", DL("[DDL] _positionFloatTip: btn=" + btn.getBoundingClientRect().top.toFixed(0) + "," + btn.getBoundingClientRect().left.toFixed(0) + " box=" + tw + "x" + th + " zoneLeft=" + (left - ZONE_PAD) + " zoneTop=" + (top - ZONE_PAD));
+    let tw = _deadlineFloatBox.offsetWidth, th = _deadlineFloatBox.offsetHeight, margin = 8, left = rect.left + rect.width / 2 - tw / 2, top = rect.bottom + 8;
+    left < margin && (left = margin), left + tw > window.innerWidth - margin && (left = window.innerWidth - tw - margin), top + th > window.innerHeight - margin && (top = rect.top - th - 8), _deadlineFloatTip.style.left = left - ZONE_PAD + "px", _deadlineFloatTip.style.top = top - ZONE_PAD + "px", _deadlineFloatTip.style.visibility = "", DL("[DDL] _positionFloatTip: btn=" + rect.top.toFixed(0) + "," + rect.left.toFixed(0) + " box=" + tw + "x" + th + " zoneLeft=" + (left - ZONE_PAD) + " zoneTop=" + (top - ZONE_PAD));
   }
   function _hideFloatTip() {
     if (S._taskDragging) {
@@ -1058,7 +1068,7 @@
     }
     if (!S._deadlineCheckedOnce || S._deadlineCheckInFlight) {
       let unloaded = !S._deadlineCheckedOnce;
-      _deadlineFloatBox.dataset.intsState = unloaded ? "unloaded" : "loading", _deadlineFloatBox.dataset.hasTasks = "0", _deadlineFloatBox.innerHTML = '<div style="padding:6px;font-size:13px;color:#666;">' + escapeHtml(unloaded ? t("\u5C1A\u672A\u68C0\u67E5\u672A\u5B8C\u6210\u4EFB\u52A1 \u2014 \u628A\u9F20\u6807\u505C\u5728\u6309\u94AE\u4E0A\u5373\u53EF\u5F00\u59CB", "Not checked yet \u2014 hover the button to start") : t("\u6B63\u5728\u68C0\u67E5\u672A\u5B8C\u6210\u7684\u4EFB\u52A1\u2026", "Checking pending tasks...")) + "</div>";
+      _deadlineFloatBox.dataset.intsState = unloaded ? "unloaded" : "loading", _deadlineFloatBox.dataset.hasTasks = "0", _deadlineFloatBox.innerHTML = '<div style="padding:6px;font-size:13px;color:#666;">' + escapeHtml(unloaded ? t("\u5C1A\u672A\u68C0\u67E5\u672A\u5B8C\u6210\u4EFB\u52A1 \u2014 \u628A\u9F20\u6807\u505C\u5728\u6309\u94AE\u4E0A\u5373\u53EF\u5F00\u59CB", "Not checked yet \u2014 hover the button to start") : t("\u6B63\u5728\u68C0\u67E5\u672A\u5B8C\u6210\u7684\u4EFB\u52A1\u2026", "Checking pending tasks...")) + "</div>", _repositionIfVisible();
       return;
     }
     _deadlineFloatBox.dataset.intsState = "ready";
@@ -1092,7 +1102,7 @@
       let restoreEl = _deadlineFloatBox.querySelector('[data-ints-note="ignored"]');
       restoreEl && restoreEl.addEventListener("click", function(e) {
         e.stopPropagation(), clearTaskIgnore();
-      }), DL("[DDL] renderTooltipContent: courses=" + sortedCourses.length + " rows=" + rowCount + " inferred=" + inferredCount + " \u5FFD\u7565=" + ignoreCount + " htmlLen=" + html.length + " (\u542B\u5DF2\u5173\u95ED\u63D0\u9192\u7684\u4EFB\u52A1)");
+      }), DL("[DDL] renderTooltipContent: courses=" + sortedCourses.length + " rows=" + rowCount + " inferred=" + inferredCount + " \u5FFD\u7565=" + ignoreCount + " htmlLen=" + html.length + " (\u542B\u5DF2\u5173\u95ED\u63D0\u9192\u7684\u4EFB\u52A1)"), _repositionIfVisible();
     } catch (e) {
       console.error("[DDL] renderTooltipContent \u5F02\u5E38:", e);
     }
@@ -1420,7 +1430,7 @@
         let inferredN = warnings.filter((w) => w.inferred).length, detectedN = count - inferredN, countText = inferredN > 0 && detectedN > 0 ? detectedN + "+" + inferredN : String(count);
         btn.innerHTML = count > 0 ? "<span>&#9888;</span> <span>" + t("\u672A\u5B8C\u6210\u4EFB\u52A1", "Pending Tasks") + " (" + countText + ")</span>" : "<span>&#9888;</span> <span>" + t("\u65E0\u672A\u5B8C\u6210\u4EFB\u52A1", "No Pending Tasks") + "</span>", btn.style.color = count > 0 ? "#faad14" : "#999";
       }
-      btn.getAttribute("title") && btn.removeAttribute("title");
+      btn.getAttribute("title") && btn.removeAttribute("title"), _repositionIfVisible();
     }
     _ensureFloatTip(), renderTooltipContent();
   }
