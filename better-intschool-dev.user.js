@@ -482,14 +482,14 @@
        \u6211\u4EEC\u6240\u6709\u5E38\u9A7B\u6CE8\u5165\u5143\u7D20\u90FD\u5FC5\u987B\u4F4E\u4E8E 1000\uFF0C\u5426\u5219\u4F1A\u628A\u7AD9\u70B9\u81EA\u5DF1\u7684\u60AC\u6D6E\u6587\u672C\u6846\u76D6\u4F4F
        \uFF08\u4EFB\u52A1\u540D / \u79D1\u76EE\u540D\u7684 antd Tooltip \u662F 1060\uFF09\u3002
        \u672C\u63D2\u4EF6\u5185\u90E8\u5C42\u6B21\uFF08\u7531\u4F4E\u5230\u9AD8\uFF09\uFF1A
-         20   \u62D6\u62FD\u6295\u653E\u533A\uFF08dragmark.js\uFF0C\u5FC5\u987B\u5728\u9875\u9762\u5185\u5BB9\u4E4B\u4E0A\u3001\u6309\u94AE\u4E4B\u4E0B\uFF09
-         30\u201339 \u7A97\u53E3\u5C42\uFF08win-shell.js\uFF1A\u5355\u79D1\u7A97\u53E3 / \u79D1\u76EE\u660E\u7EC6\u7A97\u53E3\uFF1B\u4F4F\u5728 .ant-table-body \u91CC\u3001\u88AB\u5BB9\u5668\u88C1\u5207\uFF09
+         20   \u62D6\u62FD\u6295\u653E\u533A\uFF08\u5728\u9875\u9762\u5185\u5BB9\u4E4B\u4E0A\u3001\u6309\u94AE\u4E4B\u4E0B\uFF09
+         30\u201339 \u7A97\u53E3\u5C42\uFF08\u5355\u79D1\u7A97\u53E3 / \u79D1\u76EE\u660E\u7EC6\u7A97\u53E3\uFF1B\u4F4F\u5728 .ant-table-body \u91CC\u3001\u88AB\u5BB9\u5668\u88C1\u5207\uFF09
          40   DDL \u60AC\u6D6E\u5361\u7247\u5224\u5B9A\u533A\uFF08.intschool-deadline-tooltip-fixed\uFF09
          41   DDL \u26A0 \u6309\u94AE\uFF08#intschool-deadline-btn\uFF0C\u6BD4\u5224\u5B9A\u533A\u9AD8\u4E00\u70B9\u4FDD\u8BC1\u53EF\u70B9\uFF09
          50   /points \u6CE8\u5165\u4E0B\u62C9\u83DC\u5355\uFF08#ints-inline-menu-*\uFF09
          60   /points \u591A\u5E74\u7EA7\u603B\u89C8\u7A97\u53E3\uFF08#ints-overview-view\uFF0C\u76D6\u4F4F\u6211\u4EEC\u81EA\u5DF1\u7684\u6CE8\u5165\u5143\u7D20\uFF09
          100001 \u5E2E\u52A9\u6D6E\u5C42\uFF08#ints-help-float\uFF0C\u6211\u4EEC\u4E3B\u52A8\u5F39\u7684\uFF09
-         20020 \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF08simulation.js\uFF0C\u5C45\u4E2D\u6A21\u6001\uFF0C\u4E0D\u53C2\u4E0E\u7A97\u53E3\u5C42\u89C4\u5219\uFF09 */
+         20020 \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF08\u5C45\u4E2D\u6A21\u6001\uFF0C\u4E0D\u53C2\u4E0E\u7A97\u53E3\u5C42\u89C4\u5219\uFF09 */
     /* \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF1A\u5916\u89C2\u5168\u90E8\u8D70\u7AD9\u70B9\u81EA\u5DF1\u7684 antd 1.5 \u7C7B\uFF08.ant-modal* / .ant-form-item* / .ant-btn*\uFF09\uFF0C
        \u8FD9\u91CC\u53EA\u8865\u4E24\u4EF6 antd \u7ED9\u4E0D\u4E86\u7684\u4E8B \u2014\u2014 \u2460 \u538B\u6389 .ant-modal \u81EA\u5E26\u7684 top \u504F\u79FB\u4E0E\u5E95\u90E8\u7559\u767D\uFF08\u5C45\u4E2D\u7531\u6211\u4EEC
        \u81EA\u5DF1\u7684\u906E\u7F69 flex \u8D1F\u8D23\uFF09\uFF1B\u2461 \u5185\u5BB9\u533A\u9650\u9AD8\uFF08\u8868\u5355\u6BD4 antd \u9ED8\u8BA4\u7684\u786E\u8BA4\u6846\u957F\uFF0C\u4E0D\u7559\u6EDA\u52A8\u6761\u4F1A\u9876\u51FA\u5C4F\u5E55\uFF09\u3002 */
@@ -722,7 +722,7 @@
         taskDetailCache: /* @__PURE__ */ new Map(),
         yearDataCache: /* @__PURE__ */ new Map(),
         userSimCache: /* @__PURE__ */ new Map(),
-        // yearKey → 用户层（无 TTL，见 STORAGE_KEY_USER）
+        // yearKey → 用户层（无 TTL：用户自己造的改动不会过期）
         virtualTaskIdCounter: -1,
         creditMap: /* @__PURE__ */ new Map(),
         _creditMapCache: null,
@@ -3918,7 +3918,7 @@
       // 卡片可能很高：内容区按表格滚动容器的高度限高（超出在窗口内滚动，免得窗口高过容器被裁掉）
       maxBodyHeight: Math.max(160, Math.round(getShellBounds().height - 72)) + "px",
       titleHTML: _detailTitleHTML(course0, filterText),
-      // 沿用类名 subject-detail-modal：样式统一由 styles.js 提供
+      // 类名 subject-detail-modal：样式由样式表统一提供
       className: "subject-detail-modal",
       bodyHTML: '<div class="iw-note">' + t("\u6B63\u5728\u8BA1\u7B97\u2026", "Computing\u2026") + "</div>",
       footerHTML: '<button type="button" data-detail-act="apply" class="ant-btn ant-btn-link" style="color:#1890ff;">' + iconCheck() + "<span>" + t("\u5173\u95ED\u5E76\u5E94\u7528\u6A21\u62DF", "Close & Apply") + "</span></button>",
