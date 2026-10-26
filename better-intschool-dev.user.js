@@ -1736,7 +1736,7 @@
     }
     let zeroCreditCourses = allCourses.filter((c) => c.credit <= 0), validCourses = allCourses.filter((c) => c.credit > 0);
     zeroCreditCourses.length && log(`[\u5F53\u524D\u5B66\u5E74] \u96F6\u5B66\u5206\u8BFE\u7A0B ${zeroCreditCourses.length} \u95E8\uFF08\u9000\u73ED/\u975E\u5B66\u5206\uFF0C\u7528\u4E8E\u8865\u5168\u5339\u914D\uFF09\uFF0C\u6B63\u5B66\u5206 ${validCourses.length} \u95E8`);
-    let unmatchedSubjects = [...new Set(validCourses.map((c) => c.subject).filter((s) => s && !getSubjectWeightRule(s)))];
+    let unmatchedSubjects = creditMapEmpty ? [] : [...new Set(validCourses.map((c) => c.subject).filter((s) => s && !getSubjectWeightRule(s)))];
     unmatchedSubjects.length && log("[\u6743\u91CD] \u672A\u547D\u4E2D\u89C4\u5219\u7684\u5B66\u79D1: " + unmatchedSubjects.join("\u3001"));
     let emptySubjectCourses = validCourses.filter((c) => !c.subject);
     emptySubjectCourses.length && log("[\u6743\u91CD] subject \u4E3A\u7A7A\u7684\u8BFE\u7A0B\uFF08\u6309\u8BFE\u7A0B\u540D\u5339\u914D\uFF09: " + emptySubjectCourses.map((c) => c.name).join("\u3001"));
@@ -2590,7 +2590,8 @@
     }
   }
   async function _apiSnapshotDetailed() {
-    let snap = { years: null, yearsError: null, grade: null, gradeError: null };
+    if (_apiSnapshotCache && Date.now() - _apiSnapshotCache.at < API_SNAPSHOT_TTL) return _apiSnapshotCache;
+    let snap = { at: Date.now(), years: null, yearsError: null, grade: null, gradeError: null };
     try {
       snap.years = await _withTimeout("\u5B66\u5E74\u5217\u8868", function() {
         return fetchSchoolYearList();
@@ -2605,7 +2606,7 @@
     } catch (e) {
       snap.gradeError = _errText(e);
     }
-    return snap;
+    return _apiSnapshotCache = snap, snap;
   }
   function _apiSection(snap) {
     let out = [];
@@ -2802,6 +2803,11 @@
       out.push("  getShellStats: \u5931\u8D25: " + _errText(e));
     }
     try {
+      out.push("  getDragMarkState: " + _json(D && typeof D.getDragMarkState == "function" ? D.getDragMarkState() : null, 800));
+    } catch (e) {
+      out.push("  getDragMarkState: \u5931\u8D25: " + _errText(e));
+    }
+    try {
       out.push("  \u5DF2\u5F00\u7A97\u53E3: " + _json(D && typeof D.listWindows == "function" ? D.listWindows() : null, 2e3));
     } catch (e) {
       out.push("  \u5DF2\u5F00\u7A97\u53E3: \u5931\u8D25: " + _errText(e));
@@ -2896,7 +2902,7 @@
     } catch (e) {
       apiSnap = { error: _errText(e) };
     }
-    lines.push("===== Better Intschool \u8BE6\u7EC6\u81EA\u68C0\u65E5\u5FD7 ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(startedAt)), lines.push("\u65E5\u5FD7\u683C\u5F0F: " + LOG_FORMAT + "    \u7248\u672C: " + _versionText() + "\uFF08" + _channelText() + "\uFF09    \u9875\u9762: " + location.pathname + location.search), lines.push("\u8BF4\u660E: \u672C\u6587\u4EF6\u7531 __INTS_DIAG() \u5728\u672C\u5730\u751F\u6210\uFF0C\u4E0D\u542B token / schoolId / \u5B66\u751F id \u660E\u6587\uFF1B\u53EF\u6574\u4EFD\u53D1\u56DE\u6392\u67E5\u3002"), lines.push(""), lines.push("===== \u6458\u8981\uFF08\u4E0E\u5F39\u7A97\u5185\u5BB9\u4E00\u81F4\uFF09 ====="), lines.push(summary), lines.push(""), lines.push("===== \u8BE6\u7EC6\u6570\u636E ====="), _putSection(lines, "[1] \u73AF\u5883", _envSection), _putSection(lines, "[2] \u5F00\u5173\u4E0E\u672C\u5730\u5B58\u50A8", function() {
+    lines.push("===== Better Intschool \u8BE6\u7EC6\u81EA\u68C0\u65E5\u5FD7 ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(startedAt)), lines.push("\u65E5\u5FD7\u683C\u5F0F: " + LOG_FORMAT + "    \u7248\u672C: " + _versionText() + "\uFF08" + _channelText() + "\uFF09    \u9875\u9762: " + location.pathname + location.search), lines.push("\u8BF4\u660E: \u672C\u6587\u4EF6\u7531 __INTS_DIAG() \u5728\u672C\u5730\u751F\u6210\uFF0C\u4E0D\u542B token / schoolId \u660E\u6587\uFF1B\u4EFB\u52A1\u7EA7 entityId / taskStudentId \u4FDD\u7559\uFF08\u4EFB\u52A1 join \u6392\u67E5\u5FC5\u9700\uFF09\u3002\u53EF\u6574\u4EFD\u53D1\u56DE\u6392\u67E5\u3002"), lines.push(""), lines.push("===== \u6458\u8981\uFF08\u4E0E\u5F39\u7A97\u5185\u5BB9\u4E00\u81F4\uFF09 ====="), lines.push(summary), lines.push(""), lines.push("===== \u8BE6\u7EC6\u6570\u636E ====="), _putSection(lines, "[1] \u73AF\u5883", _envSection), _putSection(lines, "[2] \u5F00\u5173\u4E0E\u672C\u5730\u5B58\u50A8", function() {
       return _prefSection().concat(_storageSnapshot());
     }), _putSection(lines, "[3] \u5168\u5C40\u72B6\u6001", _stateSection), _putSection(lines, "[4] \u5B66\u5E74\u7F13\u5B58 / \u5B66\u5206 / \u6807\u8BB0", _cacheSection), _putSection(lines, "[5] \u63A5\u53E3\u73B0\u573A", function() {
       return _apiSection(apiSnap);
@@ -2906,7 +2912,7 @@
       return [
         "  \u751F\u6210\u8017\u65F6: " + ((Date.now() - startedAt) / 1e3).toFixed(2) + "s",
         "  \u6765\u6E90: \u9875\u9762\u5185\u8FD0\u884C\u72B6\u6001 + \u73B0\u62C9\u63A5\u53E3 + \u672C\u5730\u7F13\u5B58\uFF1B\u516C\u5F00\u5165\u53E3\u53EA\u6709\u63A7\u5236\u53F0 __INTS_DIAG()\u3002",
-        "  \u9690\u79C1: token / schoolId / \u5B66\u751F id \u53EA\u8BB0\u5F55\u6709|\u65E0\uFF1B\u8BFE\u8868\u7F13\u5B58\u53EA\u8BB0\u5F62\u72B6\u4E0E\u6570\u91CF\uFF0C\u4E0D\u843D\u539F\u6587\u3002"
+        "  \u9690\u79C1: token / schoolId \u53EA\u8BB0\u5F55\u6709|\u65E0\uFF1B\u4EFB\u52A1\u7EA7 entityId / taskStudentId \u4FDD\u7559\uFF08\u4EFB\u52A1 join \u6392\u67E5\u5FC5\u9700\uFF0C\u4E0D\u662F\u8EAB\u4EFD\u5B57\u6BB5\uFF09\uFF1B\u8BFE\u8868\u7F13\u5B58\u53EA\u8BB0\u5F62\u72B6\u4E0E\u6570\u91CF\uFF0C\u4E0D\u843D\u539F\u6587\u3002"
       ];
     });
     let text = lines.join(`
@@ -2983,25 +2989,20 @@
     }
   }
   async function _apiSnapshot() {
-    let out = { gradeBook: "\u672A\u68C0\u6D4B", customColumns: "\u2014", columns: "\u2014", yearList: "\u672A\u68C0\u6D4B" };
+    let out = { gradeBook: "\u672A\u68C0\u6D4B", customColumns: "\u2014", columns: "\u2014", yearList: "\u672A\u68C0\u6D4B" }, snap = null;
     try {
-      out.yearList = _apiListText(await _withTimeout("\u5B66\u5E74\u5217\u8868", function() {
-        return fetchSchoolYearList();
-      }));
+      snap = await _apiSnapshotDetailed();
     } catch (e) {
-      out.yearList = "\u83B7\u53D6\u5931\u8D25: " + _errText(e);
+      snap = null;
     }
-    try {
-      let gb = await _withTimeout("grade-book", function() {
-        return getGradeBookData(S.currentYearKey);
-      }), items = gb && gb.gradeBookItems || [];
-      out.gradeBook = items.length + " \u6761\u8BFE\u7A0B";
-      let cols = gb && gb.customColumns || [];
-      out.customColumns = cols.length + " \u5217", out.columns = cols.map((c) => c.customColumnName).join("/") || "\u2014", out.firstCourse = items[0] ? items[0].courseName + " (subject=" + (items[0].subject || "\u7A7A") + ", courseId=" + items[0].courseId + ")" : "\u2014";
-    } catch (e) {
-      out.gradeBook = "\u83B7\u53D6\u5931\u8D25: " + _errText(e);
-    }
-    return out;
+    if (!snap)
+      return out.yearList = "\u83B7\u53D6\u5931\u8D25", out.gradeBook = "\u83B7\u53D6\u5931\u8D25", out;
+    if (snap.yearsError ? out.yearList = "\u83B7\u53D6\u5931\u8D25: " + snap.yearsError : out.yearList = _apiListText(snap.years), snap.gradeError)
+      return out.gradeBook = "\u83B7\u53D6\u5931\u8D25: " + snap.gradeError, out;
+    let gb = snap.grade || {}, items = gb && gb.gradeBookItems || [];
+    out.gradeBook = items.length + " \u6761\u8BFE\u7A0B";
+    let cols = gb && gb.customColumns || [];
+    return out.customColumns = cols.length + " \u5217", out.columns = cols.map((c) => c.customColumnName).join("/") || "\u2014", out.firstCourse = items[0] ? items[0].courseName + " (subject=" + (items[0].subject || "\u7A7A") + ", courseId=" + items[0].courseId + ")" : "\u2014", out;
   }
   function _apiListText(years) {
     let arr = _arr(years);
@@ -3126,15 +3127,18 @@
           }, 2e3);
         } catch (e) {
           let msg = _errText(e);
-          recordError("\u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58", e), statusEl.textContent = t(
+          recordError("\u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58", e), cachedLog ? (statusEl.textContent = t(
             "\u4FDD\u5B58\u5931\u8D25\uFF1A" + msg + "\uFF08\u5B8C\u6574\u65E5\u5FD7\u5DF2\u663E\u793A\u5728\u4E0A\u65B9\uFF0C\u53EF\u624B\u52A8\u590D\u5236\uFF09",
             "Save failed: " + msg + " (the full log is shown above for manual copy)"
-          ), cachedLog && (textarea.value = cachedLog, textarea.style.height = "46vh"), saveBtn.textContent = t("\u91CD\u8BD5\u4FDD\u5B58", "Retry"), saveBtn.disabled = !1, console.error("[Better Intschool] \u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58\u5931\u8D25:", e);
+          ), textarea.value = cachedLog, textarea.style.height = "46vh") : statusEl.textContent = t(
+            "\u751F\u6210\u5931\u8D25\uFF1A" + msg + "\uFF08\u9875\u9762\u72B6\u6001\u672A\u53D7\u5F71\u54CD\uFF0C\u53EF\u91CD\u8BD5\u6216\u5237\u65B0\u540E\u518D\u8BD5\uFF09",
+            "Generation failed: " + msg + " (page state is unaffected; retry or reload)"
+          ), saveBtn.textContent = t("\u91CD\u8BD5\u4FDD\u5B58", "Retry"), saveBtn.disabled = !1, console.error("[Better Intschool] \u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58\u5931\u8D25:", e);
         }
       })(), oldText;
     });
   }
-  var MAX_ERRORS, LOG_FORMAT, LOG_CHAR_LIMIT, ENTRY_CHAR_LIMIT, API_TIMEOUT_MS, init_diagnose = __esm({
+  var MAX_ERRORS, LOG_FORMAT, LOG_CHAR_LIMIT, ENTRY_CHAR_LIMIT, API_TIMEOUT_MS, _apiSnapshotCache, API_SNAPSHOT_TTL, init_diagnose = __esm({
     "v8.30/diagnose.js"() {
       init_state();
       init_utils();
@@ -3143,6 +3147,7 @@
       init_api();
       init_courses();
       MAX_ERRORS = 20, LOG_FORMAT = "v1", LOG_CHAR_LIMIT = 3 * 1024 * 1024, ENTRY_CHAR_LIMIT = 300, API_TIMEOUT_MS = 1e4;
+      _apiSnapshotCache = null, API_SNAPSHOT_TTL = 12e4;
     }
   });
 
