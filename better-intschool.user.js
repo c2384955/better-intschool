@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.12
+// @version      1.02.13
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -214,14 +214,16 @@
   function valueIsSimulated(shown, schoolValue) {
     return typeof shown != "number" || isNaN(shown) ? !1 : typeof schoolValue != "number" || isNaN(schoolValue) ? !0 : Math.abs(shown - schoolValue) > 1e-9;
   }
+  function getSubjectWeightRule(subject) {
+    let s = String(subject || "").toLowerCase();
+    if (!s) return null;
+    for (let rule of SUBJECT_WEIGHT_RULES)
+      if (rule.keywords.every((kw) => s.includes(kw))) return rule;
+    return null;
+  }
   function getCourseWeights(subject) {
-    if (subject) {
-      let s = subject.toLowerCase();
-      for (let rule of SUBJECT_WEIGHT_RULES)
-        if (rule.keywords.every((kw) => s.includes(kw)))
-          return normalizeWeights(rule.weights, '\u89C4\u5219 "' + rule.keywords.join(" ") + '"');
-    }
-    return normalizeWeights(DEFAULT_WEIGHTS, "\u9ED8\u8BA4\u6743\u91CD");
+    let rule = getSubjectWeightRule(subject);
+    return rule ? normalizeWeights(rule.weights, '\u89C4\u5219 "' + rule.keywords.join(" ") + '"') : normalizeWeights(DEFAULT_WEIGHTS, "\u9ED8\u8BA4\u6743\u91CD");
   }
   function calcPFromCategoryData(catData, subject) {
     let weights = getCourseWeights(subject), wSum = 0, tWeight = 0;
@@ -320,8 +322,8 @@
         // 人文组课程按 syllabus：20% Tests / 30% Projects / 25% Quizzes / 10% Homework / 15% In-Class
         { keywords: ["humanities"], weights: [0.1, 0.15, 0.3, 0.2, 0.25] },
         { keywords: ["computer", "science"], weights: [0.1, 0.2, 0.4, 0.3, 0] },
+        { keywords: ["arts"], weights: [0.1, 0.3, 0.45, 0.15, 0] },
         { keywords: ["design", "technology"], weights: [0.1, 0.2, 0.4, 0.3, 0] },
-        { keywords: ["creative", "art"], weights: [0.1, 0.3, 0.45, 0.15, 0] },
         { keywords: ["physical"], weights: [0.1, 0.4, 0, 0.5, 0] },
         { keywords: ["health"], weights: [0.1, 0.4, 0, 0.5, 0] },
         { keywords: ["wellness"], weights: [0.1, 0.4, 0, 0.5, 0] },
@@ -475,14 +477,14 @@
        \u6211\u4EEC\u6240\u6709\u5E38\u9A7B\u6CE8\u5165\u5143\u7D20\u90FD\u5FC5\u987B\u4F4E\u4E8E 1000\uFF0C\u5426\u5219\u4F1A\u628A\u7AD9\u70B9\u81EA\u5DF1\u7684\u60AC\u6D6E\u6587\u672C\u6846\u76D6\u4F4F
        \uFF08\u4EFB\u52A1\u540D / \u79D1\u76EE\u540D\u7684 antd Tooltip \u662F 1060\uFF09\u3002
        \u672C\u63D2\u4EF6\u5185\u90E8\u5C42\u6B21\uFF08\u7531\u4F4E\u5230\u9AD8\uFF09\uFF1A
-         20   \u62D6\u62FD\u6295\u653E\u533A\uFF08dragmark.js\uFF0C\u5FC5\u987B\u5728\u9875\u9762\u5185\u5BB9\u4E4B\u4E0A\u3001\u6309\u94AE\u4E4B\u4E0B\uFF09
-         30\u201339 \u7A97\u53E3\u5C42\uFF08win-shell.js\uFF1A\u5355\u79D1\u7A97\u53E3 / \u79D1\u76EE\u660E\u7EC6\u7A97\u53E3\uFF1B\u4F4F\u5728 .ant-table-body \u91CC\u3001\u88AB\u5BB9\u5668\u88C1\u5207\uFF09
+         20   \u62D6\u62FD\u6295\u653E\u533A\uFF08\u5728\u9875\u9762\u5185\u5BB9\u4E4B\u4E0A\u3001\u6309\u94AE\u4E4B\u4E0B\uFF09
+         30\u201339 \u7A97\u53E3\u5C42\uFF08\u5355\u79D1\u7A97\u53E3 / \u79D1\u76EE\u660E\u7EC6\u7A97\u53E3\uFF1B\u4F4F\u5728 .ant-table-body \u91CC\u3001\u88AB\u5BB9\u5668\u88C1\u5207\uFF09
          40   DDL \u60AC\u6D6E\u5361\u7247\u5224\u5B9A\u533A\uFF08.intschool-deadline-tooltip-fixed\uFF09
          41   DDL \u26A0 \u6309\u94AE\uFF08#intschool-deadline-btn\uFF0C\u6BD4\u5224\u5B9A\u533A\u9AD8\u4E00\u70B9\u4FDD\u8BC1\u53EF\u70B9\uFF09
          50   /points \u6CE8\u5165\u4E0B\u62C9\u83DC\u5355\uFF08#ints-inline-menu-*\uFF09
          60   /points \u591A\u5E74\u7EA7\u603B\u89C8\u7A97\u53E3\uFF08#ints-overview-view\uFF0C\u76D6\u4F4F\u6211\u4EEC\u81EA\u5DF1\u7684\u6CE8\u5165\u5143\u7D20\uFF09
          100001 \u5E2E\u52A9\u6D6E\u5C42\uFF08#ints-help-float\uFF0C\u6211\u4EEC\u4E3B\u52A8\u5F39\u7684\uFF09
-         20020 \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF08simulation.js\uFF0C\u5C45\u4E2D\u6A21\u6001\uFF0C\u4E0D\u53C2\u4E0E\u7A97\u53E3\u5C42\u89C4\u5219\uFF09 */
+         20020 \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF08\u5C45\u4E2D\u6A21\u6001\uFF0C\u4E0D\u53C2\u4E0E\u7A97\u53E3\u5C42\u89C4\u5219\uFF09 */
     /* \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF1A\u5916\u89C2\u5168\u90E8\u8D70\u7AD9\u70B9\u81EA\u5DF1\u7684 antd 1.5 \u7C7B\uFF08.ant-modal* / .ant-form-item* / .ant-btn*\uFF09\uFF0C
        \u8FD9\u91CC\u53EA\u8865\u4E24\u4EF6 antd \u7ED9\u4E0D\u4E86\u7684\u4E8B \u2014\u2014 \u2460 \u538B\u6389 .ant-modal \u81EA\u5E26\u7684 top \u504F\u79FB\u4E0E\u5E95\u90E8\u7559\u767D\uFF08\u5C45\u4E2D\u7531\u6211\u4EEC
        \u81EA\u5DF1\u7684\u906E\u7F69 flex \u8D1F\u8D23\uFF09\uFF1B\u2461 \u5185\u5BB9\u533A\u9650\u9AD8\uFF08\u8868\u5355\u6BD4 antd \u9ED8\u8BA4\u7684\u786E\u8BA4\u6846\u957F\uFF0C\u4E0D\u7559\u6EDA\u52A8\u6761\u4F1A\u9876\u51FA\u5C4F\u5E55\uFF09\u3002 */
@@ -715,7 +717,7 @@
         taskDetailCache: /* @__PURE__ */ new Map(),
         yearDataCache: /* @__PURE__ */ new Map(),
         userSimCache: /* @__PURE__ */ new Map(),
-        // yearKey → 用户层（无 TTL，见 STORAGE_KEY_USER）
+        // yearKey → 用户层（无 TTL：用户自己造的改动不会过期）
         virtualTaskIdCounter: -1,
         creditMap: /* @__PURE__ */ new Map(),
         _creditMapCache: null,
@@ -780,14 +782,56 @@
     }
     return _on;
   }
+  function _safeStringify(v) {
+    try {
+      let seen = [];
+      return JSON.stringify(v, function(k, val) {
+        if (typeof val == "object" && val !== null) {
+          if (seen.indexOf(val) >= 0) return "[\u5FAA\u73AF]";
+          seen.push(val);
+        }
+        return typeof val == "bigint" ? String(val) : typeof val == "function" ? "[Function]" : typeof val == "symbol" ? String(val) : val;
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+  function _fmtArg(v) {
+    try {
+      if (typeof v == "string") return v;
+      if (v === null) return "null";
+      if (v === void 0) return "undefined";
+      let tp = typeof v;
+      return tp === "number" || tp === "boolean" ? String(v) : tp === "function" ? "[Function " + (v.name || "") + "]" : tp === "symbol" ? String(v) : v instanceof Error ? (v.name || "Error") + ": " + (v.message || "") : typeof Node != "undefined" && v instanceof Node ? "[DOM " + String(v.nodeName || "") + "]" : typeof Map != "undefined" && v instanceof Map ? "[Map " + v.size + "] " + (_safeStringify(Array.from(v.entries())) || "") : typeof Set != "undefined" && v instanceof Set ? "[Set " + v.size + "] " + (_safeStringify(Array.from(v)) || "") : _safeStringify(v) || String(v);
+    } catch (e) {
+      try {
+        return String(v);
+      } catch (e2) {
+        return "[\u65E0\u6CD5\u683C\u5F0F\u5316\u7684\u503C]";
+      }
+    }
+  }
+  function _record(args) {
+    try {
+      let m = "";
+      for (let i = 0; i < args.length; i++) m += (i ? " " : "") + _fmtArg(args[i]);
+      m.length > ENTRY_MAX && (m = m.slice(0, ENTRY_MAX) + " \u2026[\u622A\u65AD]"), _buffer.push({ t: Date.now(), m }), _buffer.length > BUFFER_MAX && (_buffer.shift(), _dropped++);
+    } catch (e) {
+    }
+  }
   function log(...args) {
-    if (_on)
+    if (_on) {
+      _record(args);
       try {
         console.log(...args);
       } catch (e) {
       }
+    }
   }
-  var BUILD_CHANNEL, LOG_KEY, _on, init_log = __esm({
+  function getLogBuffer() {
+    return { start: _startTs, dropped: _dropped, lines: _buffer.slice() };
+  }
+  var BUILD_CHANNEL, LOG_KEY, _on, BUFFER_MAX, ENTRY_MAX, _startTs, _buffer, _dropped, init_log = __esm({
     "v8.30/log.js"() {
       BUILD_CHANNEL = "release", LOG_KEY = "ints_log";
       _on = (function() {
@@ -799,6 +843,7 @@
         }
         return BUILD_CHANNEL === "dev";
       })();
+      BUFFER_MAX = 400, ENTRY_MAX = 2e3, _startTs = Date.now(), _buffer = [], _dropped = 0;
     }
   });
 
@@ -1686,6 +1731,10 @@
     }
     let zeroCreditCourses = allCourses.filter((c) => c.credit <= 0), validCourses = allCourses.filter((c) => c.credit > 0);
     zeroCreditCourses.length && log(`[\u5F53\u524D\u5B66\u5E74] \u96F6\u5B66\u5206\u8BFE\u7A0B ${zeroCreditCourses.length} \u95E8\uFF08\u9000\u73ED/\u975E\u5B66\u5206\uFF0C\u7528\u4E8E\u8865\u5168\u5339\u914D\uFF09\uFF0C\u6B63\u5B66\u5206 ${validCourses.length} \u95E8`);
+    let unmatchedSubjects = creditMapEmpty ? [] : [...new Set(validCourses.map((c) => c.subject).filter((s) => s && !getSubjectWeightRule(s)))];
+    unmatchedSubjects.length && log("[\u6743\u91CD] \u672A\u547D\u4E2D\u89C4\u5219\u7684\u5B66\u79D1: " + unmatchedSubjects.join("\u3001"));
+    let emptySubjectCourses = validCourses.filter((c) => !c.subject);
+    emptySubjectCourses.length && log("[\u6743\u91CD] subject \u4E3A\u7A7A\u7684\u8BFE\u7A0B\uFF08\u6309\u8BFE\u7A0B\u540D\u5339\u914D\uFF09: " + emptySubjectCourses.map((c) => c.name).join("\u3001"));
     function findBestMatchIndexExclusive(targetCourseName, term, usedSet) {
       let key = extractSubjectKey(targetCourseName);
       if (!key) return -1;
@@ -2226,7 +2275,7 @@
   // v8.30/diagnose.js
   function recordError(label, err) {
     try {
-      let msg = String(err && err.message || err).slice(0, 300);
+      let msg = String(err && err.message || err).slice(0, ENTRY_CHAR_LIMIT);
       S._errors.push({ ts: Date.now(), label, msg }), S._errors.length > MAX_ERRORS && S._errors.shift();
     } catch (e) {
     }
@@ -2254,13 +2303,624 @@
       }
     };
   }
-  function _fmtTs(ts) {
-    if (!ts) return "\u65E0";
+  function _errText(e) {
     try {
-      return new Date(ts).toLocaleString();
+      return e ? String(e && e.message || e).slice(0, ENTRY_CHAR_LIMIT) : "\u672A\u77E5\u9519\u8BEF";
+    } catch (e2) {
+      return "\u65E0\u6CD5\u8BFB\u53D6\u7684\u9519\u8BEF";
+    }
+  }
+  function _fmtTs(ts) {
+    try {
+      return ts ? new Date(ts).toLocaleString() : "\u65E0";
     } catch (e) {
       return String(ts);
     }
+  }
+  function _age(ts) {
+    let n = Number(ts);
+    if (!n || !isFinite(n)) return "\u65E0";
+    let sec = Math.max(0, Math.round((Date.now() - n) / 1e3));
+    if (sec < 60) return sec + "s";
+    let min = Math.round(sec / 60);
+    return min < 120 ? min + "min" : min < 2880 ? (min / 60).toFixed(1) + "h" : (min / 1440).toFixed(1) + "d";
+  }
+  function _json(v, maxLen) {
+    let s = null;
+    try {
+      let seen = [];
+      s = JSON.stringify(v, function(k, val) {
+        if (typeof val == "object" && val !== null) {
+          if (seen.indexOf(val) >= 0) return "[\u5FAA\u73AF]";
+          seen.push(val);
+        }
+        return typeof val == "bigint" ? String(val) : typeof val == "function" ? "[Function]" : typeof val == "symbol" ? String(val) : val;
+      });
+    } catch (e) {
+      s = null;
+    }
+    if (s == null)
+      try {
+        s = String(v);
+      } catch (e2) {
+        s = "[\u65E0\u6CD5\u5E8F\u5217\u5316]";
+      }
+    let cap = typeof maxLen == "number" ? maxLen : 4e3;
+    return s.length > cap ? s.slice(0, cap) + " \u2026[\u622A\u65AD]" : s;
+  }
+  function _yes(b) {
+    return b ? "\u6709" : "\u65E0";
+  }
+  function _onOff(b) {
+    return b ? "\u5F00" : "\u5173";
+  }
+  function _arr(a) {
+    return Array.isArray(a) ? a : [];
+  }
+  function _pct(w) {
+    return _arr(w).map(function(x) {
+      return Math.round(x * 100) + "%";
+    }).join("/");
+  }
+  function _snippet(s, n) {
+    let txt = String(s == null ? "" : s).replace(/\s+/g, " ").trim(), cap = typeof n == "number" ? n : 200;
+    return txt.length > cap ? txt.slice(0, cap) + "\u2026" : txt;
+  }
+  function _ruleText(raw) {
+    try {
+      let rule = getSubjectWeightRule(raw);
+      return rule ? "#" + SUBJECT_WEIGHT_RULES.indexOf(rule) + " " + rule.keywords.join("+") + " [" + _pct(getCourseWeights(raw)) + "]" : "\u9ED8\u8BA4 [" + _pct(DEFAULT_WEIGHTS) + "]";
+    } catch (e) {
+      return "\u89C4\u5219\u5339\u914D\u5931\u8D25: " + _errText(e);
+    }
+  }
+  function _withTimeout(label, fn, ms) {
+    let limit = typeof ms == "number" ? ms : API_TIMEOUT_MS;
+    return new Promise(function(resolve, reject) {
+      let done = !1, timer = setTimeout(function() {
+        done || (done = !0, reject(new Error(label + " \u8D85\u65F6\uFF08" + Math.round(limit / 1e3) + "s\uFF09")));
+      }, limit);
+      Promise.resolve().then(fn).then(function(v) {
+        done || (done = !0, clearTimeout(timer), resolve(v));
+      }, function(e) {
+        done || (done = !0, clearTimeout(timer), reject(e));
+      });
+    });
+  }
+  function _putSection(target, title, fn) {
+    target.push(""), target.push("----- " + title + " -----");
+    try {
+      let got = fn();
+      if (Array.isArray(got))
+        for (let i = 0; i < got.length; i++) target.push(String(got[i]));
+    } catch (e) {
+      target.push("  \u672C\u6BB5\u5931\u8D25: " + _errText(e));
+    }
+  }
+  function _gmInfo() {
+    try {
+      if (typeof GM_info != "undefined" && GM_info && GM_info.script) return GM_info;
+    } catch (e) {
+    }
+    return null;
+  }
+  function _versionText() {
+    try {
+      let gmi = _gmInfo();
+      return gmi && gmi.script && gmi.script.version || "\u672A\u77E5";
+    } catch (e) {
+      return "\u672A\u77E5";
+    }
+  }
+  function _channelText() {
+    try {
+      return getBuildChannel() === "dev" ? "\u5F00\u53D1\u4EF6" : "\u53D1\u5E03\u4EF6";
+    } catch (e) {
+      return "\u672A\u77E5";
+    }
+  }
+  function _envSection() {
+    let out = [], gmi = _gmInfo(), nav = navigator;
+    return out.push("  \u7248\u672C: " + _versionText() + "\uFF08" + _channelText() + "\uFF09    \u811A\u672C\u540D: " + (gmi && gmi.script && gmi.script.name ? gmi.script.name : "\u672A\u77E5")), gmi && out.push("  \u811A\u672C\u7BA1\u7406\u5668: " + String(gmi.scriptHandler || "\u672A\u77E5") + "    \u811A\u672C\u7248\u672C: " + String(gmi.script.version || "\u672A\u77E5")), out.push("  \u754C\u9762\u8BED\u8A00: " + getLocale() + "    \u6D4F\u89C8\u5668\u8BED\u8A00: " + String(nav.language || "-") + " [" + _arr(nav.languages).join(",") + "]"), out.push("  \u9875\u9762: " + location.pathname + location.search + (location.hash ? location.hash : "") + "    \u6807\u9898: " + _snippet(document.title, 80)), out.push("  \u9875\u9762\u72B6\u6001: readyState=" + String(document.readyState) + "    \u53EF\u89C1\u6027=" + String(document.visibilityState) + "    \u9876\u5C42\u7A97\u53E3=" + _yes(window.top === window.self)), out.push("  \u89C6\u53E3: " + window.innerWidth + "x" + window.innerHeight + "    DPR: " + (window.devicePixelRatio || 1) + "    \u6EDA\u52A8: " + window.scrollX + "," + window.scrollY), window.screen && out.push("  \u5C4F\u5E55: " + window.screen.width + "x" + window.screen.height + "\uFF08\u53EF\u7528 " + window.screen.availWidth + "x" + window.screen.availHeight + "\uFF09"), out.push("  \u65F6\u533A: " + (function() {
+      try {
+        return String(Intl.DateTimeFormat().resolvedOptions().timeZone || "\u672A\u77E5");
+      } catch (e) {
+        return "\u672A\u77E5";
+      }
+    })() + "    UTC\u504F\u79FB: " + (/* @__PURE__ */ new Date()).getTimezoneOffset() + "min    \u672C\u5730\u65F6\u95F4: " + _fmtTs(Date.now())), out.push("  \u6D4F\u89C8\u5668: " + nav.userAgent), out.push("  \u5E73\u53F0: " + String(nav.platform || "-") + "    \u5728\u7EBF: " + _yes(nav.onLine) + "    Cookie: " + _yes(nav.cookieEnabled) + "    \u903B\u8F91\u6838: " + String(nav.hardwareConcurrency || "-") + "    \u8BBE\u5907\u5185\u5B58: " + String(nav.deviceMemory || "-") + "GB"), out.push("  \u9875\u9762\u5DF2\u8FD0\u884C: " + _age((function() {
+      try {
+        return performance.timeOrigin;
+      } catch (e) {
+        return Date.now();
+      }
+    })()) + "    performance.now: " + (function() {
+      try {
+        return Math.round(performance.now()) + "ms";
+      } catch (e) {
+        return "-";
+      }
+    })()), out.push("  \u767B\u5F55\u6001: token=" + _yes((function() {
+      try {
+        return !!getToken();
+      } catch (e) {
+        return !1;
+      }
+    })()) + "    schoolId=" + _yes((function() {
+      try {
+        return !!getSchoolId();
+      } catch (e) {
+        return !1;
+      }
+    })()) + "    studentIdCache=" + _yes(!!S.studentIdCache)), out;
+  }
+  function _storageSnapshot() {
+    let out = [], ls = { ok: !0, keys: 0, bytes: 0, intsKeys: 0, intsBytes: 0, top: [] };
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        let k = localStorage.key(i);
+        if (k == null) continue;
+        let v = localStorage.getItem(k) || "", size = String(k).length + v.length;
+        ls.keys++, ls.bytes += size, String(k).indexOf("ints") === 0 && (ls.intsKeys++, ls.intsBytes += size), ls.top.push({ k: String(k), size });
+      }
+    } catch (e) {
+      ls.ok = !1, ls.error = _errText(e);
+    }
+    ls.top.sort(function(a, b) {
+      return b.size - a.size;
+    }), out.push("  localStorage: " + (ls.ok ? "\u53EF\u7528" : "\u4E0D\u53EF\u7528\uFF08" + ls.error + "\uFF09") + "    \u952E " + ls.keys + " \u4E2A / \u7EA6 " + Math.round(ls.bytes / 1024) + " KB    \u5176\u4E2D ints_* " + ls.intsKeys + " \u4E2A / \u7EA6 " + Math.round(ls.intsBytes / 1024) + " KB"), ls.ok && ls.top.length && out.push("  \u6700\u5927\u952E: " + ls.top.slice(0, 10).map(function(x) {
+      return x.k + "=" + Math.round(x.size / 1024) + "KB";
+    }).join("  "));
+    let ss = { keys: 0, bytes: 0, token: !1 };
+    try {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        let k = sessionStorage.key(i);
+        k != null && (ss.keys++, ss.bytes += String(k).length + String(sessionStorage.getItem(k) || "").length, String(k) === "token" && (ss.token = !0));
+      }
+    } catch (e) {
+    }
+    return out.push("  sessionStorage: \u952E " + ss.keys + " \u4E2A / \u7EA6 " + Math.round(ss.bytes / 1024) + " KB    token \u952E=" + _yes(ss.token) + "\uFF08\u503C\u4E0D\u8F93\u51FA\uFF09"), out;
+  }
+  function _prefSection() {
+    let out = [];
+    function _raw(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        return null;
+      }
+    }
+    out.push("  \u8BCA\u65AD\u65E5\u5FD7\u5F00\u5173: " + _onOff(isLogOn()) + "    " + LOG_KEY + "=" + _json(_raw(LOG_KEY)) + "    \u81EA\u52A8\u6821\u51C6=" + (_raw("ints_auto_calibrate") === "0" ? "\u5173\u95ED" : "\u5F00\u542F") + "    \u6807\u8BB0\u56FE\u6807=" + _json(_raw("ints_mark_icon")) + "    locale=" + _json(_raw("locale"))), out.push("  \u89C6\u56FE\u504F\u597D: \u5C55\u5F00\u6001=" + _yes(!!S.colsExpanded) + "    currentFilter=" + _json(S.currentFilter) + "    lastYear=" + _json(S.lastSelectedYearKey) + "    lastFilter=" + _json(S.lastSelectedFilter)), out.push("  \u76EE\u6807GPA: UW=" + _json(S.targetUWGPA) + "    W=" + _json(S.targetWGPA) + "    \u6A21\u5F0F=" + _json(S.targetGPAMode));
+    let keys = [
+      "ints_log",
+      "ints_auto_calibrate",
+      "ints_mark_icon",
+      "ints_inline",
+      "ints_task_marks",
+      "ints_task_toggles",
+      "ints_ddl_ignore",
+      "ints_gs_cache",
+      "ints_gs_user",
+      "ints_calib_excluded",
+      "ints_gs_overrides",
+      "ints_gs_vtid",
+      "ints_gs_lastYear",
+      "ints_gs_lastFilter",
+      "ints_gs_colsExpanded",
+      "ints_gs_targetUW",
+      "ints_gs_targetW",
+      "ints_gs_targetMode",
+      "ints_dark"
+    ], rows = [];
+    for (let i = 0; i < keys.length; i++) {
+      let raw = _raw(keys[i]);
+      raw !== null && rows.push("  " + keys[i] + "\uFF08" + raw.length + " \u5B57\u7B26\uFF09: " + (raw.length <= 300 ? raw : _snippet(raw, 300)));
+    }
+    if (rows.length) {
+      out.push("  \u672C\u5730\u5B58\u50A8\u660E\u7EC6:");
+      for (let i = 0; i < rows.length; i++) out.push(rows[i]);
+    }
+    try {
+      let raw = _raw("schedule");
+      if (!raw) out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u65E0");
+      else if (raw.length > 2e6) out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u6709\uFF08" + raw.length + " \u5B57\u7B26\uFF0C\u8FC7\u5927\u672A\u89E3\u6790\uFF09");
+      else {
+        let j = JSON.parse(raw), scs = _arr(j.scsResponses), total = 0, withCredit = 0;
+        scs.forEach(function(s) {
+          let list = _arr(s.courses).concat(_arr(s.ongoingCourses));
+          total += list.length, list.forEach(function(c) {
+            c && c.courseId && typeof c.effectiveCredit == "number" && withCredit++;
+          });
+        }), out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u6709\uFF08" + raw.length + " \u5B57\u7B26\uFF0CscsResponses=" + scs.length + "\uFF0C\u8BFE\u7A0B=" + total + "\uFF0C\u5E26\u5B66\u5206=" + withCredit + "\uFF09");
+      }
+    } catch (e) {
+      out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u89E3\u6790\u5931\u8D25: " + _errText(e));
+    }
+    return out;
+  }
+  function _stateSection() {
+    let out = [];
+    return out.push("  \u5B66\u5E74: currentYearKey=" + _json(S.currentYearKey) + "    currentYearValue=" + _json(S.currentYearValue) + "    schoolYearKey=" + _json(S.schoolYearKey) + "    simYearKey=" + _json(S.simYearKey) + "    isCurrentYear=" + _yes(!!S.isCurrentYear)), out.push("  \u5B66\u5E74\u5217\u8868: " + _arr(S.yearList).length + " \u6761    " + _json(S.yearList, 2e3)), out.push("  \u6A21\u62DF\u5C42: simCourses=" + _arr(S.simCourses).length + " \u95E8    originalCourses=" + _arr(S.originalCourses).length + " \u95E8    _simGen=" + _json(S._simGen) + "    _navGeneration=" + _json(S._navGeneration)), out.push("  \u52A0\u8F7D: loadingRequestCount=" + _json(S.loadingRequestCount) + "    expectedRequestCount=" + _json(S.expectedRequestCount) + "    \u5F53\u524D\u8BF7\u6C42=" + _yes(!!S.currentAbortController) + "    \u6B63\u5728\u6821\u51C6=" + _yes(!!S.isCalibrating)), out.push("  \u591A\u5E74\u7EA7: isMultiYearMode=" + _yes(!!S.isMultiYearMode) + "    entries=" + _arr(S.multiYearEntries).length + "    courseMap=" + (S.multiYearCourseMap && S.multiYearCourseMap.size ? S.multiYearCourseMap.size : 0) + "    \u5B66\u5E74GPA=" + _json(S.currentYearAnnualGPA) + "    \u7D2F\u8BA1GPA=" + _json(S.currentYearCumulativeGPA)), out.push("  \u5185\u5B58\u8868: yearDataCache=" + (S.yearDataCache ? S.yearDataCache.size : 0) + "    userSimCache=" + (S.userSimCache ? S.userSimCache.size : 0) + "    calibExcluded=" + (S.calibExcluded ? S.calibExcluded.size : 0) + "    taskDetailCache=" + (S.taskDetailCache ? S.taskDetailCache.size : 0) + "    autoCalibrateCounts=" + (S._autoCalibrateCounts ? S._autoCalibrateCounts.size : 0) + "    targetGapCache=" + (S._targetGapCache ? S._targetGapCache.size : 0)), out.push("  \u6742\u9879: virtualTaskIdCounter=" + _json(S.virtualTaskIdCounter) + "    activeSubModal=" + _yes(!!S.activeSubModal) + "    _saveDirty=" + _yes(!!S._saveDirty) + "    _storageLoaded=" + _yes(!!S._storageLoaded) + "    _saveTimer=" + _yes(!!S._saveTimer) + "    yearListCache=" + (S.yearListCache ? "\u6709(" + _arr(S.yearListCache).length + ")" : "\u65E0") + "    studentIdCache=" + _yes(!!S.studentIdCache) + "    taskDetailCache=" + (S.taskDetailCache ? S.taskDetailCache.size : 0)), out.push("  \u65F6\u95F4: \u9519\u8BEF\u8BB0\u5F55=" + _arr(S._errors).length + " \u6761    warningTimeout=" + _yes(S.warningTimeout !== null && S.warningTimeout !== void 0)), out;
+  }
+  function _cacheSection() {
+    let out = [], now = Date.now();
+    !S.yearDataCache || !S.yearDataCache.size ? out.push("  yearDataCache: \u7A7A") : (out.push("  yearDataCache: " + S.yearDataCache.size + " \u6761"), Array.from(S.yearDataCache.keys()).sort().forEach(function(k) {
+      try {
+        let v = S.yearDataCache.get(k) || {}, fresh = typeof v.dataTs == "number" && now - v.dataTs < CACHE_TTL ? "\u65B0\u9C9C" : "\u8FC7\u671F";
+        out.push("    " + k + ": src=" + _json(v.src || "\u672A\u77E5") + "    dataTs=" + _fmtTs(v.dataTs) + "\uFF08" + _age(v.dataTs) + "\u524D\uFF0C" + fresh + "\uFF09    sectionName=" + _json(v.sectionName) + "    annualGPA=" + _json(v.annualGPA) + "    cumulativeGPA=" + _json(v.cumulativeGPA) + "    oc=" + _arr(v.originalCourses).length + "    sc=" + _arr(v.simCourses).length + "    vt=" + _json(v.virtualTaskIdCounter));
+      } catch (e) {
+        out.push("    " + k + ": \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
+      }
+    })), S.userSimCache && S.userSimCache.size ? (out.push("  userSimCache\uFF08\u7528\u6237\u5C42\uFF09: " + S.userSimCache.size + " \u4E2A\u5B66\u5E74"), Array.from(S.userSimCache.keys()).sort().forEach(function(k) {
+      try {
+        out.push("    " + k + ": " + _json(S.userSimCache.get(k), 3e3));
+      } catch (e) {
+        out.push("    " + k + ": \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
+      }
+    })) : out.push("  userSimCache\uFF08\u7528\u6237\u5C42\uFF09: \u7A7A"), S.calibExcluded && S.calibExcluded.size ? (out.push("  calibExcluded\uFF08\u6821\u51C6\u786E\u8BA4\u4E0D\u8BA1\u5206\uFF09:"), Array.from(S.calibExcluded.keys()).sort().forEach(function(k) {
+      try {
+        let set = S.calibExcluded.get(k);
+        out.push("    " + k + ": " + (set ? Array.from(set).join(",") : "\uFF08\u7A7A\uFF09"));
+      } catch (e) {
+        out.push("    " + k + ": \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
+      }
+    })) : out.push("  calibExcluded\uFF08\u6821\u51C6\u786E\u8BA4\u4E0D\u8BA1\u5206\uFF09: \u7A7A"), out.push("  creditMap\uFF08\u5B66\u5206\u6620\u5C04\uFF09: " + (S.creditMap ? S.creditMap.size : 0) + " \u6761");
+    try {
+      if (S.creditMap && S.creditMap.size) {
+        let entries = Array.from(S.creditMap.entries()).sort(function(a, b) {
+          return String(a[0]).localeCompare(String(b[0]));
+        }), cap = Math.min(entries.length, 500);
+        for (let i = 0; i < cap; i++) out.push("    " + entries[i][0] + "=" + _json(entries[i][1]));
+        entries.length > cap && out.push("    \u2026\u5171 " + entries.length + " \u6761\uFF0C\u53EA\u5217\u524D " + cap + " \u6761");
+      }
+    } catch (e) {
+      out.push("    creditMap \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
+    }
+    return out.push("  \u624B\u52A8\u6807\u8BB0: " + Object.keys(S._taskMarks || {}).length + " \u6761    " + _json(S._taskMarks, 2e3)), out.push("  \u63D0\u9192\u5F00\u5173: " + Object.keys(S._taskToggles || {}).length + " \u6761    " + _json(S._taskToggles, 2e3)), out.push("  \u5FFD\u7565\u8868: " + getTaskIgnoreCountSafe() + " \u6761    " + _json(S._taskIgnore, 2e3)), out.push("  \u603B\u89C8GPA\u8986\u76D6: " + _json(S.multiYearGPAOverrides, 2e3)), out;
+  }
+  function getTaskIgnoreCountSafe() {
+    try {
+      return getTaskIgnoreCount();
+    } catch (e) {
+      return -1;
+    }
+  }
+  async function _apiSnapshotDetailed() {
+    if (_apiSnapshotCache && Date.now() - _apiSnapshotCache.at < API_SNAPSHOT_TTL) return _apiSnapshotCache;
+    let snap = { at: Date.now(), years: null, yearsError: null, grade: null, gradeError: null };
+    try {
+      snap.years = await _withTimeout("\u5B66\u5E74\u5217\u8868", function() {
+        return fetchSchoolYearList();
+      });
+    } catch (e) {
+      snap.yearsError = _errText(e);
+    }
+    try {
+      snap.grade = await _withTimeout("grade-book", function() {
+        return getGradeBookData(S.currentYearKey);
+      });
+    } catch (e) {
+      snap.gradeError = _errText(e);
+    }
+    return _apiSnapshotCache = snap, snap;
+  }
+  function _apiSection(snap) {
+    let out = [];
+    if (!snap) return ["  \uFF08\u63A5\u53E3\u5FEB\u7167\u672A\u751F\u6210\uFF09"];
+    if (snap.yearsError) out.push("  \u5B66\u5E74\u5217\u8868: \u83B7\u53D6\u5931\u8D25: " + snap.yearsError);
+    else {
+      let years = _arr(snap.years);
+      out.push("  \u5B66\u5E74\u5217\u8868: " + years.length + " \u6761"), years.forEach(function(y, i) {
+        out.push("    #" + i + " key=" + _json(y && y.key) + " value=" + _json(y && y.value));
+      });
+    }
+    if (out.push("  \u5F53\u524D\u5B66\u5E74: key=" + _json(S.currentYearKey) + " value=" + _json(S.currentYearValue) + " isCurrentYear=" + _yes(!!S.isCurrentYear)), snap.gradeError)
+      return out.push("  grade-book: \u83B7\u53D6\u5931\u8D25: " + snap.gradeError), out;
+    let g = snap.grade || {}, cols = _arr(g.customColumns), items = _arr(g.gradeBookItems), taskTotal = 0;
+    return out.push("  grade-book: items=" + items.length + " \u6761    customColumns=" + cols.length + " \u5217"), cols.length && (out.push("  customColumns \u5168\u91CF:"), cols.forEach(function(c, i) {
+      out.push("    #" + i + " " + _json(c, 500));
+    })), out.push("  gradeBookItems \u5168\u91CF:"), items.forEach(function(it, i) {
+      let tasks = _arr(it && it.taskScores);
+      taskTotal += tasks.length, out.push("    #" + i + " courseId=" + _json(it && it.courseId) + "    courseName=" + _json(it && it.courseName) + "    subject=" + _json(it && it.subject) + "    inClass=" + _json(it && it.inClass) + "    creditFromMap=" + _json(it && S.creditMap ? S.creditMap.get(it.courseId) : void 0)), out.push("        customColumnScores: " + _json(it && it.customColumnScores, 800)), out.push("        taskScores: " + tasks.length + " \u6761"), tasks.forEach(function(t4, ti) {
+        out.push("          - #" + ti + " " + _json(t4, 500));
+      });
+    }), out.push("  \u5408\u8BA1: \u8BFE\u7A0B " + items.length + " \u6761\uFF0C\u4EFB\u52A1 " + taskTotal + " \u6761"), out;
+  }
+  function _gradesText(g) {
+    return !g || typeof g != "object" ? "\u65E0" : "s1p=" + _json(g.s1p) + " s1e=" + _json(g.s1e) + " s1f=" + _json(g.s1f) + "  s2p=" + _json(g.s2p) + " s2e=" + _json(g.s2e) + " s2f=" + _json(g.s2f) + (g.eoy !== void 0 ? "  eoy=" + _json(g.eoy) : "");
+  }
+  function _taskLine(t4, i) {
+    return "      - #" + i + " entityId=" + _json(t4 && t4.entityId) + " name=" + _json(t4 && t4.name) + " type=" + _json(t4 && t4.typeName) + " score=" + _json(t4 && t4.score) + "/" + _json(t4 && t4.topScore) + " originalScore=" + _json(t4 && t4.originalScore) + " simulatedScore=" + _json(t4 && t4.simulatedScore) + " endDate=" + _fmtTs(t4 && t4.endDate) + " term=" + _json(t4 && t4.termRaw) + " virtual=" + _yes(!!(t4 && t4.isVirtual)) + " excluded=" + _yes(!!(t4 && t4.excluded));
+  }
+  function _coursesSection() {
+    let out = [], orig = _arr(S.originalCourses), sims = _arr(S.simCourses);
+    return out.push("  originalCourses\uFF08\u5B66\u6821\u57FA\u7EBF\uFF09: " + orig.length + " \u95E8    simCourses\uFF08\u6A21\u62DF\u5C42\uFF09: " + sims.length + " \u95E8"), out.push("  \u2014\u2014 originalCourses \u2014\u2014"), orig.forEach(function(c, i) {
+      if (!c || typeof c != "object") {
+        out.push("    #" + i + " " + _json(c));
+        return;
+      }
+      let subject = c.subject || "", taskList = _arr(c.tasks), typeCount = {};
+      taskList.forEach(function(t4) {
+        let tn = String(t4 && t4.typeName || "\u5176\u4ED6");
+        typeCount[tn] = (typeCount[tn] || 0) + 1;
+      }), out.push("    #" + i + " " + _json(c.name) + "    courseId=" + _json(c.courseId) + " subject=" + _json(c.subject) + " credit=" + _json(c.credit) + " weightBonus=" + _json(c.weightBonus)), out.push("        showStar: s1=" + _yes(!!(c.showStar && c.showStar.s1)) + " s2=" + _yes(!!(c.showStar && c.showStar.s2)) + "    \u6743\u91CD\u89C4\u5219: " + _ruleText(subject || c.name || "")), out.push("        originalGrades: " + _gradesText(c.originalGrades)), out.push("        \u4EFB\u52A1: " + taskList.length + " \u6761 " + _json(typeCount, 500) + "    \u6392\u9664=" + taskList.filter(function(t4) {
+        return t4 && t4.excluded;
+      }).length + "    \u865A\u62DF=" + taskList.filter(function(t4) {
+        return t4 && t4.isVirtual;
+      }).length);
+    }), out.push("  \u2014\u2014 simCourses\uFF08\u6A21\u62DF\u5C42\uFF09\u2014\u2014"), sims.forEach(function(c, i) {
+      if (!c || typeof c != "object") {
+        out.push("    #" + i + " " + _json(c));
+        return;
+      }
+      let taskList = _arr(c.tasks);
+      out.push("    #" + i + " " + _json(c.name) + "    courseId=" + _json(c.courseId) + " subject=" + _json(c.subject) + " credit=" + _json(c.credit) + " weightBonus=" + _json(c.weightBonus)), out.push("        showStar: s1=" + _yes(!!(c.showStar && c.showStar.s1)) + " s2=" + _yes(!!(c.showStar && c.showStar.s2)) + "    \u6743\u91CD\u89C4\u5219: " + _ruleText(c.subject || c.name || "") + "    overrideP: s1=" + _json(c.overrideP && c.overrideP.s1) + " s2=" + _json(c.overrideP && c.overrideP.s2)), out.push("        simGrades: " + _gradesText(c.simGrades)), out.push("        originalGrades: " + _gradesText(c.originalGrades)), out.push("        \u4EFB\u52A1: " + taskList.length + " \u6761"), taskList.forEach(function(t4, ti) {
+        out.push(_taskLine(t4, ti));
+      });
+    }), out;
+  }
+  function _weightsSection() {
+    let out = [];
+    out.push("  \u9ED8\u8BA4\u6743\u91CD: [" + _pct(DEFAULT_WEIGHTS) + "]"), out.push('  \u89C4\u5219\u8868\uFF08\u987A\u5E8F\u5373\u4F18\u5148\u7EA7\uFF0C\u7B2C\u4E00\u6761"\u6240\u6709\u5173\u952E\u8BCD\u90FD\u88AB\u5B66\u79D1\u540D\u5305\u542B"\u7684\u751F\u6548\uFF09:'), SUBJECT_WEIGHT_RULES.forEach(function(r, i) {
+      out.push("    #" + i + " " + r.keywords.join("+") + " \u2192 [" + _pct(r.weights) + "]");
+    });
+    let courses = _arr(S.simCourses).length ? _arr(S.simCourses) : _arr(S.originalCourses);
+    if (!courses.length)
+      return out.push("  \u6309\u5B66\u79D1\u805A\u5408: \uFF08\u8BFE\u7A0B\u6570\u636E\u8FD8\u6CA1\u52A0\u8F7D\uFF09"), out;
+    let bySubject = /* @__PURE__ */ new Map();
+    return courses.forEach(function(c) {
+      let subject = c && c.subject ? String(c.subject) : "(\u65E0\u5B66\u79D1\u540D\uFF0C\u6309\u8BFE\u7A0B\u540D\u5339\u914D)", raw = String(c && c.subject || c && c.name || ""), entry = bySubject.get(subject);
+      entry || (entry = { subject, rule: _ruleText(raw), count: 0, starred: 0 }, bySubject.set(subject, entry)), entry.count++, c && c.showStar && (c.showStar.s1 || c.showStar.s2) && entry.starred++;
+    }), out.push("  \u6309\u5B66\u79D1\u805A\u5408\uFF08\u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [\u6743\u91CD]  \u8BFE\u7A0B\u6570  \u661F\u6807\u6570\uFF09:"), Array.from(bySubject.values()).sort(function(a, b) {
+      return a.subject.localeCompare(b.subject);
+    }).forEach(function(e) {
+      out.push("    " + e.subject + " \u2192 " + e.rule + "    \u8BFE\u7A0B " + e.count + (e.starred ? "    \u661F\u6807 " + e.starred : ""));
+    }), out.push("  \u6309\u8BFE\u7A0B\u805A\u5408\uFF08\u8BFE\u7A0B\u540D \u2192 \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219\uFF09:"), courses.forEach(function(c, i) {
+      out.push("    #" + i + " " + _json(c && c.name) + "  [" + _json(c && c.subject || "") + "] \u2192 " + _ruleText(String(c && c.subject || c && c.name || "")));
+    }), out;
+  }
+  function _reconcileSection(apiSnap) {
+    let out = [], clues = [], orig = _arr(S.originalCourses), sims = _arr(S.simCourses), courses = sims.length ? sims : orig, seenSubject = {}, unmatchedSubjects = [], emptySubjectCourses = [], starredCourses = [];
+    if (courses.forEach(function(c) {
+      if (!c) return;
+      let subject = c.subject ? String(c.subject) : "";
+      if (!subject)
+        emptySubjectCourses.push(String(c.name || ""));
+      else if (!seenSubject[subject]) {
+        seenSubject[subject] = !0;
+        try {
+          getSubjectWeightRule(subject) || unmatchedSubjects.push(subject);
+        } catch (e) {
+        }
+      }
+      c.showStar && (c.showStar.s1 || c.showStar.s2) && starredCourses.push(String(c.name || ""));
+    }), unmatchedSubjects.length && clues.push("\u672A\u547D\u4E2D\u6743\u91CD\u89C4\u5219\u7684\u5B66\u79D1 " + unmatchedSubjects.length + " \u4E2A: " + unmatchedSubjects.join(" / ")), emptySubjectCourses.length && clues.push("subject \u4E3A\u7A7A\u7684\u8BFE\u7A0B " + emptySubjectCourses.length + " \u95E8\uFF08\u6309\u8BFE\u7A0B\u540D\u5339\u914D\u6743\u91CD\uFF09: " + emptySubjectCourses.join(" / ")), starredCourses.length && clues.push("\u5E26\u661F\u6807\uFF08\u5B66\u6821\u503C\u4E0E\u4F30\u7B97\u4E0D\u4E00\u81F4\uFF09\u7684\u8BFE\u7A0B " + starredCourses.length + " \u95E8: " + starredCourses.join(" / ")), apiSnap && apiSnap.grade && !apiSnap.gradeError) {
+      let items = _arr(apiSnap.grade.gradeBookItems), cols = _arr(apiSnap.grade.customColumns), knownCols = { S1P: 1, S1E: 1, S1F: 1, S2P: 1, S2E: 1, S2F: 1, EOY: 1 }, unknownCols = [];
+      cols.forEach(function(c) {
+        let name = c && c.customColumnName ? String(c.customColumnName).trim() : "";
+        name && !knownCols[name.toUpperCase()] && unknownCols.push(name);
+      }), unknownCols.length && clues.push("customColumns \u91CC\u6709\u8BA4\u4E0D\u51FA\u7684\u5217\u540D " + unknownCols.length + " \u4E2A: " + unknownCols.join(" / "));
+      let noCredit = [];
+      items.forEach(function(it) {
+        try {
+          if (!it) return;
+          (!S.creditMap || S.creditMap.get(it.courseId) === void 0) && noCredit.push(String(it.courseName || it.courseId));
+        } catch (e) {
+        }
+      }), noCredit.length && clues.push("\u5B66\u5206\u6620\u5C04\u91CC\u627E\u4E0D\u5230\u7684\u8BFE\u7A0B " + noCredit.length + " \u95E8\uFF08\u5B66\u5206\u6309 0/1 \u515C\u5E95\uFF09: " + noCredit.join(" / ")), out.push("  \u63A5\u53E3\u8BA1\u6570: \u6210\u7EE9\u518C\u6761\u76EE " + items.length + " \u6761\uFF0CcustomColumns " + cols.length + " \u5217\uFF0C\u5B66\u5206\u6620\u5C04 " + (S.creditMap ? S.creditMap.size : 0) + " \u6761");
+    } else
+      out.push("  \u63A5\u53E3\u8BA1\u6570: \u672C\u6B21\u672A\u53D6\u5230 grade-book\uFF08\u89C1\u63A5\u53E3\u6BB5\uFF09"), apiSnap && apiSnap.gradeError && clues.push("grade-book \u63A5\u53E3\u83B7\u53D6\u5931\u8D25: " + apiSnap.gradeError), apiSnap && apiSnap.yearsError && clues.push("\u5B66\u5E74\u5217\u8868\u63A5\u53E3\u83B7\u53D6\u5931\u8D25: " + apiSnap.yearsError);
+    out.push("  \u8BFE\u7A0B\u8BA1\u6570: originalCourses " + orig.length + " \u95E8\uFF0CsimCourses " + sims.length + " \u95E8\uFF0C\u661F\u6807 " + starredCourses.length + " \u95E8");
+    let staleYears = [];
+    try {
+      S.yearDataCache && S.yearDataCache.forEach(function(v, k) {
+        (!v || typeof v.dataTs != "number" || Date.now() - v.dataTs >= CACHE_TTL) && staleYears.push(String(k));
+      });
+    } catch (e) {
+    }
+    return staleYears.length && clues.push("\u8FC7\u671F\uFF08\u6216\u6CA1\u6709 dataTs\uFF09\u7684\u5B66\u5E74\u7F13\u5B58 " + staleYears.length + " \u6761: " + staleYears.join(" / ")), out.push("  \u65F6\u95F4\u4E0E\u5F00\u5173: \u8BCA\u65AD\u65E5\u5FD7=" + _onOff(isLogOn()) + "    \u4EA7\u7269\u7EBF=" + _channelText() + "    \u81EA\u52A8\u6821\u51C6=" + (function() {
+      try {
+        return localStorage.getItem("ints_auto_calibrate") === "0" ? "\u5173\u95ED" : "\u5F00\u542F";
+      } catch (e) {
+        return "\u672A\u77E5";
+      }
+    })() + "    \u5F02\u5E38\u8BB0\u5F55=" + _arr(S._errors).length + " \u6761"), out.push("  \u5F02\u5E38\u7EBF\u7D22: " + (clues.length ? clues.length + " \u6761" : "\u65E0")), clues.forEach(function(c) {
+      out.push("    \xB7 " + c);
+    }), out;
+  }
+  function _debugApi() {
+    try {
+      return typeof window != "undefined" && window.__INTS_DEBUG ? window.__INTS_DEBUG : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function _countSel(sel) {
+    try {
+      return document.querySelectorAll(sel).length;
+    } catch (e) {
+      return -1;
+    }
+  }
+  function _inlineSection() {
+    let out = [], D = _debugApi();
+    out.push("  \u9875\u9762: /points=" + _yes(location.pathname.indexOf("/points") === 0) + "    /teaching=" + _yes(location.pathname.indexOf("/teaching") === 0));
+    let stats = null;
+    try {
+      stats = D && typeof D.getInlineStats == "function" ? D.getInlineStats() : null;
+    } catch (e) {
+      stats = "getInlineStats \u5931\u8D25: " + _errText(e);
+    }
+    out.push("  getInlineStats: " + _json(stats, 4e3));
+    let ths = document.querySelectorAll(".ant-table-thead th"), rows = document.querySelectorAll(".ant-table-tbody tr.ant-table-row");
+    out.push("  \u8868\u683C: \u884C " + rows.length + " \u6761    \u8868\u5934 " + ths.length + " \u5217"), ths.length && out.push("  \u8868\u5934\uFF08key=\u6587\u672C\uFF09: " + Array.prototype.map.call(ths, function(th) {
+      let key = "-";
+      try {
+        key = th.getAttribute("key") || th.getAttribute("data-key") || "-";
+      } catch (e) {
+        key = "-";
+      }
+      return key + "=" + _snippet(th.textContent, 20);
+    }).join(" | "));
+    let selectors = [
+      "[data-ints-inline]",
+      "[data-ints-sim]",
+      "[data-ints-fsim]",
+      "[data-ints-cgpa]",
+      "[data-ints-row]",
+      "[data-ints-task]",
+      "[data-ints-vtask-id]",
+      "[data-ints-taskscore]",
+      "[data-ints-coldelta]",
+      ".ints-task-flag",
+      "#ints-inline-gpa",
+      "#ints-inline-calc-btn",
+      "#ints-inline-show-menu-btn",
+      "#ints-overview-loading",
+      "#ints-help-float"
+    ];
+    out.push("  \u6CE8\u5165\u8282\u70B9/\u5C5E\u6027: " + selectors.map(function(sel) {
+      return sel + "=" + _countSel(sel);
+    }).join("  "));
+    let gpaEl = document.getElementById("ints-inline-gpa");
+    out.push("  \u5B66\u5E74GPA\u8282\u70B9: " + (gpaEl ? _snippet(gpaEl.textContent, 160) : "\u65E0"));
+    let titleEl = document.querySelector(".grade .section-title .title-text");
+    out.push("  \u6210\u7EE9\u518C\u6807\u9898: " + (titleEl ? _snippet(titleEl.textContent, 160) : "\u65E0"));
+    let filter = document.querySelector(".filter-container");
+    out.push("  \u7B5B\u9009\u680F\u6587\u672C: " + (filter ? _snippet(filter.textContent, 240) : "\u65E0")), filter && out.push("  \u7B5B\u9009\u680F\u5B50\u8282\u70B9: " + Array.prototype.map.call(filter.children, function(n) {
+      let cls = n.className && typeof n.className == "string" ? "." + n.className.split(/\s+/).filter(Boolean).slice(0, 2).join(".") : "";
+      return String(n.tagName || "").toLowerCase() + (n.id ? "#" + n.id : "") + cls;
+    }).join(" | "));
+    let selText = document.querySelector(".filter-container .ant-select-selection-selected-value");
+    out.push("  \u5B66\u5E74\u4E0B\u62C9\u6587\u672C: " + (selText ? _snippet(selText.textContent, 60) : "\u65E0"));
+    try {
+      out.push("  getShellStats: " + _json(D && typeof D.getShellStats == "function" ? D.getShellStats() : null, 1200));
+    } catch (e) {
+      out.push("  getShellStats: \u5931\u8D25: " + _errText(e));
+    }
+    try {
+      out.push("  getDragMarkState: " + _json(D && typeof D.getDragMarkState == "function" ? D.getDragMarkState() : null, 800));
+    } catch (e) {
+      out.push("  getDragMarkState: \u5931\u8D25: " + _errText(e));
+    }
+    try {
+      out.push("  \u5DF2\u5F00\u7A97\u53E3: " + _json(D && typeof D.listWindows == "function" ? D.listWindows() : null, 2e3));
+    } catch (e) {
+      out.push("  \u5DF2\u5F00\u7A97\u53E3: \u5931\u8D25: " + _errText(e));
+    }
+    return out;
+  }
+  function _ddlSection() {
+    let out = [], D = _debugApi();
+    try {
+      out.push("  getDeadlineState: " + _json(D && typeof D.getDeadlineState == "function" ? D.getDeadlineState() : null, 1500));
+    } catch (e) {
+      out.push("  getDeadlineState: \u5931\u8D25: " + _errText(e));
+    }
+    let cache = S._deadlineCache || {};
+    out.push("  _deadlineCache: ts=" + _fmtTs(cache.ts) + "\uFF08" + _age(cache.ts) + "\u524D\uFF09    warnings=" + _arr(cache.data).length + " \u6761");
+    let tasks = _arr(S._deadlineAllTasks), typed = tasks.filter(function(x) {
+      return x && x.inferred || x && x.detected;
+    }).map(function(x) {
+      return x && x.typeName;
+    }).filter(Boolean), typeSet = [];
+    return typed.forEach(function(x) {
+      typeSet.indexOf(x) < 0 && typeSet.push(x);
+    }), out.push("  _deadlineAllTasks: " + tasks.length + " \u6761    \u68C0\u6D4B\u5230=" + tasks.filter(function(x) {
+      return x && x.detected;
+    }).length + "    \u7EBF\u4E0B\u63A8\u65AD=" + tasks.filter(function(x) {
+      return x && x.inferred && !x.ignored;
+    }).length + "    \u5DF2\u5FFD\u7565=" + tasks.filter(function(x) {
+      return x && x.ignored;
+    }).length + "    \u624B\u52A8\u6807\u8BB0=" + tasks.filter(function(x) {
+      return x && x.marked;
+    }).length), out.push("  \u53D6\u5230\u7C7B\u578B\u7684\u5F85\u529E: " + typed.length + " \u6761" + (typeSet.length ? "\uFF08" + typeSet.join(" / ") + "\uFF09" : "\uFF08\u4E00\u6761\u90FD\u6CA1\u6709\uFF09")), out.push("  \u5F85\u529E\u6E32\u67D3\u5217\u8868 warnings: " + _json(cache.data, 4e3)), tasks.forEach(function(t4, i) {
+      out.push("    #" + i + " entityId=" + _json(t4 && t4.entityId) + " courseId=" + _json(t4 && t4.courseId) + " course=" + _json(t4 && t4.courseName) + " task=" + _json(t4 && t4.taskName) + " endDate=" + _fmtTs(t4 && t4.endDate) + " type=" + _json(t4 && t4.typeName) + " marked=" + _yes(!!(t4 && t4.marked)) + " detected=" + _yes(!!(t4 && t4.detected)) + " inferred=" + _yes(!!(t4 && t4.inferred)) + " ignored=" + _yes(!!(t4 && t4.ignored)) + " reason=" + _json(t4 && t4.reason));
+    }), out.push("  \u5FFD\u7565\u8868: " + _json(S._taskIgnore, 2e3)), out;
+  }
+  function _multiYearSection() {
+    let out = [], D = _debugApi(), entries = _arr(S.multiYearEntries);
+    out.push("  multiYearEntries: " + entries.length + " \u6761"), entries.forEach(function(e, i) {
+      if (!e || typeof e != "object") {
+        out.push("    #" + i + " " + _json(e));
+        return;
+      }
+      out.push("    #" + i + " grade=" + _json(e.grade) + " yearValue=" + _json(e.yearValue) + " sectionName=" + _json(e.sectionName) + " chained=" + _yes(!!e.chained) + " annualGPA=" + _json(e.annualGPA) + " cumulativeGPA=" + _json(e.cumulativeGPA) + " oc=" + _arr(e.originalCourses).length + " sc=" + _arr(e.simCourses).length);
+    });
+    try {
+      out.push("  multiYearCourseMap: " + (S.multiYearCourseMap ? S.multiYearCourseMap.size : 0) + " \u95E8  " + _json(S.multiYearCourseMap ? Array.from(S.multiYearCourseMap.keys()) : [], 2e3));
+    } catch (e) {
+      out.push("  multiYearCourseMap: \u5931\u8D25: " + _errText(e));
+    }
+    out.push("  multiYearGPAOverrides: " + _json(S.multiYearGPAOverrides, 2e3));
+    try {
+      out.push("  multiYearCgpa(): " + _json(D && typeof D.multiYearCgpa == "function" ? D.multiYearCgpa() : null, 4e3));
+    } catch (e) {
+      out.push("  multiYearCgpa(): \u5931\u8D25: " + _errText(e));
+    }
+    try {
+      out.push("  targetExamRows(): " + _json(D && typeof D.targetExamRows == "function" ? D.targetExamRows() : null, 4e3));
+    } catch (e) {
+      out.push("  targetExamRows(): \u5931\u8D25: " + _errText(e));
+    }
+    return out;
+  }
+  function _logBufferSection() {
+    let out = [], buf = null;
+    try {
+      buf = getLogBuffer();
+    } catch (e) {
+      return ["  getLogBuffer \u5931\u8D25: " + _errText(e)];
+    }
+    let lines = _arr(buf && buf.lines);
+    return out.push("  \u8BCA\u65AD\u65E5\u5FD7\u5F00\u5173: " + _onOff(isLogOn()) + "    \u811A\u672C\u542F\u52A8: " + _fmtTs(buf && buf.start) + "\uFF08" + _age(buf && buf.start) + "\u524D\uFF09"), isLogOn() ? (out.push("  \u672C\u4F1A\u8BDD\u8BB0\u5F55 " + lines.length + " \u6761" + (buf && buf.dropped ? "\uFF0C\u73AF\u5F62\u7F13\u51B2\u5DF2\u4E22\u5F03\u6700\u65E9\u7684 " + buf.dropped + " \u6761" : "") + ":"), lines.forEach(function(l) {
+      let rel = buf && buf.start && l && l.t ? ((l.t - buf.start) / 1e3).toFixed(3) : "?";
+      out.push("  [+" + rel + "s] " + String(l && l.m).replace(/\n/g, `
+      `));
+    }), out) : (out.push("  \u672C\u6B21\u6CA1\u6709\u8BB0\u5F55\u8FD0\u884C\u65E5\u5FD7\uFF08\u53D1\u5E03\u4EF6\u9ED8\u8BA4\u9759\u9ED8\uFF1B\u9700\u8981\u8FD0\u884C\u8F68\u8FF9\u65F6\u5148\u5728\u63A7\u5236\u53F0\u6267\u884C __INTS_LOG(1)\uFF0C\u518D\u590D\u73B0\u95EE\u9898\u3001\u518D\u751F\u6210\u65E5\u5FD7\uFF09\u3002"), out);
+  }
+  function _errorsSection() {
+    let out = [], errors = _arr(S._errors);
+    return out.push("  \u5F02\u5E38\u8BB0\u5F55: " + errors.length + " \u6761\uFF08\u73AF\u5F62\u7F13\u51B2\u6700\u591A " + MAX_ERRORS + " \u6761\uFF09"), errors.forEach(function(e, i) {
+      out.push("    #" + i + " [" + _fmtTs(e && e.ts) + "] " + _json(e && e.label) + ": " + _json(e && e.msg));
+    }), errors.length || out.push("    \uFF08\u65E0\uFF09"), out;
+  }
+  async function buildDiagnosticLog() {
+    let startedAt = Date.now(), lines = [], summary = "";
+    try {
+      summary = await buildDiagnosticReport();
+    } catch (e) {
+      summary = "\uFF08\u6458\u8981\u751F\u6210\u5931\u8D25: " + _errText(e) + "\uFF09";
+    }
+    let apiSnap = null;
+    try {
+      apiSnap = await _apiSnapshotDetailed();
+    } catch (e) {
+      apiSnap = { error: _errText(e) };
+    }
+    lines.push("===== Better Intschool \u8BE6\u7EC6\u81EA\u68C0\u65E5\u5FD7 ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(startedAt)), lines.push("\u65E5\u5FD7\u683C\u5F0F: " + LOG_FORMAT + "    \u7248\u672C: " + _versionText() + "\uFF08" + _channelText() + "\uFF09    \u9875\u9762: " + location.pathname + location.search), lines.push("\u8BF4\u660E: \u672C\u6587\u4EF6\u7531 __INTS_DIAG() \u5728\u672C\u5730\u751F\u6210\uFF0C\u4E0D\u542B token / schoolId \u660E\u6587\uFF1B\u4EFB\u52A1\u7EA7 entityId / taskStudentId \u4FDD\u7559\uFF08\u4EFB\u52A1 join \u6392\u67E5\u5FC5\u9700\uFF09\u3002\u53EF\u6574\u4EFD\u53D1\u56DE\u6392\u67E5\u3002"), lines.push(""), lines.push("===== \u6458\u8981\uFF08\u4E0E\u5F39\u7A97\u5185\u5BB9\u4E00\u81F4\uFF09 ====="), lines.push(summary), lines.push(""), lines.push("===== \u8BE6\u7EC6\u6570\u636E ====="), _putSection(lines, "[1] \u73AF\u5883", _envSection), _putSection(lines, "[2] \u5F00\u5173\u4E0E\u672C\u5730\u5B58\u50A8", function() {
+      return _prefSection().concat(_storageSnapshot());
+    }), _putSection(lines, "[3] \u5168\u5C40\u72B6\u6001", _stateSection), _putSection(lines, "[4] \u5B66\u5E74\u7F13\u5B58 / \u5B66\u5206 / \u6807\u8BB0", _cacheSection), _putSection(lines, "[5] \u63A5\u53E3\u73B0\u573A", function() {
+      return _apiSection(apiSnap);
+    }), _putSection(lines, "[6] \u8BFE\u7A0B\u660E\u7EC6", _coursesSection), _putSection(lines, "[7] \u6743\u91CD\u89C4\u5219\u4E0E\u547D\u4E2D", _weightsSection), _putSection(lines, "[8] \u6570\u636E\u5BF9\u8D26", function() {
+      return _reconcileSection(apiSnap);
+    }), _putSection(lines, "[9] /points \u5185\u8054\u73B0\u573A", _inlineSection), _putSection(lines, "[10] DDL \u73B0\u573A", _ddlSection), _putSection(lines, "[11] \u591A\u5E74\u7EA7\u603B\u89C8 / \u76EE\u6807GPA / \u7A97\u53E3", _multiYearSection), _putSection(lines, "[12] \u8FD0\u884C\u65E5\u5FD7\uFF08\u672C\u4F1A\u8BDD\uFF09", _logBufferSection), _putSection(lines, "[13] \u5F02\u5E38\u8BB0\u5F55", _errorsSection), _putSection(lines, "[14] \u6587\u4EF6\u8BF4\u660E", function() {
+      return [
+        "  \u751F\u6210\u8017\u65F6: " + ((Date.now() - startedAt) / 1e3).toFixed(2) + "s",
+        "  \u6765\u6E90: \u9875\u9762\u5185\u8FD0\u884C\u72B6\u6001 + \u73B0\u62C9\u63A5\u53E3 + \u672C\u5730\u7F13\u5B58\uFF1B\u516C\u5F00\u5165\u53E3\u53EA\u6709\u63A7\u5236\u53F0 __INTS_DIAG()\u3002",
+        "  \u9690\u79C1: token / schoolId \u53EA\u8BB0\u5F55\u6709|\u65E0\uFF1B\u4EFB\u52A1\u7EA7 entityId / taskStudentId \u4FDD\u7559\uFF08\u4EFB\u52A1 join \u6392\u67E5\u5FC5\u9700\uFF0C\u4E0D\u662F\u8EAB\u4EFD\u5B57\u6BB5\uFF09\uFF1B\u8BFE\u8868\u7F13\u5B58\u53EA\u8BB0\u5F62\u72B6\u4E0E\u6570\u91CF\uFF0C\u4E0D\u843D\u539F\u6587\u3002"
+      ];
+    });
+    let text = lines.join(`
+`);
+    text.length > LOG_CHAR_LIMIT && (text = text.slice(0, LOG_CHAR_LIMIT) + `
+
+[\u65E5\u5FD7\u8D85\u957F\uFF0C\u5DF2\u622A\u65AD\uFF1A\u539F\u59CB\u957F\u5EA6 ` + text.length + " \u5B57\u7B26]");
+    try {
+      log("[\u8BCA\u65AD] \u8BE6\u7EC6\u65E5\u5FD7\u5DF2\u751F\u6210: " + text.length + " \u5B57\u7B26 / " + text.split(`
+`).length + " \u884C");
+    } catch (e) {
+    }
+    return text;
   }
   function _dataSnapshot() {
     let credits = [];
@@ -2281,7 +2941,7 @@
       ddlDetected: dt.filter((x) => x.detected).length,
       ddlInferred: dt.filter((x) => x.inferred && !x.ignored).length,
       ddlIgnored: dt.filter((x) => x.ignored).length,
-      ddlIgnoreStore: getTaskIgnoreCount(),
+      ddlIgnoreStore: getTaskIgnoreCountSafe(),
       ddlMarked: dt.filter((x) => x.marked).length,
       ddlCacheAge: S._deadlineCache && S._deadlineCache.ts ? Math.round((Date.now() - S._deadlineCache.ts) / 1e3) + "s" : "\u65E0",
       yearCache: S.yearDataCache ? S.yearDataCache.size : 0,
@@ -2304,49 +2964,66 @@
     try {
       let courses = (S.simCourses && S.simCourses.length ? S.simCourses : S.originalCourses) || [];
       if (!courses.length) return ["  \uFF08\u8BFE\u7A0B\u6570\u636E\u8FD8\u6CA1\u52A0\u8F7D\uFF09"];
-      let pct = (w) => w.map((x) => Math.round(x * 100) + "%").join("/"), bySubject = /* @__PURE__ */ new Map();
+      let bySubject = /* @__PURE__ */ new Map();
       for (let c of courses) {
-        let raw = String(c.subject || c.name || ""), subject = c.subject || "(\u65E0\u5B66\u79D1\u540D\uFF0C\u6309\u8BFE\u7A0B\u540D\u5339\u914D)", rule = SUBJECT_WEIGHT_RULES.find((r) => {
-          let s = raw.toLowerCase();
-          return r.keywords.every((k) => s.includes(k));
-        }), entry = bySubject.get(subject);
+        let raw = String(c.subject || c.name || ""), subject = c.subject || "(\u65E0\u5B66\u79D1\u540D\uFF0C\u6309\u8BFE\u7A0B\u540D\u5339\u914D)", rule = null;
+        try {
+          rule = getSubjectWeightRule(raw);
+        } catch (e) {
+          rule = null;
+        }
+        let entry = bySubject.get(subject);
         entry || (entry = { subject, rule: rule ? rule.keywords.join("+") : "\u9ED8\u8BA4", w: getCourseWeights(raw), count: 0, starred: 0 }, bySubject.set(subject, entry)), entry.count++, c.showStar && (c.showStar.s1 || c.showStar.s2) && entry.starred++;
       }
       let out = [];
       for (let e of [...bySubject.values()].sort((a, b) => a.subject.localeCompare(b.subject)))
-        out.push("  " + e.subject + " \u2192 " + e.rule + " [" + pct(e.w) + "]  \u8BFE\u7A0B " + e.count + (e.starred ? "  \u661F\u6807 " + e.starred : ""));
-      return out.push("  \u89C4\u5219\u8868\u987A\u5E8F: " + SUBJECT_WEIGHT_RULES.map((r) => r.keywords.join("+")).join(" > ") + " > \u9ED8\u8BA4 [" + pct(DEFAULT_WEIGHTS) + "]"), out;
+        out.push("  " + e.subject + " \u2192 " + e.rule + " [" + _pct(e.w) + "]  \u8BFE\u7A0B " + e.count + (e.starred ? "  \u661F\u6807 " + e.starred : ""));
+      return out.push("  \u89C4\u5219\u8868\u987A\u5E8F: " + SUBJECT_WEIGHT_RULES.map((r) => r.keywords.join("+")).join(" > ") + " > \u9ED8\u8BA4 [" + _pct(DEFAULT_WEIGHTS) + "]"), out;
     } catch (e) {
-      return ["  \u6743\u91CD\u5FEB\u7167\u5931\u8D25: " + (e && e.message || e)];
+      return ["  \u6743\u91CD\u5FEB\u7167\u5931\u8D25: " + _errText(e)];
     }
   }
   async function _apiSnapshot() {
-    let out = { gradeBook: "\u672A\u68C0\u6D4B", customColumns: "\u2014", columns: "\u2014", yearList: "\u672A\u68C0\u6D4B" };
+    let out = { gradeBook: "\u672A\u68C0\u6D4B", customColumns: "\u2014", columns: "\u2014", yearList: "\u672A\u68C0\u6D4B" }, snap = null;
     try {
-      let years = await fetchSchoolYearList();
-      out.yearList = years.length + " \u6761 [" + years.map((y) => y.value).join(", ") + "]";
+      snap = await _apiSnapshotDetailed();
     } catch (e) {
-      out.yearList = "\u83B7\u53D6\u5931\u8D25: " + e.message;
+      snap = null;
     }
-    try {
-      let gb = await getGradeBookData(S.currentYearKey), items = gb && gb.gradeBookItems || [];
-      out.gradeBook = items.length + " \u6761\u8BFE\u7A0B";
-      let cols = gb && gb.customColumns || [];
-      out.customColumns = cols.length + " \u5217", out.columns = cols.map((c) => c.customColumnName).join("/") || "\u2014", out.firstCourse = items[0] ? items[0].courseName + " (subject=" + (items[0].subject || "\u7A7A") + ", courseId=" + items[0].courseId + ")" : "\u2014";
-    } catch (e) {
-      out.gradeBook = "\u83B7\u53D6\u5931\u8D25: " + e.message;
-    }
-    return out;
+    if (!snap)
+      return out.yearList = "\u83B7\u53D6\u5931\u8D25", out.gradeBook = "\u83B7\u53D6\u5931\u8D25", out;
+    if (snap.yearsError ? out.yearList = "\u83B7\u53D6\u5931\u8D25: " + snap.yearsError : out.yearList = _apiListText(snap.years), snap.gradeError)
+      return out.gradeBook = "\u83B7\u53D6\u5931\u8D25: " + snap.gradeError, out;
+    let gb = snap.grade || {}, items = gb && gb.gradeBookItems || [];
+    out.gradeBook = items.length + " \u6761\u8BFE\u7A0B";
+    let cols = gb && gb.customColumns || [];
+    return out.customColumns = cols.length + " \u5217", out.columns = cols.map((c) => c.customColumnName).join("/") || "\u2014", out.firstCourse = items[0] ? items[0].courseName + " (subject=" + (items[0].subject || "\u7A7A") + ", courseId=" + items[0].courseId + ")" : "\u2014", out;
+  }
+  function _apiListText(years) {
+    let arr = _arr(years);
+    return arr.length + " \u6761 [" + arr.map((y) => y.value).join(", ") + "]";
   }
   async function buildDiagnosticReport() {
     let env = {
-      version: typeof GM_info != "undefined" && GM_info.script && GM_info.script.version || "\u672A\u77E5",
+      version: _versionText(),
       locale: getLocale(),
       url: location.pathname + location.search,
       ua: navigator.userAgent,
       viewport: window.innerWidth + "x" + window.innerHeight,
-      token: getToken() ? "\u6709" : "\u65E0",
-      schoolId: getSchoolId() ? "\u6709" : "\u65E0",
+      token: (function() {
+        try {
+          return getToken() ? "\u6709" : "\u65E0";
+        } catch (e) {
+          return "?";
+        }
+      })(),
+      schoolId: (function() {
+        try {
+          return getSchoolId() ? "\u6709" : "\u65E0";
+        } catch (e) {
+          return "?";
+        }
+      })(),
       markIcon: (function() {
         try {
           return localStorage.getItem("ints_mark_icon") || "\u9ED8\u8BA4(tag)";
@@ -2368,8 +3045,37 @@
     let typed = dt.filter((x) => x.inferred || x.detected).map((x) => x.typeName).filter(Boolean);
     return lines.push("    \u53D6\u5230\u7C7B\u578B\u7684\u5F85\u529E: " + typed.length + " \u6761" + (typed.length ? "\uFF08" + Array.from(new Set(typed)).join(" / ") + "\uFF09" : "\uFF08\u4E00\u6761\u90FD\u6CA1\u6709 \u21D2 \u53EF\u80FD grade-book \u91CC\u6CA1\u6709\u8FD9\u4E9B\u4EFB\u52A1\uFF09")), lines.push("  \u7F13\u5B58: \u5B66\u5E74 " + data.yearCache + " \u6761    \u6A21\u62DF\u8BFE\u7A0B " + data.simCourses + " \u95E8"), lines.push("  /points \u5185\u8054: \u8BE6\u60C5\uFF1A" + inline.colsExpanded + "    \u5408\u6210\u5217\u6570\uFF1A" + inline.synthCols), lines.push(""), lines.push("[\u6743\u91CD] \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [Homework/In-Class/Projects/Tests/Quizzes]"), _weightsSnapshot().forEach((l) => lines.push(l)), lines.push(""), lines.push("[\u5F02\u5E38\u8BB0\u5F55] " + S._errors.length + " \u6761" + (errors.length ? `
 ` + errors.join(`
-`) : "\uFF08\u65E0\uFF09")), lines.push(""), lines.push('\u63D0\u793A: \u62A5\u544A\u4E0D\u542B token/schoolId \u660E\u6587\uFF1B\u5982\u67D0\u9879\u663E\u793A"\u83B7\u53D6\u5931\u8D25"\uFF0C\u591A\u534A\u662F\u767B\u5F55\u6001\u8FC7\u671F\u6216\u7F51\u7EDC\u95EE\u9898\u3002'), lines.join(`
+`) : "\uFF08\u65E0\uFF09")), lines.push(""), lines.push('\u63D0\u793A: \u62A5\u544A\u4E0D\u542B token/schoolId \u660E\u6587\uFF1B\u5982\u67D0\u9879\u663E\u793A"\u83B7\u53D6\u5931\u8D25"\uFF0C\u591A\u534A\u662F\u767B\u5F55\u6001\u8FC7\u671F\u6216\u7F51\u7EDC\u95EE\u9898\u3002'), lines.push("\u63D0\u793A: \u9700\u8981\u9010\u95E8\u8BFE\u7A0B / \u5168\u90E8\u4EFB\u52A1 / \u5B66\u5206\u6620\u5C04 / \u8FD0\u884C\u65E5\u5FD7\u7B49\u5B8C\u6574\u73B0\u573A\u65F6\uFF0C\u70B9\u300C\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7(.log)\u300D\u628A\u6587\u4EF6\u53D1\u56DE\uFF1B\u672C\u6458\u8981\u53EA\u5217\u8BA1\u6570\u4E0E\u6837\u672C\u3002"), lines.join(`
 `);
+  }
+  function _pad2(n) {
+    return (n < 10 ? "0" : "") + n;
+  }
+  function _logFileName() {
+    let d = /* @__PURE__ */ new Date(), stamp = "" + d.getFullYear() + _pad2(d.getMonth() + 1) + _pad2(d.getDate()) + "-" + _pad2(d.getHours()) + _pad2(d.getMinutes()) + _pad2(d.getSeconds());
+    return "better-intschool-diag-" + _versionText() + "-" + stamp + ".log";
+  }
+  function _downloadLogFile(text, filename) {
+    let blob = new Blob([text], { type: "text/plain;charset=utf-8" }), url = URL.createObjectURL(blob);
+    try {
+      let a = document.createElement("a");
+      a.href = url, a.download = filename, a.style.display = "none", document.body.appendChild(a), a.click(), setTimeout(function() {
+        try {
+          a.remove();
+        } catch (e) {
+        }
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+        }
+      }, 1500);
+    } catch (e) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e2) {
+      }
+      throw e;
+    }
   }
   async function showDiagnostics() {
     let modalId = "ints-diag-modal", stale = document.getElementById(modalId);
@@ -2377,30 +3083,57 @@
     let wrap = document.createElement("div");
     wrap.id = modalId, wrap.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:20100;display:flex;align-items:center;justify-content:center;";
     let panel = document.createElement("div");
-    panel.style.cssText = "width:min(760px,92vw);max-height:86vh;background:#fff;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden;", panel.innerHTML = '<div style="padding:12px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;"><strong>' + t("\u81EA\u68C0\u8BCA\u65AD", "Diagnostics") + '</strong><button id="ints-diag-close" style="background:none;border:none;font-size:22px;cursor:pointer;">&times;</button></div><div style="padding:14px 18px;overflow:auto;flex:1;"><div id="ints-diag-body" style="font-size:13px;color:#555;">' + t("\u6B63\u5728\u68C0\u6D4B\u2026", "Checking\u2026") + '</div></div><div style="padding:10px 18px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:10px;"><button id="ints-diag-copy" class="ant-btn ant-btn-primary" style="padding:5px 16px;">' + t("\u590D\u5236\u62A5\u544A", "Copy report") + "</button></div>", wrap.appendChild(panel), document.body.appendChild(wrap);
+    panel.style.cssText = "width:min(760px,92vw);max-height:86vh;background:#fff;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden;", panel.innerHTML = '<div style="padding:12px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;"><strong>' + t("\u81EA\u68C0\u8BCA\u65AD", "Diagnostics") + '</strong><button id="ints-diag-close" style="background:none;border:none;font-size:22px;cursor:pointer;">&times;</button></div><div style="padding:14px 18px;overflow:auto;flex:1;"><div id="ints-diag-body" style="font-size:13px;color:#555;">' + t("\u6B63\u5728\u68C0\u6D4B\u2026", "Checking\u2026") + '</div></div><div style="padding:10px 18px;border-top:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><span id="ints-diag-status" style="font-size:12px;color:#999;"></span><span style="display:inline-flex;gap:10px;"><button id="ints-diag-copy" class="ant-btn" style="padding:5px 16px;">' + t("\u590D\u5236\u6458\u8981", "Copy summary") + '</button><button id="ints-diag-save" class="ant-btn ant-btn-primary" style="padding:5px 16px;">' + t("\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7(.log)", "Save detailed log (.log)") + "</button></span></div>", wrap.appendChild(panel), document.body.appendChild(wrap);
     let close = () => wrap.remove();
     panel.querySelector("#ints-diag-close").addEventListener("click", close), wrap.addEventListener("click", (e) => {
       e.target === wrap && close();
     });
     let report = await safeAsync("\u8BCA\u65AD\u62A5\u544A\u751F\u6210", buildDiagnosticReport, "\u62A5\u544A\u751F\u6210\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u63A7\u5236\u53F0"), body = panel.querySelector("#ints-diag-body");
-    body.innerHTML = '<textarea id="ints-diag-text" readonly style="width:100%;height:52vh;font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.5;border:1px solid #e0e0e0;border-radius:6px;padding:10px;box-sizing:border-box;white-space:pre;overflow:auto;"></textarea>', body.querySelector("#ints-diag-text").value = report, panel.querySelector("#ints-diag-copy").addEventListener("click", () => {
-      let ta = panel.querySelector("#ints-diag-text");
-      ta.select();
+    body.innerHTML = '<textarea id="ints-diag-text" readonly style="width:100%;height:46vh;font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.5;border:1px solid #e0e0e0;border-radius:6px;padding:10px;box-sizing:border-box;white-space:pre;overflow:auto;"></textarea>';
+    let textarea = body.querySelector("#ints-diag-text");
+    textarea.value = report;
+    let statusEl = panel.querySelector("#ints-diag-status");
+    statusEl.textContent = t("\u6458\u8981\u53EA\u542B\u8BA1\u6570\u4E0E\u6837\u672C\uFF1B\u70B9\u53F3\u4FA7\u6309\u94AE\u751F\u6210\u5B8C\u6574\u65E5\u5FD7\u6587\u4EF6\u3002", "The summary only has counts; save the detailed log file with the button.");
+    let copyBtn = panel.querySelector("#ints-diag-copy");
+    copyBtn.addEventListener("click", () => {
+      textarea.select();
       let ok = !1;
       try {
         ok = document.execCommand("copy");
       } catch (e) {
         ok = !1;
       }
-      !ok && navigator.clipboard && navigator.clipboard.writeText(ta.value).catch(() => {
-      });
-      let btn = panel.querySelector("#ints-diag-copy");
-      btn.textContent = t("\u5DF2\u590D\u5236", "Copied"), setTimeout(() => {
-        btn.textContent = t("\u590D\u5236\u62A5\u544A", "Copy report");
+      !ok && navigator.clipboard && navigator.clipboard.writeText(textarea.value).catch(() => {
+      }), copyBtn.textContent = t("\u5DF2\u590D\u5236", "Copied"), setTimeout(() => {
+        copyBtn.textContent = t("\u590D\u5236\u6458\u8981", "Copy summary");
       }, 1500);
     });
+    let saveBtn = panel.querySelector("#ints-diag-save"), cachedLog = null;
+    saveBtn.addEventListener("click", () => {
+      let oldText = saveBtn.textContent;
+      return saveBtn.disabled = !0, saveBtn.textContent = t("\u751F\u6210\u4E2D\u2026", "Generating\u2026"), statusEl.textContent = t("\u6B63\u5728\u6536\u96C6\u8BE6\u7EC6\u73B0\u573A\u2026", "Collecting\u2026"), (async function() {
+        try {
+          cachedLog || (cachedLog = await buildDiagnosticLog());
+          let filename = _logFileName();
+          _downloadLogFile(cachedLog, filename);
+          let kb = Math.max(1, Math.round(cachedLog.length / 1024));
+          statusEl.textContent = t("\u5DF2\u4FDD\u5B58\uFF1A" + filename + "\uFF08" + kb + " KB\uFF09", "Saved: " + filename + " (" + kb + " KB)"), saveBtn.textContent = t("\u5DF2\u4FDD\u5B58", "Saved"), log("[\u8BCA\u65AD] \u5DF2\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7\u6587\u4EF6 " + filename + "\uFF08" + kb + " KB\uFF09"), setTimeout(() => {
+            saveBtn.textContent = t("\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7(.log)", "Save detailed log (.log)"), saveBtn.disabled = !1;
+          }, 2e3);
+        } catch (e) {
+          let msg = _errText(e);
+          recordError("\u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58", e), cachedLog ? (statusEl.textContent = t(
+            "\u4FDD\u5B58\u5931\u8D25\uFF1A" + msg + "\uFF08\u5B8C\u6574\u65E5\u5FD7\u5DF2\u663E\u793A\u5728\u4E0A\u65B9\uFF0C\u53EF\u624B\u52A8\u590D\u5236\uFF09",
+            "Save failed: " + msg + " (the full log is shown above for manual copy)"
+          ), textarea.value = cachedLog, textarea.style.height = "46vh") : statusEl.textContent = t(
+            "\u751F\u6210\u5931\u8D25\uFF1A" + msg + "\uFF08\u9875\u9762\u72B6\u6001\u672A\u53D7\u5F71\u54CD\uFF0C\u53EF\u91CD\u8BD5\u6216\u5237\u65B0\u540E\u518D\u8BD5\uFF09",
+            "Generation failed: " + msg + " (page state is unaffected; retry or reload)"
+          ), saveBtn.textContent = t("\u91CD\u8BD5\u4FDD\u5B58", "Retry"), saveBtn.disabled = !1, console.error("[Better Intschool] \u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58\u5931\u8D25:", e);
+        }
+      })(), oldText;
+    });
   }
-  var MAX_ERRORS, init_diagnose = __esm({
+  var MAX_ERRORS, LOG_FORMAT, LOG_CHAR_LIMIT, ENTRY_CHAR_LIMIT, API_TIMEOUT_MS, _apiSnapshotCache, API_SNAPSHOT_TTL, init_diagnose = __esm({
     "v8.30/diagnose.js"() {
       init_state();
       init_utils();
@@ -2408,7 +3141,8 @@
       init_deadline();
       init_api();
       init_courses();
-      MAX_ERRORS = 20;
+      MAX_ERRORS = 20, LOG_FORMAT = "v1", LOG_CHAR_LIMIT = 3 * 1024 * 1024, ENTRY_CHAR_LIMIT = 300, API_TIMEOUT_MS = 1e4;
+      _apiSnapshotCache = null, API_SNAPSHOT_TTL = 12e4;
     }
   });
 
@@ -3179,7 +3913,7 @@
       // 卡片可能很高：内容区按表格滚动容器的高度限高（超出在窗口内滚动，免得窗口高过容器被裁掉）
       maxBodyHeight: Math.max(160, Math.round(getShellBounds().height - 72)) + "px",
       titleHTML: _detailTitleHTML(course0, filterText),
-      // 沿用类名 subject-detail-modal：样式统一由 styles.js 提供
+      // 类名 subject-detail-modal：样式由样式表统一提供
       className: "subject-detail-modal",
       bodyHTML: '<div class="iw-note">' + t("\u6B63\u5728\u8BA1\u7B97\u2026", "Computing\u2026") + "</div>",
       footerHTML: '<button type="button" data-detail-act="apply" class="ant-btn ant-btn-link" style="color:#1890ff;">' + iconCheck() + "<span>" + t("\u5173\u95ED\u5E76\u5E94\u7528\u6A21\u62DF", "Close & Apply") + "</span></button>",
@@ -6024,7 +6758,9 @@
         closeAllWindows,
         getShellStats,
         getShellBounds,
-        syncWindows
+        syncWindows,
+        buildDiagReport: buildDiagnosticReport,
+        buildDiagLog: buildDiagnosticLog
       };
       window.__INTS_DIAG = () => safe("\u8BCA\u65AD\u62A5\u544A", () => showDiagnostics());
       window.__INTS_LOG = (on) => safe("\u65E5\u5FD7\u5F00\u5173", () => on === void 0 ? isLogOn() : setLogOn(on));
