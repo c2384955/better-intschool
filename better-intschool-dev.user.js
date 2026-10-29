@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.13
+// @version      1.02.14
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -283,7 +283,128 @@
   function countUngradedTasks(tasks, term) {
     return tasks.filter((t4) => getTermFromDate(t4.endDate, t4.termRaw) === term).filter((t4) => t4.score === null).length;
   }
-  var locale, t, GRADE_BANDS, LETTER_TO_GPA, DEFAULT_WEIGHTS, SUBJECT_WEIGHT_RULES, ANTD_DOWN_PATH, ANTD_TABLE_PATH, _helpTooltipDone, iconPlus, iconSync, iconCheck, iconDelete, iconLoading, MARK_ICONS, MARK_ICON_PATH, MARK_COLOR_OFF, MARK_COLOR_ON, TYPE_PATTERNS, TYPE_NAMES, TYPE_SHORT_ZH, TYPE_SHORT_EN, SCHOOL_DIFF_TOLERANCE, SCHOOL_DIFF_EPS, SUBJECT_KEYWORDS, init_utils = __esm({
+  function _importanceRgb(hex) {
+    return [
+      parseInt(hex.slice(1, 3), 16),
+      parseInt(hex.slice(3, 5), 16),
+      parseInt(hex.slice(5, 7), 16)
+    ];
+  }
+  function importanceColor(value) {
+    let I = Number(value);
+    if (!(I > 0)) return IMPORTANCE_RAMP[0][1];
+    let lo = Math.log10(IMPORTANCE_DOMAIN.min), hi = Math.log10(IMPORTANCE_DOMAIN.max), t4 = (Math.log10(I) - lo) / (hi - lo);
+    if (!Number.isFinite(t4)) return IMPORTANCE_RAMP[0][1];
+    t4 < 0 ? t4 = 0 : t4 > 1 && (t4 = 1);
+    for (let i = 1; i < IMPORTANCE_RAMP.length; i++) {
+      let t1 = IMPORTANCE_RAMP[i][0];
+      if (t4 <= t1) {
+        let t0 = IMPORTANCE_RAMP[i - 1][0], c0 = _importanceRgb(IMPORTANCE_RAMP[i - 1][1]), c1 = _importanceRgb(IMPORTANCE_RAMP[i][1]), k = t1 === t0 ? 0 : (t4 - t0) / (t1 - t0);
+        return "#" + [0, 1, 2].map((j) => {
+          let n = Math.round(c0[j] + (c1[j] - c0[j]) * k);
+          return (n < 16 ? "0" : "") + n.toString(16);
+        }).join("");
+      }
+    }
+    return IMPORTANCE_RAMP[IMPORTANCE_RAMP.length - 1][1];
+  }
+  function _importanceLocalDay(ts) {
+    let d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  }
+  function getTermProgress(term, yearValue, now) {
+    let m = /^(\d{4})-(\d{4})$/.exec(String(yearValue == null ? "" : yearValue));
+    if (!m) return null;
+    let y = parseInt(m[1], 10), start, end;
+    if (term === "S1")
+      start = new Date(y, 7, 15), end = new Date(y + 1, 0, 31);
+    else if (term === "S2")
+      start = new Date(y + 1, 1, 1), end = new Date(y + 1, 5, 30);
+    else
+      return null;
+    let day = _importanceLocalDay(now == null ? Date.now() : now);
+    if (!Number.isFinite(day)) return null;
+    let total = end.getTime() - start.getTime();
+    if (!(total > 0)) return null;
+    let p = (day - start.getTime()) / total;
+    return Number.isFinite(p) ? (p < 0.1 ? p = 0.1 : p > 1 && (p = 1), p) : null;
+  }
+  function computeTaskImportance(course, ctx) {
+    let out = /* @__PURE__ */ new Map();
+    if (!course) return out;
+    let options = ctx || {}, now = options.now, yearValue = options.yearValue, weights = getCourseWeights(course.subject || course.name), tasks = Array.isArray(course.tasks) ? course.tasks : [], byTerm = { S1: [], S2: [] };
+    for (let task of tasks) {
+      if (!task || task.entityId === void 0 || task.entityId === null) continue;
+      let term = getTermFromDate(task.endDate, task.termRaw);
+      if (term !== "S1" && term !== "S2") {
+        out.set(task.entityId, { status: "na", reason: "term-null" });
+        continue;
+      }
+      byTerm[term].push(task);
+    }
+    for (let term of ["S1", "S2"]) {
+      let termTasks = byTerm[term];
+      if (!termTasks.length) continue;
+      let sfx = term === "S1" ? "s1" : "s2", starred = !!(course.showStar && course.showStar[sfx]), override = course.overrideP ? course.overrideP[sfx] : null;
+      if (starred || override != null) {
+        for (let task of termTasks)
+          out.set(task.entityId, { status: "na", reason: starred ? "star" : "override", term });
+        continue;
+      }
+      let p = getTermProgress(term, yearValue, now);
+      p === null && (p = 1);
+      let catTop = [0, 0, 0, 0, 0], counted = [];
+      for (let task of termTasks) {
+        let idx = TYPE_PATTERNS.findIndex((rule) => rule.test(String(task.typeName || "")));
+        if (idx < 0) {
+          out.set(task.entityId, { status: "na", reason: "type-unmapped", term });
+          continue;
+        }
+        let top = task.topScore;
+        if (!(typeof top == "number" && Number.isFinite(top) && top > 0)) {
+          out.set(task.entityId, { status: "na", reason: "topScore-invalid", term });
+          continue;
+        }
+        let eff = task.simulatedScore !== void 0 ? task.simulatedScore : task.originalScore;
+        if (eff === -1 || task.excluded === !0 && eff == null) {
+          out.set(task.entityId, {
+            status: "excluded",
+            reason: "excluded",
+            color: IMPORTANCE_EXCLUDED_COLOR,
+            importance: 0,
+            term,
+            category: idx,
+            topScore: top
+          });
+          continue;
+        }
+        catTop[idx] += top, counted.push({ task, idx, top });
+      }
+      let W_known = 0;
+      for (let i = 0; i < 5; i++) catTop[i] > 0 && weights[i] > 0 && (W_known += weights[i]);
+      let W_eff = W_known > 0 ? W_known + (1 - p) * (1 - W_known) : 0, grades = course.simGrades || null, original = course.originalGrades || null, E = grades ? grades[sfx + "e"] : void 0;
+      E === void 0 && original && (E = original[sfx + "e"]), E === void 0 && (E = null);
+      let alpha = E == null ? 1 : typeof E == "number" && Number.isFinite(E) ? 0.8 : 1;
+      for (let item of counted) {
+        let w = weights[item.idx], I = W_known > 0 && w > 0 ? alpha * 100 * (w / W_eff) * p * item.top / catTop[item.idx] : 0;
+        out.set(item.task.entityId, {
+          importance: I,
+          color: importanceColor(I),
+          status: "importance",
+          reason: null,
+          term,
+          category: item.idx,
+          topScore: item.top,
+          W_known,
+          W_eff,
+          alpha,
+          p
+        });
+      }
+    }
+    return out;
+  }
+  var locale, t, GRADE_BANDS, LETTER_TO_GPA, DEFAULT_WEIGHTS, SUBJECT_WEIGHT_RULES, ANTD_DOWN_PATH, ANTD_TABLE_PATH, _helpTooltipDone, iconPlus, iconSync, iconCheck, iconDelete, iconLoading, MARK_ICONS, MARK_ICON_PATH, MARK_COLOR_OFF, MARK_COLOR_ON, TYPE_PATTERNS, TYPE_NAMES, TYPE_SHORT_ZH, TYPE_SHORT_EN, SCHOOL_DIFF_TOLERANCE, SCHOOL_DIFF_EPS, SUBJECT_KEYWORDS, IMPORTANCE_DOMAIN, IMPORTANCE_RAMP, IMPORTANCE_EXCLUDED_COLOR, init_utils = __esm({
     "v8.30/utils.js"() {
       locale = (() => {
         try {
@@ -353,6 +474,15 @@
       TYPE_PATTERNS = [/homework/i, /in.?class|classwork/i, /project|lab/i, /test/i, /quiz/i], TYPE_NAMES = ["Homework", "In-Class/Classwork", "Projects/Labs", "Tests", "Quizzes"], TYPE_SHORT_ZH = ["\u4F5C\u4E1A", "\u8BFE\u5802", "\u9879\u76EE", "\u6D4B\u9A8C", "\u5C0F\u6D4B"], TYPE_SHORT_EN = ["HW", "Class", "Proj.", "Test", "Quiz"];
       SCHOOL_DIFF_TOLERANCE = 0.1, SCHOOL_DIFF_EPS = 1e-9;
       SUBJECT_KEYWORDS = ["English", "Math", "Physics", "Chemistry", "Biology", "History", "Geography", "Chinese", "Economics", "Art", "Music", "PE", "Physical Education"];
+      IMPORTANCE_DOMAIN = { min: 0.1, max: 50 }, IMPORTANCE_RAMP = [
+        [0, "#fffbe6"],
+        [0.25, "#ffe58f"],
+        [0.45, "#ffd666"],
+        [0.65, "#ffc069"],
+        [0.8, "#ff9c6e"],
+        [0.9, "#ff6b6b"],
+        [1, "#f5222d"]
+      ], IMPORTANCE_EXCLUDED_COLOR = "#f5f5f5";
     }
   });
 
@@ -534,6 +664,9 @@
     .ints-help-float-up::before { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #d9d9d9; }
     .ints-help-float-down::after { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-bottom-color: #fff; }
     .ints-help-float-down::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-bottom-color: #d9d9d9; }
+    .grade .ant-table-tbody .task-title { transition: background-color .35s ease; }
+    .grade .ant-table-tbody .task-title[data-ints-importance] { background-color: var(--ints-importance-color, #fffbe6) !important; }
+    @media (prefers-reduced-motion: reduce) { .grade .ant-table-tbody .task-title { transition: none; } }
 `);
     }
   });
@@ -633,7 +766,7 @@
         let calib = {};
         for (let [k, set] of S.calibExcluded)
           set && set.size && (calib[k] = [...set]);
-        localStorage.setItem(STORAGE_KEY_CALIB, JSON.stringify(calib)), localStorage.setItem(STORAGE_KEY_OVERRIDES, JSON.stringify(S.multiYearGPAOverrides)), localStorage.setItem(STORAGE_KEY_VTID, String(S.virtualTaskIdCounter)), S.lastSelectedYearKey !== null && localStorage.setItem(STORAGE_KEY_LAST_YEAR, S.lastSelectedYearKey), localStorage.setItem(STORAGE_KEY_LAST_FILTER, S.lastSelectedFilter), localStorage.setItem(STORAGE_KEY_COLS, S.colsExpanded ? "1" : "0"), S.targetUWGPA !== null ? localStorage.setItem(STORAGE_KEY_TARGET_UW, String(S.targetUWGPA)) : localStorage.removeItem(STORAGE_KEY_TARGET_UW), S.targetWGPA !== null ? localStorage.setItem(STORAGE_KEY_TARGET_W, String(S.targetWGPA)) : localStorage.removeItem(STORAGE_KEY_TARGET_W), localStorage.setItem(STORAGE_KEY_TARGET_MODE, S.targetGPAMode);
+        localStorage.setItem(STORAGE_KEY_CALIB, JSON.stringify(calib)), localStorage.setItem(STORAGE_KEY_OVERRIDES, JSON.stringify(S.multiYearGPAOverrides)), localStorage.setItem(STORAGE_KEY_VTID, String(S.virtualTaskIdCounter)), S.lastSelectedYearKey !== null && localStorage.setItem(STORAGE_KEY_LAST_YEAR, S.lastSelectedYearKey), localStorage.setItem(STORAGE_KEY_LAST_FILTER, S.lastSelectedFilter), localStorage.setItem(STORAGE_KEY_COLS, S.colsExpanded ? "1" : "0"), localStorage.setItem(STORAGE_KEY_IMPORTANCE, S.importanceMode ? "1" : "0"), S.targetUWGPA !== null ? localStorage.setItem(STORAGE_KEY_TARGET_UW, String(S.targetUWGPA)) : localStorage.removeItem(STORAGE_KEY_TARGET_UW), S.targetWGPA !== null ? localStorage.setItem(STORAGE_KEY_TARGET_W, String(S.targetWGPA)) : localStorage.removeItem(STORAGE_KEY_TARGET_W), localStorage.setItem(STORAGE_KEY_TARGET_MODE, S.targetGPAMode);
       } catch (e) {
         console.error("[\u4FDD\u5B58] flushSave \u5931\u8D25:", e.message);
       }
@@ -684,7 +817,7 @@
       let lyStr = localStorage.getItem(STORAGE_KEY_LAST_YEAR);
       lyStr && (S.lastSelectedYearKey = lyStr);
       let lfStr = localStorage.getItem(STORAGE_KEY_LAST_FILTER);
-      lfStr && (S.lastSelectedFilter = lfStr), S.colsExpanded = localStorage.getItem(STORAGE_KEY_COLS) === "1";
+      lfStr && (S.lastSelectedFilter = lfStr), S.colsExpanded = localStorage.getItem(STORAGE_KEY_COLS) === "1", S.importanceMode = localStorage.getItem(STORAGE_KEY_IMPORTANCE) === "1";
       let tuwStr = localStorage.getItem(STORAGE_KEY_TARGET_UW);
       tuwStr && (S.targetUWGPA = parseFloat(tuwStr));
       let twStr = localStorage.getItem(STORAGE_KEY_TARGET_W);
@@ -698,12 +831,12 @@
   function ensureStorageLoaded() {
     S._storageLoaded || (S._storageLoaded = !0, loadFromLocalStorage());
   }
-  var BASE_URL, BUTTON_ID, DEADLINE_CACHE_TTL, CACHE_TTL, COLUMN_KEY_MAPPING, STORAGE_KEY_TASK_TOGGLES, STORAGE_KEY_TASK_MARKS, STORAGE_KEY_TASK_IGNORE, STORAGE_KEY_CACHE, STORAGE_KEY_USER, STORAGE_KEY_OVERRIDES, STORAGE_KEY_VTID, STORAGE_KEY_CALIB, STORAGE_KEY_LAST_YEAR, STORAGE_KEY_LAST_FILTER, STORAGE_KEY_COLS, STORAGE_KEY_TARGET_UW, STORAGE_KEY_TARGET_W, STORAGE_KEY_TARGET_MODE, STORAGE_KEY_SITE_SCHEDULE, S, _saveDisabled, init_state = __esm({
+  var BASE_URL, BUTTON_ID, DEADLINE_CACHE_TTL, CACHE_TTL, COLUMN_KEY_MAPPING, STORAGE_KEY_TASK_TOGGLES, STORAGE_KEY_TASK_MARKS, STORAGE_KEY_TASK_IGNORE, STORAGE_KEY_CACHE, STORAGE_KEY_USER, STORAGE_KEY_OVERRIDES, STORAGE_KEY_VTID, STORAGE_KEY_CALIB, STORAGE_KEY_LAST_YEAR, STORAGE_KEY_LAST_FILTER, STORAGE_KEY_COLS, STORAGE_KEY_IMPORTANCE, STORAGE_KEY_TARGET_UW, STORAGE_KEY_TARGET_W, STORAGE_KEY_TARGET_MODE, STORAGE_KEY_SITE_SCHEDULE, S, _saveDisabled, init_state = __esm({
     "v8.30/state.js"() {
       init_utils();
       BASE_URL = "https://shc.intschool.cn/api", BUTTON_ID = "intschool-custom-grade-btn", DEADLINE_CACHE_TTL = 300 * 1e3, CACHE_TTL = 3600 * 1e3, COLUMN_KEY_MAPPING = {
         "2025-2026": { s1p: "189", s1e: "191", s1f: null, s2p: "226", s2e: null, s2f: null }
-      }, STORAGE_KEY_TASK_TOGGLES = "ints_task_toggles", STORAGE_KEY_TASK_MARKS = "ints_task_marks", STORAGE_KEY_TASK_IGNORE = "ints_ddl_ignore", STORAGE_KEY_CACHE = "ints_gs_cache", STORAGE_KEY_USER = "ints_gs_user", STORAGE_KEY_OVERRIDES = "ints_gs_overrides", STORAGE_KEY_VTID = "ints_gs_vtid", STORAGE_KEY_CALIB = "ints_calib_excluded", STORAGE_KEY_LAST_YEAR = "ints_gs_lastYear", STORAGE_KEY_LAST_FILTER = "ints_gs_lastFilter", STORAGE_KEY_COLS = "ints_gs_colsExpanded", STORAGE_KEY_TARGET_UW = "ints_gs_targetUW", STORAGE_KEY_TARGET_W = "ints_gs_targetW", STORAGE_KEY_TARGET_MODE = "ints_gs_targetMode", STORAGE_KEY_SITE_SCHEDULE = "schedule", S = {
+      }, STORAGE_KEY_TASK_TOGGLES = "ints_task_toggles", STORAGE_KEY_TASK_MARKS = "ints_task_marks", STORAGE_KEY_TASK_IGNORE = "ints_ddl_ignore", STORAGE_KEY_CACHE = "ints_gs_cache", STORAGE_KEY_USER = "ints_gs_user", STORAGE_KEY_OVERRIDES = "ints_gs_overrides", STORAGE_KEY_VTID = "ints_gs_vtid", STORAGE_KEY_CALIB = "ints_calib_excluded", STORAGE_KEY_LAST_YEAR = "ints_gs_lastYear", STORAGE_KEY_LAST_FILTER = "ints_gs_lastFilter", STORAGE_KEY_COLS = "ints_gs_colsExpanded", STORAGE_KEY_IMPORTANCE = "ints_gs_importance", STORAGE_KEY_TARGET_UW = "ints_gs_targetUW", STORAGE_KEY_TARGET_W = "ints_gs_targetW", STORAGE_KEY_TARGET_MODE = "ints_gs_targetMode", STORAGE_KEY_SITE_SCHEDULE = "schedule", S = {
         currentYearKey: null,
         currentYearValue: null,
         // 在读学年（只认第一次）—— 能不能模拟、要不要写用户数据、跑不跑校准看它
@@ -741,6 +874,7 @@
         lastSelectedFilter: "all",
         // 「详情」展开态：用户点出来的视图状态，跟着落盘（不记住就得每次重开）
         colsExpanded: !1,
+        importanceMode: !1,
         targetUWGPA: null,
         targetWGPA: null,
         targetGPAMode: "subject",
@@ -5221,8 +5355,23 @@
   function _taskScoreDisplay(score, topScore) {
     return score === -1 ? t("\u5DF2\u6392\u9664", "Excluded") : typeof score == "number" && typeof topScore == "number" ? score + "/" + topScore : typeof score == "number" ? String(score) : t("\u672A\u8BC4\u5206", "Not graded");
   }
+  function _clearTaskImportance(titleEl) {
+    titleEl && (titleEl.getAttribute(IMPORTANCE_ATTR) !== null && titleEl.removeAttribute(IMPORTANCE_ATTR), titleEl.style && titleEl.style.getPropertyValue(IMPORTANCE_COLOR_VAR) && titleEl.style.removeProperty(IMPORTANCE_COLOR_VAR));
+  }
+  function _paintTaskImportance(titleEl, rec) {
+    if (!titleEl) return;
+    if (!rec || rec.status !== "importance" && rec.status !== "excluded") {
+      _clearTaskImportance(titleEl);
+      return;
+    }
+    titleEl.getAttribute(IMPORTANCE_ATTR) !== "1" && titleEl.setAttribute(IMPORTANCE_ATTR, "1");
+    let color = rec.color || "#fffbe6";
+    titleEl.style.getPropertyValue(IMPORTANCE_COLOR_VAR) !== color && titleEl.style.setProperty(IMPORTANCE_COLOR_VAR, color);
+  }
   function _renderTaskCells(tr, courseIdx, course) {
-    tr && _taskCellsOf(tr).forEach((td) => {
+    if (!tr) return;
+    let importance = S.importanceMode && S.isCurrentYear ? computeTaskImportance(course, { yearValue: S.currentYearValue, now: Date.now() }) : null;
+    _taskCellsOf(tr).forEach((td) => {
       if (td === _taskEditing) return;
       let titleEl = td.querySelector(".task-title"), vtId = td.getAttribute(VTASK_ATTR), ti = _taskIndexOf(course, titleEl ? titleEl.textContent : "", vtId), siteSpan = _siteScoreSpan(td), mine = td.querySelector("[" + TASK_SCORE_ATTR + "]");
       if (ti < 0 || !siteSpan) {
@@ -5233,7 +5382,9 @@
         _clearTaskDecorAttrs(td), mine && mine.remove(), siteSpan && (siteSpan.style.display = "");
         return;
       }
-      let task = course.tasks[ti], sim = _taskSimOf(task), orig = typeof task.originalScore == "number" ? task.originalScore : null;
+      let task = course.tasks[ti];
+      _paintTaskImportance(titleEl, importance ? importance.get(task.entityId) : null);
+      let sim = _taskSimOf(task), orig = typeof task.originalScore == "number" ? task.originalScore : null;
       if (!(sim !== null && (sim === -1 || orig === null || Math.abs(sim - orig) > 1e-3)))
         mine && mine.remove(), siteSpan.style.display = "";
       else {
@@ -5251,6 +5402,7 @@
   }
   function _clearTaskDecorAttrs(td) {
     if (!td || !td.getAttribute) return;
+    _clearTaskImportance(td.querySelector ? td.querySelector(".task-title") : null);
     let wasOurs = td.getAttribute("data-ints-task") !== null || td._intsTaskClickBound === !0;
     td.removeAttribute("data-ints-task"), td.removeAttribute("data-ints-taskbound"), wasOurs && (td.style && td.style.cursor && (td.style.cursor = ""), td.getAttribute("title") && td.removeAttribute("title"));
   }
@@ -5717,7 +5869,7 @@
   function _renderMenuTriggers() {
     let pairs = [
       ["calc", MENU_CALC_TRIGGER_ID, t("\u8BA1\u7B97", "Calculate"), !!_calcOpen],
-      ["show", MENU_SHOW_TRIGGER_ID, t("\u663E\u793A", "View"), !!(_colsExpanded || _overviewOpen)]
+      ["show", MENU_SHOW_TRIGGER_ID, t("\u663E\u793A", "View"), !!(_colsExpanded || _overviewOpen || S.isCurrentYear && S.importanceMode)]
     ];
     for (let [kind, id, label, active] of pairs) {
       let btn = document.getElementById(id);
@@ -5754,7 +5906,7 @@
   }
   function _renderToolbar() {
     let bar = document.querySelector(".grade .filter-container");
-    return bar ? (!S.isCurrentYear && _openMenu === "calc" && _closeMenus(), _renderMenus(bar), _renderDetailButton(), _renderCalcOverview(), _renderCalcToggle(), _renderVirtualTaskButton(), _renderResetButton(), _renderClearCacheButton(), _renderTermSelect(bar), _renderCalcCard(), _renderMenuTriggers(), _orderToolbarNodes(bar), !0) : !1;
+    return bar ? (!S.isCurrentYear && _openMenu === "calc" && _closeMenus(), _renderMenus(bar), _renderDetailButton(), _renderImportanceButton(), _renderCalcOverview(), _renderCalcToggle(), _renderVirtualTaskButton(), _renderResetButton(), _renderClearCacheButton(), _renderTermSelect(bar), _renderCalcCard(), _renderMenuTriggers(), _orderToolbarNodes(bar), !0) : !1;
   }
   function _renderDetailButton() {
     let host = _menuHostFor("show");
@@ -5769,6 +5921,30 @@
     btn.innerHTML !== html && (btn.innerHTML = html);
     let color = _colsExpanded ? COLOR_ACTIVE : COLOR_IDLE;
     return btn.style.color !== color && (btn.style.color = color), btn;
+  }
+  function iconImportance() {
+    return '<i class="anticon anticon-fire" style="display:inline-flex;align-items:center;vertical-align:-0.125em;margin-right:4px;"><svg viewBox="0 0 1024 1024" data-icon="fire" width="12px" height="12px" fill="currentColor" aria-hidden="true" focusable="false"><path d="' + ANTD_FIRE_PATH + '"></path></svg></i>';
+  }
+  function _renderImportanceButton() {
+    let host = _menuHostFor("show");
+    if (!host) return null;
+    let btn = document.getElementById(IMPORTANCE_BTN_ID);
+    btn || (btn = _menuItem(host, IMPORTANCE_BTN_ID), btn.addEventListener("click", guardListener("\u5185\u8054\u4EFB\u52A1\u91CD\u8981\u6027\u5F00\u5173", (e) => {
+      e.preventDefault(), S.isCurrentYear && safe("\u5185\u8054\u4EFB\u52A1\u91CD\u8981\u6027\u5F00\u5173", () => {
+        S.importanceMode = !S.importanceMode, flushSave(!0), _renderToolbar(), decoratePointsRows();
+      });
+    })));
+    let html = iconImportance() + "<span>" + t("\u4EFB\u52A1\u91CD\u8981\u6027", "Task Importance") + "</span>";
+    if (btn.innerHTML !== html && (btn.innerHTML = html), S.isCurrentYear) {
+      let color = S.importanceMode ? COLOR_ACTIVE : COLOR_IDLE;
+      btn.style.color !== color && (btn.style.color = color), btn.style.cursor && (btn.style.cursor = ""), btn.getAttribute("title") && btn.removeAttribute("title");
+    } else {
+      let disabledColor = "rgba(0,0,0,0.25)";
+      btn.style.color !== disabledColor && (btn.style.color = disabledColor), btn.style.cursor !== "not-allowed" && (btn.style.cursor = "not-allowed");
+      let tip = t("\u5F80\u671F\u5B66\u5E74\u4E0D\u663E\u793A\u4EFB\u52A1\u91CD\u8981\u6027", "Task importance is only shown for the current school year");
+      btn.getAttribute("title") !== tip && btn.setAttribute("title", tip);
+    }
+    return btn;
   }
   function _renderVirtualTaskButton() {
     let host = _menuHostFor("calc");
@@ -5981,8 +6157,65 @@
     let color = _calcOpen ? COLOR_ACTIVE : COLOR_IDLE;
     return btn.style.color !== color && (btn.style.color = color), btn;
   }
-  function getInlineStats() {
-    let headers = _vm && _vm.dynamicHeaders || [];
+  function _importanceStats(now) {
+    let courses = S.simCourses || [], yearValue = S.currentYearValue, p1 = getTermProgress("S1", yearValue, now), p2 = getTermProgress("S2", yearValue, now), cuts = [0.5, 1, 2, 5, 10, 20, 50], histogram = new Array(cuts.length + 2).fill(0), tasks = 0, colored = 0, excluded = 0, na = 0, zero = 0, coverage = [];
+    for (let course of courses) {
+      if (!course) continue;
+      let map = computeTaskImportance(course, { yearValue, now }), row = {
+        course: course.name || "",
+        courseId: course.courseId === void 0 ? null : course.courseId,
+        subject: course.subject || null,
+        tasks: 0,
+        colored: 0,
+        excluded: 0,
+        na: 0
+      }, list = Array.isArray(course.tasks) ? course.tasks : [];
+      for (let task of list) {
+        if (!task || task.entityId === void 0 || task.entityId === null) continue;
+        row.tasks++, tasks++;
+        let rec = map.get(task.entityId);
+        if (!rec || rec.status === "na") {
+          row.na++, na++;
+          continue;
+        }
+        if (rec.status === "excluded") {
+          row.excluded++, excluded++;
+          continue;
+        }
+        row.colored++, colored++;
+        let I = rec.importance;
+        if (!(I > 0))
+          zero++, histogram[0]++;
+        else {
+          let bin = cuts.length + 1;
+          for (let i = 0; i < cuts.length; i++)
+            if (I <= cuts[i]) {
+              bin = i + 1;
+              break;
+            }
+          histogram[bin]++;
+        }
+      }
+      coverage.push(row);
+    }
+    return {
+      mode: !!S.importanceMode,
+      applied: !!S.isCurrentYear && !!S.importanceMode,
+      currentYear: !!S.isCurrentYear,
+      yearValue: yearValue === void 0 ? null : yearValue,
+      p: { S1: p1, S2: p2 },
+      progressFallback: p1 === null || p2 === null,
+      tasks,
+      colored,
+      excluded,
+      na,
+      zero,
+      histogram,
+      coverage
+    };
+  }
+  function getInlineStats(opts) {
+    let headers = _vm && _vm.dynamicHeaders || [], now = opts && opts.now !== void 0 ? opts.now : Date.now();
     return __spreadProps(__spreadValues({}, _stats), {
       // 展开态决定小数位与列；合成列数与成绩格落点一并给诊断
       colsExpanded: !!_colsExpanded,
@@ -5993,7 +6226,8 @@
       scoreField: _schoolScoreField(),
       colTrace: _colTrace,
       // 首屏就绪门：等了几毫秒、走的是 idle 还是兜底
-      bootGate: _bootGateStats
+      bootGate: _bootGateStats,
+      importance: _importanceStats(now)
     });
   }
   function _decorate() {
@@ -6251,6 +6485,8 @@
       sp && (sp.style.display = "");
     }), document.querySelectorAll("[" + VTASK_ATTR + "]").forEach((td) => {
       _clearVirtualCell(td), td.removeAttribute("data-ints-taskbound");
+    }), document.querySelectorAll("[" + IMPORTANCE_ATTR + "]").forEach((el) => {
+      el.removeAttribute(IMPORTANCE_ATTR), el.style && el.style.removeProperty(IMPORTANCE_COLOR_VAR);
     }), safe("\u5185\u8054\u6A21\u6001\u6E05\u7406", () => {
       let vt = document.querySelector(".virtual-task-modal");
       vt && vt.remove(), S.activeSubModal = !1;
@@ -6265,7 +6501,7 @@
     }
     _isPointsPage() ? _start() : stopPointsInline();
   }
-  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, COLGPA_ATTR, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
+  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, COLGPA_ATTR, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, IMPORTANCE_ATTR, IMPORTANCE_COLOR_VAR, IMPORTANCE_BTN_ID, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, ANTD_FIRE_PATH, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
     "v8.30/inline-points.js"() {
       init_state();
       init_utils();
@@ -6284,7 +6520,7 @@
       SIM_BLUE = "#1890ff", COL_DELTA_ATTR = "data-ints-coldelta", FIELD_WRAP_ATTR = "data-ints-fwrap", FIELD_BLOCK_ATTR = "data-ints-fsim";
       _synthThCache = null;
       COLGPA_ATTR = "data-ints-cgpa";
-      TASK_SCORE_ATTR = "data-ints-taskscore", TASK_INPUT_ATTR = "data-ints-taskinput", VTASK_ATTR = "data-ints-vtask-id", COLOR_UP = "#52c41a", COLOR_DOWN = "#d4380d";
+      TASK_SCORE_ATTR = "data-ints-taskscore", TASK_INPUT_ATTR = "data-ints-taskinput", VTASK_ATTR = "data-ints-vtask-id", IMPORTANCE_ATTR = "data-ints-importance", IMPORTANCE_COLOR_VAR = "--ints-importance-color", IMPORTANCE_BTN_ID = "ints-inline-importance-btn", COLOR_UP = "#52c41a", COLOR_DOWN = "#d4380d";
       _taskEditing = null;
       VTASK_FALLBACK = {
         box: "width: 120px; display: flex; flex-direction: column;",
@@ -6298,6 +6534,7 @@
       _vm = null, _savedHeaders = null, _colsExpanded = !1, _colsSig = null;
       _savedColSig = "";
       MENU_CALC_ID = "ints-inline-menu-calc", MENU_SHOW_ID = "ints-inline-menu-show", MENU_CALC_TRIGGER_ID = "ints-inline-calc-menu-btn", MENU_SHOW_TRIGGER_ID = "ints-inline-show-menu-btn", MENU_PANEL_ATTR = "data-ints-menupanel", VTASK_BTN_ID = "ints-inline-vtask-btn", MENU_Z = 50, _openMenu = null, _menuOutside = null, _menuEsc = null;
+      ANTD_FIRE_PATH = "M834.1 469.2A347.49 347.49 0 0 0 751.2 354l-29.1-26.7a8.09 8.09 0 0 0-13 3.3l-13 37.3c-8.1 23.4-23 47.3-44.1 70.8-1.4 1.5-3 1.9-4.1 2-1.1.1-2.8-.1-4.3-1.5-1.4-1.2-2.1-3-2-4.8 3.7-60.2-14.3-128.1-53.7-202C555.3 171 510 123.1 453.4 89.7l-41.3-24.3c-5.4-3.2-12.3 1-12 7.3l2.2 48c1.5 32.8-2.3 61.8-11.3 85.9-11 29.5-26.8 56.9-47 81.5a295.64 295.64 0 0 1-47.5 46.1 352.6 352.6 0 0 0-100.3 121.5A347.75 347.75 0 0 0 160 610c0 47.2 9.3 92.9 27.7 136a349.4 349.4 0 0 0 75.5 110.9c32.4 32 70 57.2 111.9 74.7C418.5 949.8 464.5 959 512 959s93.5-9.2 136.9-27.3A348.6 348.6 0 0 0 760.8 857c32.4-32 57.8-69.4 75.5-110.9a344.2 344.2 0 0 0 27.7-136c0-48.8-10-96.2-29.9-140.9z";
       CALC_CARD_ID = "ints-inline-calc", OVERVIEW_TOGGLE_ID = "ints-inline-overview-btn", OVERVIEW_VIEW_ID = "ints-overview-view", CALC_TOGGLE_ID = "ints-inline-calc-btn", RESET_ID = "ints-inline-reset-btn", CLEAR_CACHE_ID = "ints-inline-clear-cache-btn", _calcOpen = !1, _overviewSig = "", _overviewOutside = null, ANTD_BAR_CHART_PATH = "M888 792H200V168c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v688c0 4.4 3.6 8 8 8h752c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm-600-80h56c4.4 0 8-3.6 8-8V560c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v144c0 4.4 3.6 8 8 8zm152 0h56c4.4 0 8-3.6 8-8V384c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v320c0 4.4 3.6 8 8 8zm152 0h56c4.4 0 8-3.6 8-8V462c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v242c0 4.4 3.6 8 8 8zm152 0h56c4.4 0 8-3.6 8-8V304c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v400c0 4.4 3.6 8 8 8z";
       _overviewOpen = !1, _overviewLoaded = !1, _overviewFailed = !1;
       OVERVIEW_COUNT_ID = "ints-overview-loading-text";
@@ -6735,6 +6972,7 @@
         getBuildChannel,
         getCourseWeights,
         differsFromSchool,
+        importance: { compute: computeTaskImportance, color: importanceColor, progress: getTermProgress, domain: IMPORTANCE_DOMAIN, ramp: IMPORTANCE_RAMP },
         clearServerCache,
         decoratePointsRows,
         syncPointsInline,
