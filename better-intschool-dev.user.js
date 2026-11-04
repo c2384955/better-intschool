@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.14
+// @version      1.02.15
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -119,45 +119,6 @@
     let power = 3 - Math.ceil(Math.log10(Math.abs(num)));
     return Math.round(num * Math.pow(10, power)) / Math.pow(10, power);
   }
-  function helpIcon(zhText, enText, down) {
-    return '<span class="ints-help-wrap" data-help-text="' + t(zhText, enText).replace(/"/g, "&quot;") + '" data-help-down="' + (down ? "1" : "0") + '" style="display:inline-flex;align-items:center;margin-left:4px;vertical-align:middle;cursor:help;"><svg viewBox="64 64 896 896" width="14" height="14" fill="#999" style="flex-shrink:0;pointer-events:none;"><path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z"/><path d="M464 688a48 48 0 1 0 96 0 48 48 0 1 0-96 0zm24-112h48c4.4 0 8-3.6 8-8V296c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v272c0 4.4 3.6 8 8 8z"/></svg></span>';
-  }
-  function setupHelpTooltip() {
-    if (_helpTooltipDone) return;
-    _helpTooltipDone = !0;
-    var floatEl = document.createElement("div");
-    floatEl.id = "ints-help-float", floatEl.style.display = "none", document.body.appendChild(floatEl);
-    var hideTimer = null;
-    function show(wrap) {
-      clearTimeout(hideTimer);
-      var text = wrap.getAttribute("data-help-text");
-      if (text) {
-        floatEl.innerHTML = text.replace(/\n/g, "<br>"), floatEl.style.display = "block", floatEl.className = wrap.getAttribute("data-help-down") === "1" ? "ints-help-float-down" : "ints-help-float-up";
-        var rect = wrap.getBoundingClientRect();
-        floatEl.style.visibility = "hidden", floatEl.style.left = "0", floatEl.style.top = "0";
-        var tw = floatEl.offsetWidth, th = floatEl.offsetHeight;
-        floatEl.style.visibility = "";
-        var left = rect.left + rect.width / 2 - tw / 2, top = wrap.getAttribute("data-help-down") === "1" ? rect.bottom + 8 : rect.top - th - 8, margin = 8;
-        left < margin && (left = margin), left + tw > window.innerWidth - margin && (left = window.innerWidth - tw - margin), top < margin && (top = margin), top + th > window.innerHeight - margin && (top = window.innerHeight - th - margin), floatEl.style.left = left + "px", floatEl.style.top = top + "px";
-      }
-    }
-    function hide() {
-      hideTimer = setTimeout(function() {
-        floatEl.style.display = "none";
-      }, 150);
-    }
-    document.addEventListener("mouseover", function(e) {
-      var wrap = e.target.closest(".ints-help-wrap");
-      wrap && show(wrap);
-    }, !0), document.addEventListener("mouseout", function(e) {
-      var wrap = e.target.closest(".ints-help-wrap");
-      wrap && hide();
-    }, !0), floatEl.addEventListener("mouseenter", function() {
-      clearTimeout(hideTimer);
-    }), floatEl.addEventListener("mouseleave", function() {
-      hide();
-    });
-  }
   function loadingBlockHtml(label, pad) {
     return '<div style="padding:' + (pad || "40px") + ';text-align:center;font-size:14px;color:#555;">' + iconLoading() + (label || t("\u52A0\u8F7D\u4E2D...", "Loading...")) + "</div>";
   }
@@ -207,6 +168,12 @@
     effS1F && effS1F.uw !== null && uwVals.push(effS1F.uw), effS2F && effS2F.uw !== null && uwVals.push(effS2F.uw), effS1F && effS1F.w !== null && wVals.push(effS1F.w), effS2F && effS2F.w !== null && wVals.push(effS2F.w);
     let uw = uwVals.length > 0 ? uwVals.reduce((a, b) => a + b, 0) / uwVals.length : null, w = wVals.length > 0 ? wVals.reduce((a, b) => a + b, 0) / wVals.length : null;
     return uw === null && w === null ? null : { uw, w };
+  }
+  function typeColorOf(typeName) {
+    let raw = String(typeName == null ? "" : typeName).trim();
+    if (TYPE_COLORS[raw]) return TYPE_COLORS[raw];
+    let idx = TYPE_PATTERNS.findIndex((p) => p.test(raw));
+    return idx >= 0 ? CATEGORY_COLORS[idx] : "#d9d9d9";
   }
   function typeShortName(typeName) {
     let idx = TYPE_PATTERNS.findIndex((p) => p.test(String(typeName == null ? "" : typeName)));
@@ -404,7 +371,7 @@
     }
     return out;
   }
-  var locale, t, GRADE_BANDS, LETTER_TO_GPA, DEFAULT_WEIGHTS, SUBJECT_WEIGHT_RULES, ANTD_DOWN_PATH, ANTD_TABLE_PATH, _helpTooltipDone, iconPlus, iconSync, iconCheck, iconDelete, iconLoading, MARK_ICONS, MARK_ICON_PATH, MARK_COLOR_OFF, MARK_COLOR_ON, TYPE_PATTERNS, TYPE_NAMES, TYPE_SHORT_ZH, TYPE_SHORT_EN, SCHOOL_DIFF_TOLERANCE, SCHOOL_DIFF_EPS, SUBJECT_KEYWORDS, IMPORTANCE_DOMAIN, IMPORTANCE_RAMP, IMPORTANCE_EXCLUDED_COLOR, init_utils = __esm({
+  var locale, t, GRADE_BANDS, LETTER_TO_GPA, DEFAULT_WEIGHTS, SUBJECT_WEIGHT_RULES, ANTD_DOWN_PATH, ANTD_TABLE_PATH, iconPlus, iconSync, iconCheck, iconDelete, iconLoading, MARK_ICONS, MARK_ICON_PATH, MARK_COLOR_OFF, MARK_COLOR_ON, TYPE_PATTERNS, TYPE_NAMES, TYPE_COLORS, CATEGORY_COLORS, TYPE_SHORT_ZH, TYPE_SHORT_EN, SCHOOL_DIFF_TOLERANCE, SCHOOL_DIFF_EPS, SUBJECT_KEYWORDS, IMPORTANCE_DOMAIN, IMPORTANCE_RAMP, IMPORTANCE_EXCLUDED_COLOR, init_utils = __esm({
     "v8.30/utils.js"() {
       locale = (() => {
         try {
@@ -463,7 +430,6 @@
       for (let rule of SUBJECT_WEIGHT_RULES) rule.weights = normalizeWeights(rule.weights, '\u89C4\u5219 "' + rule.keywords.join(" ") + '"');
       ANTD_DOWN_PATH = "M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z";
       ANTD_TABLE_PATH = "M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zm-40 208H676V232h212v136zm0 224H676V432h212v160zM412 432h200v160H412V432zm200-64H412V232h200v136zm-476 64h212v160H136V432zm0-200h212v136H136V232zm0 424h212v136H136V656zm276 0h200v136H412V656zm476 136H676V656h212v136z";
-      _helpTooltipDone = !1;
       iconPlus = () => '<i aria-label="icon: plus" class="anticon anticon-plus"><svg viewBox="64 64 896 896" data-icon="plus" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M482 152h60q8 0 8 8v704q0 8-8 8h-60q-8 0-8-8V160q0-8 8-8z"></path><path d="M176 474h672q8 0 8 8v60q0 8-8 8H176q-8 0-8-8v-60q0-8 8-8z"></path></svg></i>', iconSync = () => '<i aria-label="icon: sync" class="anticon anticon-sync"><svg viewBox="64 64 896 896" data-icon="sync" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S337 212.3 378 195c42.4-17.9 87.4-27 133.9-27s91.5 9.1 133.8 27A341.5 341.5 0 0 1 755 268.8c9.9 9.9 19.2 20.4 27.8 31.4l-60.2 47a8 8 0 0 0 3 14.1l175.7 43c5 1.2 9.9-2.6 9.9-7.7l.8-180.9c0-6.7-7.7-10.5-12.9-6.3l-56.4 44.1C765.8 155.1 646.2 92 511.8 92 282.7 92 96.3 275.6 92 503.8a8 8 0 0 0 8 8.2h60c4.4 0 7.9-3.5 8-7.8zm756 7.8h-60c-4.4 0-7.9 3.5-8 7.8-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.8-73.7 109.4A342.45 342.45 0 0 1 512.1 856a342.24 342.24 0 0 1-243.2-100.8c-9.9-9.9-19.2-20.4-27.8-31.4l60.2-47a8 8 0 0 0-3-14.1l-175.7-43c-5-1.2-9.9 2.6-9.9 7.7l-.7 181c0 6.7 7.7 10.5 12.9 6.3l56.4-44.1C258.2 868.9 377.8 932 512.2 932c229.2 0 415.5-183.7 419.8-411.8a8 8 0 0 0-8-8.2z"></path></svg></i>', iconCheck = () => '<i aria-label="icon: check" class="anticon anticon-check"><svg viewBox="64 64 896 896" data-icon="check" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 0 0-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z"></path></svg></i>', iconDelete = () => '<i aria-label="icon: delete" class="anticon anticon-delete"><svg viewBox="64 64 896 896" data-icon="delete" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z"></path></svg></i>', iconLoading = () => '<i aria-label="icon: loading" class="anticon anticon-loading anticon-spin"><svg viewBox="0 0 1024 1024" data-icon="loading" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><path d="M988 548c-19.9 0-36-16.1-36-36 0-59.4-11.6-117-34.6-171.3a440.45 440.45 0 0 0-94.3-139.9 437.71 437.71 0 0 0-139.9-94.3C629 83.6 571.4 72 512 72c-19.9 0-36-16.1-36-36s16.1-36 36-36c69.1 0 136.2 13.5 199.3 40.3C772.3 66 827 103 874 150c47 47 83.9 101.8 109.7 162.7 26.7 63.1 40.2 130.2 40.2 199.3.1 19.9-16 36-35.9 36z"></path></svg></i>';
       MARK_ICONS = {
         pushpin: "M878.3 392.1L631.9 145.7c-6.5-6.5-15-9.7-23.5-9.7s-17 3.2-23.5 9.7L423.8 306.9c-12.2-1.4-24.5-2-36.8-2-73.2 0-146.4 24.1-206.5 72.3-15.4 12.3-16.6 35.4-2.7 49.4l181.7 181.7-215.4 215.2a15.8 15.8 0 00-4.6 9.8l-3.4 37.2c-.9 9.4 6.6 17.4 15.9 17.4.5 0 1 0 1.5-.1l37.2-3.4c3.7-.3 7.2-2 9.8-4.6l215.4-215.4 181.7 181.7c6.5 6.5 15 9.7 23.5 9.7 9.7 0 19.3-4.2 25.9-12.4 56.3-70.3 79.7-158.3 70.2-243.4l161.1-161.1c12.9-12.8 12.9-33.8 0-46.8z",
@@ -471,7 +437,19 @@
         flag: "M880 305H624V192c0-17.7-14.3-32-32-32H184v-40c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v784c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V640h248v113c0 17.7 14.3 32 32 32h416c17.7 0 32-14.3 32-32V337c0-17.7-14.3-32-32-32z",
         highlight: "M957.6 507.4L603.2 158.2a7.9 7.9 0 00-11.2 0L353.3 393.4a8.03 8.03 0 00-.1 11.3l.1.1 40 39.4-117.2 115.3a32.09 32.09 0 00-9.5 21.9l-1 46.6-31.1 29.5a33.4 33.4 0 00-2.3 2.6l-27.1 27.2a15.5 15.5 0 000 22l92.6 92.5c3 3 7.1 4.7 11.3 4.7s8.2-1.7 11.2-4.7l55.4-55.4a11.5 11.5 0 002.6-2.3l29.6-31 46.6-1c8.1-.2 15.9-3.4 21.8-9.3l115.4-115.2 39.5 40.1c3.1 3.1 8.2 3.1 11.3 0L957.5 518.6c3.1-3.1 3.1-8.2.1-11.2z"
       }, MARK_ICON_PATH = MARK_ICONS.tag, MARK_COLOR_OFF = "#1f1f1f", MARK_COLOR_ON = "#faad14";
-      TYPE_PATTERNS = [/homework/i, /in.?class|classwork/i, /project|lab/i, /test/i, /quiz/i], TYPE_NAMES = ["Homework", "In-Class/Classwork", "Projects/Labs", "Tests", "Quizzes"], TYPE_SHORT_ZH = ["\u4F5C\u4E1A", "\u8BFE\u5802", "\u9879\u76EE", "\u6D4B\u9A8C", "\u5C0F\u6D4B"], TYPE_SHORT_EN = ["HW", "Class", "Proj.", "Test", "Quiz"];
+      TYPE_PATTERNS = [/homework/i, /in.?class|classwork/i, /project|lab/i, /test/i, /quiz/i], TYPE_NAMES = ["Homework", "In-Class/Classwork", "Projects/Labs", "Tests", "Quizzes"], TYPE_COLORS = {
+        "In-Class Assignments/Classwork": "#FFA39E",
+        "In-Class/Classwork": "#FFA39E",
+        Homework: "#A1887F",
+        Projects: "#91D5FF",
+        "Projects and Labs": "#B7EB8F",
+        Quizzes: "#FFFB8F",
+        Tests: "#FFD591",
+        "Tests and Cumulative Assignments": "#85A5FF",
+        Essays: "#E3F895",
+        Engagement: "#FFD591"
+      }, CATEGORY_COLORS = ["#A1887F", "#FFA39E", "#91D5FF", "#FFD591", "#FFFB8F"];
+      TYPE_SHORT_ZH = ["\u4F5C\u4E1A", "\u8BFE\u5802", "\u9879\u76EE", "\u6D4B\u9A8C", "\u5C0F\u6D4B"], TYPE_SHORT_EN = ["HW", "Class", "Proj.", "Test", "Quiz"];
       SCHOOL_DIFF_TOLERANCE = 0.1, SCHOOL_DIFF_EPS = 1e-9;
       SUBJECT_KEYWORDS = ["English", "Math", "Physics", "Chemistry", "Biology", "History", "Geography", "Chinese", "Economics", "Art", "Music", "PE", "Physical Education"];
       IMPORTANCE_DOMAIN = { min: 0.1, max: 50 }, IMPORTANCE_RAMP = [
@@ -551,7 +529,13 @@
     .ints-win { background: #fff; border: 1px solid #e8e8e8; border-radius: 8px;
         box-shadow: 0 6px 22px rgba(0,0,0,0.18); font-size: 12px; color: rgba(0,0,0,0.85); }
     .ints-win-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
-        padding: 8px 10px 7px; border-bottom: 1px solid #f0f0f0; cursor: grab; }
+        padding: 8px 10px 7px; border-bottom: 1px solid #f0f0f0; cursor: grab;
+        user-select: none; -webkit-user-select: none; }
+    .ints-win-head * { user-select: none; -webkit-user-select: none; }
+    html.ints-global-dragging, html.ints-global-dragging * {
+        user-select: none !important; -webkit-user-select: none !important; }
+    .ant-table-tbody td[data-ints-open-editor] { cursor: pointer; }
+    .ant-table-tbody td[data-ints-open-editor]:hover { background-color: #f0f7ff; }
     .ints-win-title { min-width: 0; font-weight: 600; font-size: 13px; line-height: 1.45; }
     .ints-win-close { flex-shrink: 0; background: none; border: none; padding: 0 2px; margin: -2px 0 0;
         font-size: 18px; line-height: 1; color: rgba(0,0,0,0.45); cursor: pointer; border-radius: 4px; }
@@ -618,8 +602,8 @@
          41   DDL \u26A0 \u6309\u94AE\uFF08#intschool-deadline-btn\uFF0C\u6BD4\u5224\u5B9A\u533A\u9AD8\u4E00\u70B9\u4FDD\u8BC1\u53EF\u70B9\uFF09
          50   /points \u6CE8\u5165\u4E0B\u62C9\u83DC\u5355\uFF08#ints-inline-menu-*\uFF09
          60   /points \u591A\u5E74\u7EA7\u603B\u89C8\u7A97\u53E3\uFF08#ints-overview-view\uFF0C\u76D6\u4F4F\u6211\u4EEC\u81EA\u5DF1\u7684\u6CE8\u5165\u5143\u7D20\uFF09
-         100001 \u5E2E\u52A9\u6D6E\u5C42\uFF08#ints-help-float\uFF0C\u6211\u4EEC\u4E3B\u52A8\u5F39\u7684\uFF09
-         20020 \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF08\u5C45\u4E2D\u6A21\u6001\uFF0C\u4E0D\u53C2\u4E0E\u7A97\u53E3\u5C42\u89C4\u5219\uFF09 */
+         20020 \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF08\u5C45\u4E2D\u6A21\u6001\uFF0C\u4E0D\u53C2\u4E0E\u7A97\u53E3\u5C42\u89C4\u5219\uFF09
+         1060 \u4EFB\u52A1 antd tooltip \u7684\u8865\u5145\u5185\u5C42 / \u865A\u62DF\u4EFB\u52A1\u6D6E\u5C42\uFF08\u77AC\u65F6\u3001\u8DDF\u968F\u60AC\u505C\uFF0C\u4E0D\u5E38\u9A7B\uFF09 */
     /* \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF1A\u5916\u89C2\u5168\u90E8\u8D70\u7AD9\u70B9\u81EA\u5DF1\u7684 antd 1.5 \u7C7B\uFF08.ant-modal* / .ant-form-item* / .ant-btn*\uFF09\uFF0C
        \u8FD9\u91CC\u53EA\u8865\u4E24\u4EF6 antd \u7ED9\u4E0D\u4E86\u7684\u4E8B \u2014\u2014 \u2460 \u538B\u6389 .ant-modal \u81EA\u5E26\u7684 top \u504F\u79FB\u4E0E\u5E95\u90E8\u7559\u767D\uFF08\u5C45\u4E2D\u7531\u6211\u4EEC
        \u81EA\u5DF1\u7684\u906E\u7F69 flex \u8D1F\u8D23\uFF09\uFF1B\u2461 \u5185\u5BB9\u533A\u9650\u9AD8\uFF08\u8868\u5355\u6BD4 antd \u9ED8\u8BA4\u7684\u786E\u8BA4\u6846\u957F\uFF0C\u4E0D\u7559\u6EDA\u52A8\u6761\u4F1A\u9876\u51FA\u5C4F\u5E55\uFF09\u3002 */
@@ -638,19 +622,63 @@
     }
     .intschool-deadline-tooltip-box {
         position: relative;
+        display: flex;
+        flex-direction: column;
         background: #fff;
         border: 1px solid #e8e8e8;
         border-radius: 6px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-        padding: 8px 12px;
+        padding: 0;
         font-size: 13px;
-        line-height: 1.8;
+        line-height: 1.7;
         color: #333;
+        max-width: min(520px, calc(100vw - 16px));
         max-height: 70vh;
-        overflow-y: auto;
+        overflow: hidden;
     }
+    .intschool-deadline-tooltip-box.ints-ddl-expanded { max-width: min(680px, calc(100vw - 16px)); }
+    .intschool-deadline-tooltip-box.ints-ddl-full { display: block; overflow-y: auto; }
     .intschool-deadline-tooltip-box::after { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-bottom-color: #fff; }
     .intschool-deadline-tooltip-box::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 7px solid transparent; border-bottom-color: #e8e8e8; }
+    .intschool-deadline-tooltip-box.ints-ddl-above::after { bottom: auto; top: 100%; border-bottom-color: transparent; border-top-color: #fff; }
+    .intschool-deadline-tooltip-box.ints-ddl-above::before { bottom: auto; top: 100%; border-bottom-color: transparent; border-top-color: #e8e8e8; }
+    .ints-ddl-status { padding: 8px 12px; font-size: 13px; color: #666; }
+    .ints-ddl-inferred-note { padding: 5px 10px; font-size: 11px; color: #8c8c8c; background: #fafafa; border-bottom: 1px solid #f0f0f0; }
+    .ints-ddl-head { flex: 0 0 auto; padding: 8px 12px; border-bottom: 1px solid #f0f0f0; background: #fff; }
+    .ints-ddl-head-main { display: flex; align-items: baseline; gap: 5px; font-size: 13px; color: #333; flex-wrap: wrap; }
+    .ints-ddl-head-main strong { font-size: 14px; color: #262626; }
+    .ints-ddl-warn { color: #faad14; }
+    .ints-ddl-dot { color: #bfbfbf; }
+    .ints-ddl-head-sub { margin-top: 2px; font-size: 10px; color: #8c8c8c; }
+    .ints-ddl-note-inferred { color: #8c8c8c; }
+    .ints-ddl-body { flex: 1 1 0; min-height: 0; overflow: hidden; }
+    .ints-ddl-scroll { height: 100%; overflow-y: auto; }
+    .ints-ddl-brief-body { overflow-y: auto; }
+    .ints-ddl-foot { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-top: 1px solid #f0f0f0; background: #fff; font-size: 11px; color: #8c8c8c; }
+    .ints-ddl-foot-space { flex: 1 1 auto; }
+    .ints-ddl-foot .ant-btn { margin: 0; padding: 0; height: auto; font-size: 12px; }
+    .ints-ddl-ignore { cursor: pointer; text-decoration: underline; }
+    .ints-ddl-course-count { margin-left: 6px; color: #8c8c8c; font-weight: normal; font-size: 11px; }
+    .ints-ddl-row { padding: 4px 8px; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+    .ints-ddl-row:last-child { border-bottom: none; }
+    .ints-ddl-row-brief { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .ints-ddl-row-brief .ints-ddl-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; }
+    .ints-ddl-row-brief .ints-ddl-task-link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ints-ddl-row-brief .ints-ddl-course { flex: 0 0 auto; color: #8c8c8c; font-size: 10px; overflow: hidden; text-overflow: ellipsis; }
+    .ints-ddl-row-full, .ints-ddl-row-expanded { display: flex; align-items: center; gap: 8px; }
+    .ints-ddl-row-expanded { flex-wrap: wrap; align-items: flex-start; }
+    .ints-ddl-row-full .ints-ddl-main, .ints-ddl-row-expanded .ints-ddl-main { flex: 1 1 160px; min-width: 0; }
+    .ints-ddl-row-expanded .ints-ddl-main { white-space: normal; overflow-wrap: anywhere; }
+    .ints-ddl-task-link { color: #1890ff; text-decoration: underline; cursor: grab; }
+    .ints-ddl-type { flex: 0 0 auto; padding: 0 4px; border-radius: 3px; font-size: 10px; line-height: 16px; }
+    .ints-ddl-tag { margin-left: 5px; padding: 0 4px; border-radius: 3px; font-size: 10px; }
+    .ints-ddl-offline { border: 1px solid #d9d9d9; color: #8c8c8c; }
+    .ints-ddl-marked { border: 1px solid #ffa39e; color: #cf1322; }
+    .ints-ddl-date { flex: 0 0 auto; color: #8c8c8c; font-size: 11px; }
+    .ints-ddl-toggle { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 11px; color: #666; cursor: pointer; }
+    .ints-ddl-toggle-text { white-space: nowrap; }
+    .ints-ddl-full-foot { border-top: 1px solid #f0f0f0; }
+    .task-dash-course { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-size: 12px; color: #555; font-weight: 600; padding: 6px 8px 2px; border-bottom: 1px solid #f0f0f0; }
     /* \u6309\u94AE\u7F6E\u4E8E\u5224\u5B9A\u533A\u4E4B\u4E0A\uFF0C\u4FDD\u8BC1\u6309\u94AE\u59CB\u7EC8\u53EF\u70B9\u51FB\uFF1B\u4F46\u4ECD\u4F4E\u4E8E\u7AD9\u70B9\u81EA\u5DF1\u7684\u6D6E\u5C42\uFF08\u89C1\u4E0A\u65B9\u5C42\u6B21\u5951\u7EA6\uFF09 */
     #intschool-deadline-btn { position: relative; z-index: 41; }
     .task-dash-row:hover { background: #fafafa; }
@@ -659,14 +687,87 @@
     .task-toggle-switch:checked { background: #1890ff; }
     .task-toggle-switch:checked::after { transform: translateX(12px); }
     .task-toggle-label { user-select: none; }
-    #ints-help-float { position: fixed; background: #fff; border: 1px solid #d9d9d9; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); padding: 8px 12px; font-size: 12px; line-height: 1.6; color: #555; z-index: 100001; white-space: normal; width: 320px; font-weight: normal; pointer-events: auto; }
-    .ints-help-float-up::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #fff; }
-    .ints-help-float-up::before { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #d9d9d9; }
-    .ints-help-float-down::after { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-bottom-color: #fff; }
-    .ints-help-float-down::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-bottom-color: #d9d9d9; }
     .grade .ant-table-tbody .task-title { transition: background-color .35s ease; }
     .grade .ant-table-tbody .task-title[data-ints-importance] { background-color: var(--ints-importance-color, #fffbe6) !important; }
     @media (prefers-reduced-motion: reduce) { .grade .ant-table-tbody .task-title { transition: none; } }
+    .ant-tooltip-inner[data-ints-task-tip] { max-width: 320px; }
+    .ant-tooltip-inner[data-ints-task-tip]::after {
+        content: attr(data-ints-task-tip);
+        display: block;
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 1px solid rgba(255,255,255,.18);
+        font-size: 11px;
+        line-height: 1.5;
+        font-weight: normal;
+        color: rgba(255,255,255,.85);
+        white-space: pre-line;
+    }
+    .ints-task-tip-float { position: fixed; z-index: 1060; pointer-events: none; display: block; max-width: 320px; }
+    .ints-task-tip-float .ant-tooltip-inner { max-width: 320px; }
+    .ints-task-tip-name { font-weight: 600; margin-bottom: 3px; }
+    .ints-task-tip-line { font-size: 11px; line-height: 1.5; }
+    .ints-help-window .ints-win-body { padding: 8px 10px; }
+    .ints-help-layout { display: flex; align-items: flex-start; gap: 12px; }
+    .ints-help-nav { flex: 0 0 150px; position: sticky; top: 0; align-self: flex-start; border-right: 1px solid #f0f0f0; padding-right: 8px; }
+    .ints-help-nav-item { display: block; width: 100%; border: 0; background: transparent; text-align: left; padding: 5px 6px; margin: 0 0 2px; border-radius: 4px; font-size: 12px; color: #595959; cursor: pointer; }
+    .ints-help-nav-item:hover { background: #f5f5f5; }
+    .ints-help-nav-item.is-active { background: #e6f7ff; color: #1890ff; font-weight: 600; }
+    .ints-help-content { flex: 1 1 auto; min-width: 0; }
+    .ints-help-content p { margin: 0 0 6px; }
+    .ints-help-body { padding: 8px 10px; }
+    .ints-help-num { margin-right: 6px; color: #8c8c8c; font-weight: normal; }
+    .ints-help-list { margin: 0 0 6px; padding-left: 18px; }
+    .ints-help-list li { margin-bottom: 3px; }
+    .ints-help-callout { margin-top: 7px; padding: 6px 9px; border-radius: 4px; background: #fafafa; border: 1px solid #f0f0f0; font-size: 12px; }
+    .ints-help-callout.is-danger { background: #fff1f0; border-color: #ffccc7; color: #a8071a; }
+    .ints-help-callout-title { font-weight: 600; margin-bottom: 2px; }
+    .ints-help-ramp { display: flex; align-items: center; gap: 8px; margin: 6px 0; color: #595959; font-size: 11px; }
+    .ints-help-ramp i { flex: 1 1 auto; height: 8px; border-radius: 4px; background: linear-gradient(90deg,#fffbe6,#ffe58f,#ffd666,#ffc069,#ff9c6e,#ff6b6b,#f5222d); }
+    .ints-help-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; padding-top: 6px; border-top: 1px solid #f0f0f0; }
+    .ints-help-foot .ant-btn { margin: 0; padding: 0 4px; height: auto; font-size: 12px; }
+    .ints-type-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+    .ints-weight-window .ints-win-body { padding: 8px 10px; }
+    .ints-weight-filter { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .ints-weight-filter label { color: #595959; font-size: 12px; }
+    .ints-weight-select { flex: 1 1 auto; min-width: 0; height: 26px; font-size: 12px; }
+    .ints-weight-source { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; font-size: 11px; }
+    .ints-weight-source-tag { color: #1890ff; white-space: nowrap; }
+    .ints-weight-source-tag.is-default { color: #fa8c16; }
+    .ints-weight-card { border: 1px solid #f0f0f0; border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+    .ints-weight-rate-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+    .ints-weight-bar { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; font-size: 11px; }
+    .ints-weight-bar-label { flex: 0 0 120px; display: flex; align-items: center; gap: 5px; }
+    .ints-weight-bar-label i { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+    .ints-weight-track { flex: 1 1 auto; height: 10px; background: #f0f0f0; border-radius: 5px; overflow: hidden; }
+    .ints-weight-track.is-empty { background: repeating-linear-gradient(45deg,#f5f5f5,#f5f5f5 4px,#ececec 4px,#ececec 8px); }
+    .ints-weight-fill { height: 100%; border-radius: 5px; }
+    .ints-weight-bar-value { flex: 0 0 70px; text-align: right; font-variant-numeric: tabular-nums; }
+    .ints-weight-bar-value small { display: block; color: #8c8c8c; font-size: 9px; }
+    .ints-weight-charts { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+    .ints-weight-donut-card { flex: 0 0 200px; border: 1px solid #f0f0f0; border-radius: 6px; padding: 8px; }
+    .ints-weight-table-card { flex: 1 1 300px; min-width: 0; border: 1px solid #f0f0f0; border-radius: 6px; padding: 8px; }
+    .ints-weight-card-title, .ints-weight-table-head { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+    .ints-weight-donut-wrap { position: relative; width: 190px; height: 190px; margin: 0 auto; }
+    .ints-weight-donut { display: block; width: 100%; height: 100%; }
+    .ints-weight-donut-center { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; pointer-events: none; }
+    .ints-weight-donut-center strong { display: block; font-size: 20px; line-height: 1.1; color: #262626; }
+    .ints-weight-donut-center span { font-size: 9.5px; color: #8c8c8c; }
+    .ints-weight-table { font-size: 11px; }
+    .ints-weight-table td, .ints-weight-table th { padding: 4px 6px; }
+    .ints-weight-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+    .ints-weight-table tr.is-zero td { color: #bfbfbf; }
+    .ints-weight-total td { font-weight: 600; background: #fafafa; }
+    .ints-weight-foot-note { flex: 1 1 auto; text-align: left; }
+    .ints-weight-window .ints-win-foot { display: flex; align-items: center; gap: 8px; }
+    .ints-weight-window .ints-win-foot .ant-btn { margin: 0; padding: 0 4px; height: auto; font-size: 12px; }
+    @media (max-width: 760px) {
+        .ints-help-layout { display: block; }
+        .ints-help-nav { flex: none; position: static; display: flex; flex-wrap: wrap; gap: 4px; border-right: 0; border-bottom: 1px solid #f0f0f0; padding: 0 0 6px; margin-bottom: 8px; }
+        .ints-help-nav-item { display: inline-block; width: auto; margin: 0; }
+        .ints-weight-bar-label { flex-basis: 92px; }
+        .ints-weight-donut-card { flex-basis: 180px; }
+    }
 `);
     }
   });
@@ -1130,6 +1231,880 @@
     }
   });
 
+  // v8.30/diagnose.js
+  function recordError(label, err) {
+    try {
+      let msg = String(err && err.message || err).slice(0, ENTRY_CHAR_LIMIT);
+      S._errors.push({ ts: Date.now(), label, msg }), S._errors.length > MAX_ERRORS && S._errors.shift();
+    } catch (e) {
+    }
+  }
+  function safe(label, fn, fallback) {
+    try {
+      return fn();
+    } catch (e) {
+      return recordError(label, e), console.error("[Better Intschool] " + label + " \u5F02\u5E38\uFF08\u5DF2\u9694\u79BB\uFF0C\u4E0D\u5F71\u54CD\u9875\u9762\uFF09:", e), fallback;
+    }
+  }
+  async function safeAsync(label, fn, fallback) {
+    try {
+      return await fn();
+    } catch (e) {
+      return recordError(label, e), console.error("[Better Intschool] " + label + " \u5F02\u5E38\uFF08\u5DF2\u9694\u79BB\uFF09:", e), fallback;
+    }
+  }
+  function guardListener(label, handler, capture) {
+    return function(e) {
+      try {
+        return handler(e);
+      } catch (err) {
+        recordError(label, err), console.error("[Better Intschool] " + label + " \u5F02\u5E38\uFF08\u5DF2\u9694\u79BB\uFF09:", err);
+      }
+    };
+  }
+  function _errText(e) {
+    try {
+      return e ? String(e && e.message || e).slice(0, ENTRY_CHAR_LIMIT) : "\u672A\u77E5\u9519\u8BEF";
+    } catch (e2) {
+      return "\u65E0\u6CD5\u8BFB\u53D6\u7684\u9519\u8BEF";
+    }
+  }
+  function _fmtTs(ts) {
+    try {
+      return ts ? new Date(ts).toLocaleString() : "\u65E0";
+    } catch (e) {
+      return String(ts);
+    }
+  }
+  function _age(ts) {
+    let n = Number(ts);
+    if (!n || !isFinite(n)) return "\u65E0";
+    let sec = Math.max(0, Math.round((Date.now() - n) / 1e3));
+    if (sec < 60) return sec + "s";
+    let min = Math.round(sec / 60);
+    return min < 120 ? min + "min" : min < 2880 ? (min / 60).toFixed(1) + "h" : (min / 1440).toFixed(1) + "d";
+  }
+  function _json(v, maxLen) {
+    let s = null;
+    try {
+      let seen = [];
+      s = JSON.stringify(v, function(k, val) {
+        if (typeof val == "object" && val !== null) {
+          if (seen.indexOf(val) >= 0) return "[\u5FAA\u73AF]";
+          seen.push(val);
+        }
+        return typeof val == "bigint" ? String(val) : typeof val == "function" ? "[Function]" : typeof val == "symbol" ? String(val) : val;
+      });
+    } catch (e) {
+      s = null;
+    }
+    if (s == null)
+      try {
+        s = String(v);
+      } catch (e2) {
+        s = "[\u65E0\u6CD5\u5E8F\u5217\u5316]";
+      }
+    let cap = typeof maxLen == "number" ? maxLen : 4e3;
+    return s.length > cap ? s.slice(0, cap) + " \u2026[\u622A\u65AD]" : s;
+  }
+  function _yes(b) {
+    return b ? "\u6709" : "\u65E0";
+  }
+  function _onOff(b) {
+    return b ? "\u5F00" : "\u5173";
+  }
+  function _arr(a) {
+    return Array.isArray(a) ? a : [];
+  }
+  function _pct(w) {
+    return _arr(w).map(function(x) {
+      return Math.round(x * 100) + "%";
+    }).join("/");
+  }
+  function _snippet(s, n) {
+    let txt = String(s == null ? "" : s).replace(/\s+/g, " ").trim(), cap = typeof n == "number" ? n : 200;
+    return txt.length > cap ? txt.slice(0, cap) + "\u2026" : txt;
+  }
+  function _ruleText(raw) {
+    try {
+      let rule = getSubjectWeightRule(raw);
+      return rule ? "#" + SUBJECT_WEIGHT_RULES.indexOf(rule) + " " + rule.keywords.join("+") + " [" + _pct(getCourseWeights(raw)) + "]" : "\u9ED8\u8BA4 [" + _pct(DEFAULT_WEIGHTS) + "]";
+    } catch (e) {
+      return "\u89C4\u5219\u5339\u914D\u5931\u8D25: " + _errText(e);
+    }
+  }
+  function _withTimeout(label, fn, ms) {
+    let limit = typeof ms == "number" ? ms : API_TIMEOUT_MS;
+    return new Promise(function(resolve, reject) {
+      let done = !1, timer = setTimeout(function() {
+        done || (done = !0, reject(new Error(label + " \u8D85\u65F6\uFF08" + Math.round(limit / 1e3) + "s\uFF09")));
+      }, limit);
+      Promise.resolve().then(fn).then(function(v) {
+        done || (done = !0, clearTimeout(timer), resolve(v));
+      }, function(e) {
+        done || (done = !0, clearTimeout(timer), reject(e));
+      });
+    });
+  }
+  function _putSection(target, title, fn) {
+    target.push(""), target.push("----- " + title + " -----");
+    try {
+      let got = fn();
+      if (Array.isArray(got))
+        for (let i = 0; i < got.length; i++) target.push(String(got[i]));
+    } catch (e) {
+      target.push("  \u672C\u6BB5\u5931\u8D25: " + _errText(e));
+    }
+  }
+  function _gmInfo() {
+    try {
+      if (typeof GM_info != "undefined" && GM_info && GM_info.script) return GM_info;
+    } catch (e) {
+    }
+    return null;
+  }
+  function _versionText() {
+    try {
+      let gmi = _gmInfo();
+      return gmi && gmi.script && gmi.script.version || "\u672A\u77E5";
+    } catch (e) {
+      return "\u672A\u77E5";
+    }
+  }
+  function _channelText() {
+    try {
+      return getBuildChannel() === "dev" ? "\u5F00\u53D1\u4EF6" : "\u53D1\u5E03\u4EF6";
+    } catch (e) {
+      return "\u672A\u77E5";
+    }
+  }
+  function _envSection() {
+    let out = [], gmi = _gmInfo(), nav = navigator;
+    return out.push("  \u7248\u672C: " + _versionText() + "\uFF08" + _channelText() + "\uFF09    \u811A\u672C\u540D: " + (gmi && gmi.script && gmi.script.name ? gmi.script.name : "\u672A\u77E5")), gmi && out.push("  \u811A\u672C\u7BA1\u7406\u5668: " + String(gmi.scriptHandler || "\u672A\u77E5") + "    \u811A\u672C\u7248\u672C: " + String(gmi.script.version || "\u672A\u77E5")), out.push("  \u754C\u9762\u8BED\u8A00: " + getLocale() + "    \u6D4F\u89C8\u5668\u8BED\u8A00: " + String(nav.language || "-") + " [" + _arr(nav.languages).join(",") + "]"), out.push("  \u9875\u9762: " + location.pathname + location.search + (location.hash ? location.hash : "") + "    \u6807\u9898: " + _snippet(document.title, 80)), out.push("  \u9875\u9762\u72B6\u6001: readyState=" + String(document.readyState) + "    \u53EF\u89C1\u6027=" + String(document.visibilityState) + "    \u9876\u5C42\u7A97\u53E3=" + _yes(window.top === window.self)), out.push("  \u89C6\u53E3: " + window.innerWidth + "x" + window.innerHeight + "    DPR: " + (window.devicePixelRatio || 1) + "    \u6EDA\u52A8: " + window.scrollX + "," + window.scrollY), window.screen && out.push("  \u5C4F\u5E55: " + window.screen.width + "x" + window.screen.height + "\uFF08\u53EF\u7528 " + window.screen.availWidth + "x" + window.screen.availHeight + "\uFF09"), out.push("  \u65F6\u533A: " + (function() {
+      try {
+        return String(Intl.DateTimeFormat().resolvedOptions().timeZone || "\u672A\u77E5");
+      } catch (e) {
+        return "\u672A\u77E5";
+      }
+    })() + "    UTC\u504F\u79FB: " + (/* @__PURE__ */ new Date()).getTimezoneOffset() + "min    \u672C\u5730\u65F6\u95F4: " + _fmtTs(Date.now())), out.push("  \u6D4F\u89C8\u5668: " + nav.userAgent), out.push("  \u5E73\u53F0: " + String(nav.platform || "-") + "    \u5728\u7EBF: " + _yes(nav.onLine) + "    Cookie: " + _yes(nav.cookieEnabled) + "    \u903B\u8F91\u6838: " + String(nav.hardwareConcurrency || "-") + "    \u8BBE\u5907\u5185\u5B58: " + String(nav.deviceMemory || "-") + "GB"), out.push("  \u9875\u9762\u5DF2\u8FD0\u884C: " + _age((function() {
+      try {
+        return performance.timeOrigin;
+      } catch (e) {
+        return Date.now();
+      }
+    })()) + "    performance.now: " + (function() {
+      try {
+        return Math.round(performance.now()) + "ms";
+      } catch (e) {
+        return "-";
+      }
+    })()), out.push("  \u767B\u5F55\u6001: token=" + _yes((function() {
+      try {
+        return !!getToken();
+      } catch (e) {
+        return !1;
+      }
+    })()) + "    schoolId=" + _yes((function() {
+      try {
+        return !!getSchoolId();
+      } catch (e) {
+        return !1;
+      }
+    })()) + "    studentIdCache=" + _yes(!!S.studentIdCache)), out;
+  }
+  function _storageSnapshot() {
+    let out = [], ls = { ok: !0, keys: 0, bytes: 0, intsKeys: 0, intsBytes: 0, top: [] };
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        let k = localStorage.key(i);
+        if (k == null) continue;
+        let v = localStorage.getItem(k) || "", size = String(k).length + v.length;
+        ls.keys++, ls.bytes += size, String(k).indexOf("ints") === 0 && (ls.intsKeys++, ls.intsBytes += size), ls.top.push({ k: String(k), size });
+      }
+    } catch (e) {
+      ls.ok = !1, ls.error = _errText(e);
+    }
+    ls.top.sort(function(a, b) {
+      return b.size - a.size;
+    }), out.push("  localStorage: " + (ls.ok ? "\u53EF\u7528" : "\u4E0D\u53EF\u7528\uFF08" + ls.error + "\uFF09") + "    \u952E " + ls.keys + " \u4E2A / \u7EA6 " + Math.round(ls.bytes / 1024) + " KB    \u5176\u4E2D ints_* " + ls.intsKeys + " \u4E2A / \u7EA6 " + Math.round(ls.intsBytes / 1024) + " KB"), ls.ok && ls.top.length && out.push("  \u6700\u5927\u952E: " + ls.top.slice(0, 10).map(function(x) {
+      return x.k + "=" + Math.round(x.size / 1024) + "KB";
+    }).join("  "));
+    let ss = { keys: 0, bytes: 0, token: !1 };
+    try {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        let k = sessionStorage.key(i);
+        k != null && (ss.keys++, ss.bytes += String(k).length + String(sessionStorage.getItem(k) || "").length, String(k) === "token" && (ss.token = !0));
+      }
+    } catch (e) {
+    }
+    return out.push("  sessionStorage: \u952E " + ss.keys + " \u4E2A / \u7EA6 " + Math.round(ss.bytes / 1024) + " KB    token \u952E=" + _yes(ss.token) + "\uFF08\u503C\u4E0D\u8F93\u51FA\uFF09"), out;
+  }
+  function _prefSection() {
+    let out = [];
+    function _raw(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        return null;
+      }
+    }
+    out.push("  \u8BCA\u65AD\u65E5\u5FD7\u5F00\u5173: " + _onOff(isLogOn()) + "    " + LOG_KEY + "=" + _json(_raw(LOG_KEY)) + "    \u81EA\u52A8\u6821\u51C6=" + (_raw("ints_auto_calibrate") === "0" ? "\u5173\u95ED" : "\u5F00\u542F") + "    \u6807\u8BB0\u56FE\u6807=" + _json(_raw("ints_mark_icon")) + "    locale=" + _json(_raw("locale"))), out.push("  \u89C6\u56FE\u504F\u597D: \u5C55\u5F00\u6001=" + _yes(!!S.colsExpanded) + "    currentFilter=" + _json(S.currentFilter) + "    lastYear=" + _json(S.lastSelectedYearKey) + "    lastFilter=" + _json(S.lastSelectedFilter)), out.push("  \u76EE\u6807GPA: UW=" + _json(S.targetUWGPA) + "    W=" + _json(S.targetWGPA) + "    \u6A21\u5F0F=" + _json(S.targetGPAMode));
+    let keys = [
+      "ints_log",
+      "ints_auto_calibrate",
+      "ints_mark_icon",
+      "ints_inline",
+      "ints_task_marks",
+      "ints_task_toggles",
+      "ints_ddl_ignore",
+      "ints_gs_cache",
+      "ints_gs_user",
+      "ints_calib_excluded",
+      "ints_gs_overrides",
+      "ints_gs_vtid",
+      "ints_gs_lastYear",
+      "ints_gs_lastFilter",
+      "ints_gs_colsExpanded",
+      "ints_gs_targetUW",
+      "ints_gs_targetW",
+      "ints_gs_targetMode",
+      "ints_dark"
+    ], rows = [];
+    for (let i = 0; i < keys.length; i++) {
+      let raw = _raw(keys[i]);
+      raw !== null && rows.push("  " + keys[i] + "\uFF08" + raw.length + " \u5B57\u7B26\uFF09: " + (raw.length <= 300 ? raw : _snippet(raw, 300)));
+    }
+    if (rows.length) {
+      out.push("  \u672C\u5730\u5B58\u50A8\u660E\u7EC6:");
+      for (let i = 0; i < rows.length; i++) out.push(rows[i]);
+    }
+    try {
+      let raw = _raw("schedule");
+      if (!raw) out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u65E0");
+      else if (raw.length > 2e6) out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u6709\uFF08" + raw.length + " \u5B57\u7B26\uFF0C\u8FC7\u5927\u672A\u89E3\u6790\uFF09");
+      else {
+        let j = JSON.parse(raw), scs = _arr(j.scsResponses), total = 0, withCredit = 0;
+        scs.forEach(function(s) {
+          let list = _arr(s.courses).concat(_arr(s.ongoingCourses));
+          total += list.length, list.forEach(function(c) {
+            c && c.courseId && typeof c.effectiveCredit == "number" && withCredit++;
+          });
+        }), out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u6709\uFF08" + raw.length + " \u5B57\u7B26\uFF0CscsResponses=" + scs.length + "\uFF0C\u8BFE\u7A0B=" + total + "\uFF0C\u5E26\u5B66\u5206=" + withCredit + "\uFF09");
+      }
+    } catch (e) {
+      out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u89E3\u6790\u5931\u8D25: " + _errText(e));
+    }
+    return out;
+  }
+  function _stateSection() {
+    let out = [];
+    return out.push("  \u5B66\u5E74: currentYearKey=" + _json(S.currentYearKey) + "    currentYearValue=" + _json(S.currentYearValue) + "    schoolYearKey=" + _json(S.schoolYearKey) + "    simYearKey=" + _json(S.simYearKey) + "    isCurrentYear=" + _yes(!!S.isCurrentYear)), out.push("  \u5B66\u5E74\u5217\u8868: " + _arr(S.yearList).length + " \u6761    " + _json(S.yearList, 2e3)), out.push("  \u6A21\u62DF\u5C42: simCourses=" + _arr(S.simCourses).length + " \u95E8    originalCourses=" + _arr(S.originalCourses).length + " \u95E8    _simGen=" + _json(S._simGen) + "    _navGeneration=" + _json(S._navGeneration)), out.push("  \u52A0\u8F7D: loadingRequestCount=" + _json(S.loadingRequestCount) + "    expectedRequestCount=" + _json(S.expectedRequestCount) + "    \u5F53\u524D\u8BF7\u6C42=" + _yes(!!S.currentAbortController) + "    \u6B63\u5728\u6821\u51C6=" + _yes(!!S.isCalibrating)), out.push("  \u591A\u5E74\u7EA7: isMultiYearMode=" + _yes(!!S.isMultiYearMode) + "    entries=" + _arr(S.multiYearEntries).length + "    courseMap=" + (S.multiYearCourseMap && S.multiYearCourseMap.size ? S.multiYearCourseMap.size : 0) + "    \u5B66\u5E74GPA=" + _json(S.currentYearAnnualGPA) + "    \u7D2F\u8BA1GPA=" + _json(S.currentYearCumulativeGPA)), out.push("  \u5185\u5B58\u8868: yearDataCache=" + (S.yearDataCache ? S.yearDataCache.size : 0) + "    userSimCache=" + (S.userSimCache ? S.userSimCache.size : 0) + "    calibExcluded=" + (S.calibExcluded ? S.calibExcluded.size : 0) + "    taskDetailCache=" + (S.taskDetailCache ? S.taskDetailCache.size : 0) + "    autoCalibrateCounts=" + (S._autoCalibrateCounts ? S._autoCalibrateCounts.size : 0) + "    targetGapCache=" + (S._targetGapCache ? S._targetGapCache.size : 0)), out.push("  \u6742\u9879: virtualTaskIdCounter=" + _json(S.virtualTaskIdCounter) + "    activeSubModal=" + _yes(!!S.activeSubModal) + "    _saveDirty=" + _yes(!!S._saveDirty) + "    _storageLoaded=" + _yes(!!S._storageLoaded) + "    _saveTimer=" + _yes(!!S._saveTimer) + "    yearListCache=" + (S.yearListCache ? "\u6709(" + _arr(S.yearListCache).length + ")" : "\u65E0") + "    studentIdCache=" + _yes(!!S.studentIdCache) + "    taskDetailCache=" + (S.taskDetailCache ? S.taskDetailCache.size : 0)), out.push("  \u65F6\u95F4: \u9519\u8BEF\u8BB0\u5F55=" + _arr(S._errors).length + " \u6761    warningTimeout=" + _yes(S.warningTimeout !== null && S.warningTimeout !== void 0)), out;
+  }
+  function _cacheSection() {
+    let out = [], now = Date.now();
+    !S.yearDataCache || !S.yearDataCache.size ? out.push("  yearDataCache: \u7A7A") : (out.push("  yearDataCache: " + S.yearDataCache.size + " \u6761"), Array.from(S.yearDataCache.keys()).sort().forEach(function(k) {
+      try {
+        let v = S.yearDataCache.get(k) || {}, fresh = typeof v.dataTs == "number" && now - v.dataTs < CACHE_TTL ? "\u65B0\u9C9C" : "\u8FC7\u671F";
+        out.push("    " + k + ": src=" + _json(v.src || "\u672A\u77E5") + "    dataTs=" + _fmtTs(v.dataTs) + "\uFF08" + _age(v.dataTs) + "\u524D\uFF0C" + fresh + "\uFF09    sectionName=" + _json(v.sectionName) + "    annualGPA=" + _json(v.annualGPA) + "    cumulativeGPA=" + _json(v.cumulativeGPA) + "    oc=" + _arr(v.originalCourses).length + "    sc=" + _arr(v.simCourses).length + "    vt=" + _json(v.virtualTaskIdCounter));
+      } catch (e) {
+        out.push("    " + k + ": \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
+      }
+    })), S.userSimCache && S.userSimCache.size ? (out.push("  userSimCache\uFF08\u7528\u6237\u5C42\uFF09: " + S.userSimCache.size + " \u4E2A\u5B66\u5E74"), Array.from(S.userSimCache.keys()).sort().forEach(function(k) {
+      try {
+        out.push("    " + k + ": " + _json(S.userSimCache.get(k), 3e3));
+      } catch (e) {
+        out.push("    " + k + ": \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
+      }
+    })) : out.push("  userSimCache\uFF08\u7528\u6237\u5C42\uFF09: \u7A7A"), S.calibExcluded && S.calibExcluded.size ? (out.push("  calibExcluded\uFF08\u6821\u51C6\u786E\u8BA4\u4E0D\u8BA1\u5206\uFF09:"), Array.from(S.calibExcluded.keys()).sort().forEach(function(k) {
+      try {
+        let set = S.calibExcluded.get(k);
+        out.push("    " + k + ": " + (set ? Array.from(set).join(",") : "\uFF08\u7A7A\uFF09"));
+      } catch (e) {
+        out.push("    " + k + ": \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
+      }
+    })) : out.push("  calibExcluded\uFF08\u6821\u51C6\u786E\u8BA4\u4E0D\u8BA1\u5206\uFF09: \u7A7A"), out.push("  creditMap\uFF08\u5B66\u5206\u6620\u5C04\uFF09: " + (S.creditMap ? S.creditMap.size : 0) + " \u6761");
+    try {
+      if (S.creditMap && S.creditMap.size) {
+        let entries = Array.from(S.creditMap.entries()).sort(function(a, b) {
+          return String(a[0]).localeCompare(String(b[0]));
+        }), cap = Math.min(entries.length, 500);
+        for (let i = 0; i < cap; i++) out.push("    " + entries[i][0] + "=" + _json(entries[i][1]));
+        entries.length > cap && out.push("    \u2026\u5171 " + entries.length + " \u6761\uFF0C\u53EA\u5217\u524D " + cap + " \u6761");
+      }
+    } catch (e) {
+      out.push("    creditMap \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
+    }
+    return out.push("  \u624B\u52A8\u6807\u8BB0: " + Object.keys(S._taskMarks || {}).length + " \u6761    " + _json(S._taskMarks, 2e3)), out.push("  \u63D0\u9192\u5F00\u5173: " + Object.keys(S._taskToggles || {}).length + " \u6761    " + _json(S._taskToggles, 2e3)), out.push("  \u5FFD\u7565\u8868: " + getTaskIgnoreCountSafe() + " \u6761    " + _json(S._taskIgnore, 2e3)), out.push("  \u603B\u89C8GPA\u8986\u76D6: " + _json(S.multiYearGPAOverrides, 2e3)), out;
+  }
+  function getTaskIgnoreCountSafe() {
+    try {
+      return getTaskIgnoreCount();
+    } catch (e) {
+      return -1;
+    }
+  }
+  async function _apiSnapshotDetailed() {
+    if (_apiSnapshotCache && Date.now() - _apiSnapshotCache.at < API_SNAPSHOT_TTL) return _apiSnapshotCache;
+    let snap = { at: Date.now(), years: null, yearsError: null, grade: null, gradeError: null };
+    try {
+      snap.years = await _withTimeout("\u5B66\u5E74\u5217\u8868", function() {
+        return fetchSchoolYearList();
+      });
+    } catch (e) {
+      snap.yearsError = _errText(e);
+    }
+    try {
+      snap.grade = await _withTimeout("grade-book", function() {
+        return getGradeBookData(S.currentYearKey);
+      });
+    } catch (e) {
+      snap.gradeError = _errText(e);
+    }
+    return _apiSnapshotCache = snap, snap;
+  }
+  function _apiSection(snap) {
+    let out = [];
+    if (!snap) return ["  \uFF08\u63A5\u53E3\u5FEB\u7167\u672A\u751F\u6210\uFF09"];
+    if (snap.yearsError) out.push("  \u5B66\u5E74\u5217\u8868: \u83B7\u53D6\u5931\u8D25: " + snap.yearsError);
+    else {
+      let years = _arr(snap.years);
+      out.push("  \u5B66\u5E74\u5217\u8868: " + years.length + " \u6761"), years.forEach(function(y, i) {
+        out.push("    #" + i + " key=" + _json(y && y.key) + " value=" + _json(y && y.value));
+      });
+    }
+    if (out.push("  \u5F53\u524D\u5B66\u5E74: key=" + _json(S.currentYearKey) + " value=" + _json(S.currentYearValue) + " isCurrentYear=" + _yes(!!S.isCurrentYear)), snap.gradeError)
+      return out.push("  grade-book: \u83B7\u53D6\u5931\u8D25: " + snap.gradeError), out;
+    let g = snap.grade || {}, cols = _arr(g.customColumns), items = _arr(g.gradeBookItems), taskTotal = 0;
+    return out.push("  grade-book: items=" + items.length + " \u6761    customColumns=" + cols.length + " \u5217"), cols.length && (out.push("  customColumns \u5168\u91CF:"), cols.forEach(function(c, i) {
+      out.push("    #" + i + " " + _json(c, 500));
+    })), out.push("  gradeBookItems \u5168\u91CF:"), items.forEach(function(it, i) {
+      let tasks = _arr(it && it.taskScores);
+      taskTotal += tasks.length, out.push("    #" + i + " courseId=" + _json(it && it.courseId) + "    courseName=" + _json(it && it.courseName) + "    subject=" + _json(it && it.subject) + "    inClass=" + _json(it && it.inClass) + "    creditFromMap=" + _json(it && S.creditMap ? S.creditMap.get(it.courseId) : void 0)), out.push("        customColumnScores: " + _json(it && it.customColumnScores, 800)), out.push("        taskScores: " + tasks.length + " \u6761"), tasks.forEach(function(t4, ti) {
+        out.push("          - #" + ti + " " + _json(t4, 500));
+      });
+    }), out.push("  \u5408\u8BA1: \u8BFE\u7A0B " + items.length + " \u6761\uFF0C\u4EFB\u52A1 " + taskTotal + " \u6761"), out;
+  }
+  function _gradesText(g) {
+    return !g || typeof g != "object" ? "\u65E0" : "s1p=" + _json(g.s1p) + " s1e=" + _json(g.s1e) + " s1f=" + _json(g.s1f) + "  s2p=" + _json(g.s2p) + " s2e=" + _json(g.s2e) + " s2f=" + _json(g.s2f) + (g.eoy !== void 0 ? "  eoy=" + _json(g.eoy) : "");
+  }
+  function _taskLine(t4, i) {
+    return "      - #" + i + " entityId=" + _json(t4 && t4.entityId) + " name=" + _json(t4 && t4.name) + " type=" + _json(t4 && t4.typeName) + " score=" + _json(t4 && t4.score) + "/" + _json(t4 && t4.topScore) + " originalScore=" + _json(t4 && t4.originalScore) + " simulatedScore=" + _json(t4 && t4.simulatedScore) + " endDate=" + _fmtTs(t4 && t4.endDate) + " term=" + _json(t4 && t4.termRaw) + " virtual=" + _yes(!!(t4 && t4.isVirtual)) + " excluded=" + _yes(!!(t4 && t4.excluded));
+  }
+  function _coursesSection() {
+    let out = [], orig = _arr(S.originalCourses), sims = _arr(S.simCourses);
+    return out.push("  originalCourses\uFF08\u5B66\u6821\u57FA\u7EBF\uFF09: " + orig.length + " \u95E8    simCourses\uFF08\u6A21\u62DF\u5C42\uFF09: " + sims.length + " \u95E8"), out.push("  \u2014\u2014 originalCourses \u2014\u2014"), orig.forEach(function(c, i) {
+      if (!c || typeof c != "object") {
+        out.push("    #" + i + " " + _json(c));
+        return;
+      }
+      let subject = c.subject || "", taskList = _arr(c.tasks), typeCount = {};
+      taskList.forEach(function(t4) {
+        let tn = String(t4 && t4.typeName || "\u5176\u4ED6");
+        typeCount[tn] = (typeCount[tn] || 0) + 1;
+      }), out.push("    #" + i + " " + _json(c.name) + "    courseId=" + _json(c.courseId) + " subject=" + _json(c.subject) + " credit=" + _json(c.credit) + " weightBonus=" + _json(c.weightBonus)), out.push("        showStar: s1=" + _yes(!!(c.showStar && c.showStar.s1)) + " s2=" + _yes(!!(c.showStar && c.showStar.s2)) + "    \u6743\u91CD\u89C4\u5219: " + _ruleText(subject || c.name || "")), out.push("        originalGrades: " + _gradesText(c.originalGrades)), out.push("        \u4EFB\u52A1: " + taskList.length + " \u6761 " + _json(typeCount, 500) + "    \u6392\u9664=" + taskList.filter(function(t4) {
+        return t4 && t4.excluded;
+      }).length + "    \u865A\u62DF=" + taskList.filter(function(t4) {
+        return t4 && t4.isVirtual;
+      }).length);
+    }), out.push("  \u2014\u2014 simCourses\uFF08\u6A21\u62DF\u5C42\uFF09\u2014\u2014"), sims.forEach(function(c, i) {
+      if (!c || typeof c != "object") {
+        out.push("    #" + i + " " + _json(c));
+        return;
+      }
+      let taskList = _arr(c.tasks);
+      out.push("    #" + i + " " + _json(c.name) + "    courseId=" + _json(c.courseId) + " subject=" + _json(c.subject) + " credit=" + _json(c.credit) + " weightBonus=" + _json(c.weightBonus)), out.push("        showStar: s1=" + _yes(!!(c.showStar && c.showStar.s1)) + " s2=" + _yes(!!(c.showStar && c.showStar.s2)) + "    \u6743\u91CD\u89C4\u5219: " + _ruleText(c.subject || c.name || "") + "    overrideP: s1=" + _json(c.overrideP && c.overrideP.s1) + " s2=" + _json(c.overrideP && c.overrideP.s2)), out.push("        simGrades: " + _gradesText(c.simGrades)), out.push("        originalGrades: " + _gradesText(c.originalGrades)), out.push("        \u4EFB\u52A1: " + taskList.length + " \u6761"), taskList.forEach(function(t4, ti) {
+        out.push(_taskLine(t4, ti));
+      });
+    }), out;
+  }
+  function _weightsSection() {
+    let out = [];
+    out.push("  \u9ED8\u8BA4\u6743\u91CD: [" + _pct(DEFAULT_WEIGHTS) + "]"), out.push('  \u89C4\u5219\u8868\uFF08\u987A\u5E8F\u5373\u4F18\u5148\u7EA7\uFF0C\u7B2C\u4E00\u6761"\u6240\u6709\u5173\u952E\u8BCD\u90FD\u88AB\u5B66\u79D1\u540D\u5305\u542B"\u7684\u751F\u6548\uFF09:'), SUBJECT_WEIGHT_RULES.forEach(function(r, i) {
+      out.push("    #" + i + " " + r.keywords.join("+") + " \u2192 [" + _pct(r.weights) + "]");
+    });
+    let courses = _arr(S.simCourses).length ? _arr(S.simCourses) : _arr(S.originalCourses);
+    if (!courses.length)
+      return out.push("  \u6309\u5B66\u79D1\u805A\u5408: \uFF08\u8BFE\u7A0B\u6570\u636E\u8FD8\u6CA1\u52A0\u8F7D\uFF09"), out;
+    let bySubject = /* @__PURE__ */ new Map();
+    return courses.forEach(function(c) {
+      let subject = c && c.subject ? String(c.subject) : "(\u65E0\u5B66\u79D1\u540D\uFF0C\u6309\u8BFE\u7A0B\u540D\u5339\u914D)", raw = String(c && c.subject || c && c.name || ""), entry = bySubject.get(subject);
+      entry || (entry = { subject, rule: _ruleText(raw), count: 0, starred: 0 }, bySubject.set(subject, entry)), entry.count++, c && c.showStar && (c.showStar.s1 || c.showStar.s2) && entry.starred++;
+    }), out.push("  \u6309\u5B66\u79D1\u805A\u5408\uFF08\u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [\u6743\u91CD]  \u8BFE\u7A0B\u6570  \u6743\u91CD\u5F02\u5E38\u6570\uFF09:"), Array.from(bySubject.values()).sort(function(a, b) {
+      return a.subject.localeCompare(b.subject);
+    }).forEach(function(e) {
+      out.push("    " + e.subject + " \u2192 " + e.rule + "    \u8BFE\u7A0B " + e.count + (e.starred ? "    \u6743\u91CD\u5F02\u5E38 " + e.starred : ""));
+    }), out.push("  \u6309\u8BFE\u7A0B\u805A\u5408\uFF08\u8BFE\u7A0B\u540D \u2192 \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219\uFF09:"), courses.forEach(function(c, i) {
+      out.push("    #" + i + " " + _json(c && c.name) + "  [" + _json(c && c.subject || "") + "] \u2192 " + _ruleText(String(c && c.subject || c && c.name || "")));
+    }), out;
+  }
+  function _reconcileSection(apiSnap) {
+    let out = [], clues = [], orig = _arr(S.originalCourses), sims = _arr(S.simCourses), courses = sims.length ? sims : orig, seenSubject = {}, unmatchedSubjects = [], emptySubjectCourses = [], starredCourses = [];
+    if (courses.forEach(function(c) {
+      if (!c) return;
+      let subject = c.subject ? String(c.subject) : "";
+      if (!subject)
+        emptySubjectCourses.push(String(c.name || ""));
+      else if (!seenSubject[subject]) {
+        seenSubject[subject] = !0;
+        try {
+          getSubjectWeightRule(subject) || unmatchedSubjects.push(subject);
+        } catch (e) {
+        }
+      }
+      c.showStar && (c.showStar.s1 || c.showStar.s2) && starredCourses.push(String(c.name || ""));
+    }), unmatchedSubjects.length && clues.push("\u672A\u547D\u4E2D\u6743\u91CD\u89C4\u5219\u7684\u5B66\u79D1 " + unmatchedSubjects.length + " \u4E2A: " + unmatchedSubjects.join(" / ")), emptySubjectCourses.length && clues.push("subject \u4E3A\u7A7A\u7684\u8BFE\u7A0B " + emptySubjectCourses.length + " \u95E8\uFF08\u6309\u8BFE\u7A0B\u540D\u5339\u914D\u6743\u91CD\uFF09: " + emptySubjectCourses.join(" / ")), starredCourses.length && clues.push("\u6743\u91CD\u5F02\u5E38\uFF08\u5B66\u6821\u503C\u4E0E\u4F30\u7B97\u4E0D\u4E00\u81F4\uFF09\u7684\u8BFE\u7A0B " + starredCourses.length + " \u95E8: " + starredCourses.join(" / ")), apiSnap && apiSnap.grade && !apiSnap.gradeError) {
+      let items = _arr(apiSnap.grade.gradeBookItems), cols = _arr(apiSnap.grade.customColumns), knownCols = { S1P: 1, S1E: 1, S1F: 1, S2P: 1, S2E: 1, S2F: 1, EOY: 1 }, unknownCols = [];
+      cols.forEach(function(c) {
+        let name = c && c.customColumnName ? String(c.customColumnName).trim() : "";
+        name && !knownCols[name.toUpperCase()] && unknownCols.push(name);
+      }), unknownCols.length && clues.push("customColumns \u91CC\u6709\u8BA4\u4E0D\u51FA\u7684\u5217\u540D " + unknownCols.length + " \u4E2A: " + unknownCols.join(" / "));
+      let noCredit = [];
+      items.forEach(function(it) {
+        try {
+          if (!it) return;
+          (!S.creditMap || S.creditMap.get(it.courseId) === void 0) && noCredit.push(String(it.courseName || it.courseId));
+        } catch (e) {
+        }
+      }), noCredit.length && clues.push("\u5B66\u5206\u6620\u5C04\u91CC\u627E\u4E0D\u5230\u7684\u8BFE\u7A0B " + noCredit.length + " \u95E8\uFF08\u5B66\u5206\u6309 0/1 \u515C\u5E95\uFF09: " + noCredit.join(" / ")), out.push("  \u63A5\u53E3\u8BA1\u6570: \u6210\u7EE9\u518C\u6761\u76EE " + items.length + " \u6761\uFF0CcustomColumns " + cols.length + " \u5217\uFF0C\u5B66\u5206\u6620\u5C04 " + (S.creditMap ? S.creditMap.size : 0) + " \u6761");
+    } else
+      out.push("  \u63A5\u53E3\u8BA1\u6570: \u672C\u6B21\u672A\u53D6\u5230 grade-book\uFF08\u89C1\u63A5\u53E3\u6BB5\uFF09"), apiSnap && apiSnap.gradeError && clues.push("grade-book \u63A5\u53E3\u83B7\u53D6\u5931\u8D25: " + apiSnap.gradeError), apiSnap && apiSnap.yearsError && clues.push("\u5B66\u5E74\u5217\u8868\u63A5\u53E3\u83B7\u53D6\u5931\u8D25: " + apiSnap.yearsError);
+    out.push("  \u8BFE\u7A0B\u8BA1\u6570: originalCourses " + orig.length + " \u95E8\uFF0CsimCourses " + sims.length + " \u95E8\uFF0C\u6743\u91CD\u5F02\u5E38 " + starredCourses.length + " \u95E8");
+    let staleYears = [];
+    try {
+      S.yearDataCache && S.yearDataCache.forEach(function(v, k) {
+        (!v || typeof v.dataTs != "number" || Date.now() - v.dataTs >= CACHE_TTL) && staleYears.push(String(k));
+      });
+    } catch (e) {
+    }
+    return staleYears.length && clues.push("\u8FC7\u671F\uFF08\u6216\u6CA1\u6709 dataTs\uFF09\u7684\u5B66\u5E74\u7F13\u5B58 " + staleYears.length + " \u6761: " + staleYears.join(" / ")), out.push("  \u65F6\u95F4\u4E0E\u5F00\u5173: \u8BCA\u65AD\u65E5\u5FD7=" + _onOff(isLogOn()) + "    \u4EA7\u7269\u7EBF=" + _channelText() + "    \u81EA\u52A8\u6821\u51C6=" + (function() {
+      try {
+        return localStorage.getItem("ints_auto_calibrate") === "0" ? "\u5173\u95ED" : "\u5F00\u542F";
+      } catch (e) {
+        return "\u672A\u77E5";
+      }
+    })() + "    \u5F02\u5E38\u8BB0\u5F55=" + _arr(S._errors).length + " \u6761"), out.push("  \u5F02\u5E38\u7EBF\u7D22: " + (clues.length ? clues.length + " \u6761" : "\u65E0")), clues.forEach(function(c) {
+      out.push("    \xB7 " + c);
+    }), out;
+  }
+  function _debugApi() {
+    try {
+      return typeof window != "undefined" && window.__INTS_DEBUG ? window.__INTS_DEBUG : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function _countSel(sel) {
+    try {
+      return document.querySelectorAll(sel).length;
+    } catch (e) {
+      return -1;
+    }
+  }
+  function _inlineSection() {
+    let out = [], D = _debugApi();
+    out.push("  \u9875\u9762: /points=" + _yes(location.pathname.indexOf("/points") === 0) + "    /teaching=" + _yes(location.pathname.indexOf("/teaching") === 0));
+    let stats = null;
+    try {
+      stats = D && typeof D.getInlineStats == "function" ? D.getInlineStats() : null;
+    } catch (e) {
+      stats = "getInlineStats \u5931\u8D25: " + _errText(e);
+    }
+    out.push("  getInlineStats: " + _json(stats, 4e3));
+    let ths = document.querySelectorAll(".ant-table-thead th"), rows = document.querySelectorAll(".ant-table-tbody tr.ant-table-row");
+    out.push("  \u8868\u683C: \u884C " + rows.length + " \u6761    \u8868\u5934 " + ths.length + " \u5217"), ths.length && out.push("  \u8868\u5934\uFF08key=\u6587\u672C\uFF09: " + Array.prototype.map.call(ths, function(th) {
+      let key = "-";
+      try {
+        key = th.getAttribute("key") || th.getAttribute("data-key") || "-";
+      } catch (e) {
+        key = "-";
+      }
+      return key + "=" + _snippet(th.textContent, 20);
+    }).join(" | "));
+    let selectors = [
+      "[data-ints-inline]",
+      "[data-ints-sim]",
+      "[data-ints-fsim]",
+      "[data-ints-cgpa]",
+      "[data-ints-row]",
+      "[data-ints-task]",
+      "[data-ints-vtask-id]",
+      "[data-ints-taskscore]",
+      "[data-ints-coldelta]",
+      ".ints-task-flag",
+      "#ints-inline-gpa",
+      "#ints-inline-calc-btn",
+      "#ints-inline-show-menu-btn",
+      "#ints-inline-help-btn",
+      "#ints-overview-loading"
+    ];
+    out.push("  \u6CE8\u5165\u8282\u70B9/\u5C5E\u6027: " + selectors.map(function(sel) {
+      return sel + "=" + _countSel(sel);
+    }).join("  "));
+    let gpaEl = document.getElementById("ints-inline-gpa");
+    out.push("  \u5B66\u5E74GPA\u8282\u70B9: " + (gpaEl ? _snippet(gpaEl.textContent, 160) : "\u65E0"));
+    let titleEl = document.querySelector(".grade .section-title .title-text");
+    out.push("  \u6210\u7EE9\u518C\u6807\u9898: " + (titleEl ? _snippet(titleEl.textContent, 160) : "\u65E0"));
+    let filter = document.querySelector(".filter-container");
+    out.push("  \u7B5B\u9009\u680F\u6587\u672C: " + (filter ? _snippet(filter.textContent, 240) : "\u65E0")), filter && out.push("  \u7B5B\u9009\u680F\u5B50\u8282\u70B9: " + Array.prototype.map.call(filter.children, function(n) {
+      let cls = n.className && typeof n.className == "string" ? "." + n.className.split(/\s+/).filter(Boolean).slice(0, 2).join(".") : "";
+      return String(n.tagName || "").toLowerCase() + (n.id ? "#" + n.id : "") + cls;
+    }).join(" | "));
+    let selText = document.querySelector(".filter-container .ant-select-selection-selected-value");
+    out.push("  \u5B66\u5E74\u4E0B\u62C9\u6587\u672C: " + (selText ? _snippet(selText.textContent, 60) : "\u65E0"));
+    try {
+      out.push("  getShellStats: " + _json(D && typeof D.getShellStats == "function" ? D.getShellStats() : null, 1200));
+    } catch (e) {
+      out.push("  getShellStats: \u5931\u8D25: " + _errText(e));
+    }
+    try {
+      out.push("  getDragMarkState: " + _json(D && typeof D.getDragMarkState == "function" ? D.getDragMarkState() : null, 800));
+    } catch (e) {
+      out.push("  getDragMarkState: \u5931\u8D25: " + _errText(e));
+    }
+    try {
+      out.push("  \u5DF2\u5F00\u7A97\u53E3: " + _json(D && typeof D.listWindows == "function" ? D.listWindows() : null, 2e3));
+    } catch (e) {
+      out.push("  \u5DF2\u5F00\u7A97\u53E3: \u5931\u8D25: " + _errText(e));
+    }
+    return out;
+  }
+  function _ddlSection() {
+    let out = [], D = _debugApi();
+    try {
+      out.push("  getDeadlineState: " + _json(D && typeof D.getDeadlineState == "function" ? D.getDeadlineState() : null, 1500));
+    } catch (e) {
+      out.push("  getDeadlineState: \u5931\u8D25: " + _errText(e));
+    }
+    let cache = S._deadlineCache || {};
+    out.push("  _deadlineCache: ts=" + _fmtTs(cache.ts) + "\uFF08" + _age(cache.ts) + "\u524D\uFF09    warnings=" + _arr(cache.data).length + " \u6761");
+    let tasks = _arr(S._deadlineAllTasks), typed = tasks.filter(function(x) {
+      return x && x.inferred || x && x.detected;
+    }).map(function(x) {
+      return x && x.typeName;
+    }).filter(Boolean), typeSet = [];
+    return typed.forEach(function(x) {
+      typeSet.indexOf(x) < 0 && typeSet.push(x);
+    }), out.push("  _deadlineAllTasks: " + tasks.length + " \u6761    \u68C0\u6D4B\u5230=" + tasks.filter(function(x) {
+      return x && x.detected;
+    }).length + "    \u7EBF\u4E0B\u63A8\u65AD=" + tasks.filter(function(x) {
+      return x && x.inferred && !x.ignored;
+    }).length + "    \u5DF2\u5FFD\u7565=" + tasks.filter(function(x) {
+      return x && x.ignored;
+    }).length + "    \u624B\u52A8\u6807\u8BB0=" + tasks.filter(function(x) {
+      return x && x.marked;
+    }).length), out.push("  \u53D6\u5230\u7C7B\u578B\u7684\u5F85\u529E: " + typed.length + " \u6761" + (typeSet.length ? "\uFF08" + typeSet.join(" / ") + "\uFF09" : "\uFF08\u4E00\u6761\u90FD\u6CA1\u6709\uFF09")), out.push("  \u5F85\u529E\u6E32\u67D3\u5217\u8868 warnings: " + _json(cache.data, 4e3)), tasks.forEach(function(t4, i) {
+      out.push("    #" + i + " entityId=" + _json(t4 && t4.entityId) + " courseId=" + _json(t4 && t4.courseId) + " course=" + _json(t4 && t4.courseName) + " task=" + _json(t4 && t4.taskName) + " endDate=" + _fmtTs(t4 && t4.endDate) + " type=" + _json(t4 && t4.typeName) + " marked=" + _yes(!!(t4 && t4.marked)) + " detected=" + _yes(!!(t4 && t4.detected)) + " inferred=" + _yes(!!(t4 && t4.inferred)) + " ignored=" + _yes(!!(t4 && t4.ignored)) + " reason=" + _json(t4 && t4.reason));
+    }), out.push("  \u5FFD\u7565\u8868: " + _json(S._taskIgnore, 2e3)), out;
+  }
+  function _multiYearSection() {
+    let out = [], D = _debugApi(), entries = _arr(S.multiYearEntries);
+    out.push("  multiYearEntries: " + entries.length + " \u6761"), entries.forEach(function(e, i) {
+      if (!e || typeof e != "object") {
+        out.push("    #" + i + " " + _json(e));
+        return;
+      }
+      out.push("    #" + i + " grade=" + _json(e.grade) + " yearValue=" + _json(e.yearValue) + " sectionName=" + _json(e.sectionName) + " chained=" + _yes(!!e.chained) + " annualGPA=" + _json(e.annualGPA) + " cumulativeGPA=" + _json(e.cumulativeGPA) + " oc=" + _arr(e.originalCourses).length + " sc=" + _arr(e.simCourses).length);
+    });
+    try {
+      out.push("  multiYearCourseMap: " + (S.multiYearCourseMap ? S.multiYearCourseMap.size : 0) + " \u95E8  " + _json(S.multiYearCourseMap ? Array.from(S.multiYearCourseMap.keys()) : [], 2e3));
+    } catch (e) {
+      out.push("  multiYearCourseMap: \u5931\u8D25: " + _errText(e));
+    }
+    out.push("  multiYearGPAOverrides: " + _json(S.multiYearGPAOverrides, 2e3));
+    try {
+      out.push("  multiYearCgpa(): " + _json(D && typeof D.multiYearCgpa == "function" ? D.multiYearCgpa() : null, 4e3));
+    } catch (e) {
+      out.push("  multiYearCgpa(): \u5931\u8D25: " + _errText(e));
+    }
+    try {
+      out.push("  targetExamRows(): " + _json(D && typeof D.targetExamRows == "function" ? D.targetExamRows() : null, 4e3));
+    } catch (e) {
+      out.push("  targetExamRows(): \u5931\u8D25: " + _errText(e));
+    }
+    return out;
+  }
+  function _logBufferSection() {
+    let out = [], buf = null;
+    try {
+      buf = getLogBuffer();
+    } catch (e) {
+      return ["  getLogBuffer \u5931\u8D25: " + _errText(e)];
+    }
+    let lines = _arr(buf && buf.lines);
+    return out.push("  \u8BCA\u65AD\u65E5\u5FD7\u5F00\u5173: " + _onOff(isLogOn()) + "    \u811A\u672C\u542F\u52A8: " + _fmtTs(buf && buf.start) + "\uFF08" + _age(buf && buf.start) + "\u524D\uFF09"), isLogOn() ? (out.push("  \u672C\u4F1A\u8BDD\u8BB0\u5F55 " + lines.length + " \u6761" + (buf && buf.dropped ? "\uFF0C\u73AF\u5F62\u7F13\u51B2\u5DF2\u4E22\u5F03\u6700\u65E9\u7684 " + buf.dropped + " \u6761" : "") + ":"), lines.forEach(function(l) {
+      let rel = buf && buf.start && l && l.t ? ((l.t - buf.start) / 1e3).toFixed(3) : "?";
+      out.push("  [+" + rel + "s] " + String(l && l.m).replace(/\n/g, `
+      `));
+    }), out) : (out.push("  \u672C\u6B21\u6CA1\u6709\u8BB0\u5F55\u8FD0\u884C\u65E5\u5FD7\uFF08\u53D1\u5E03\u4EF6\u9ED8\u8BA4\u9759\u9ED8\uFF1B\u9700\u8981\u8FD0\u884C\u8F68\u8FF9\u65F6\u5148\u5728\u63A7\u5236\u53F0\u6267\u884C __INTS_LOG(1)\uFF0C\u518D\u590D\u73B0\u95EE\u9898\u3001\u518D\u751F\u6210\u65E5\u5FD7\uFF09\u3002"), out);
+  }
+  function _errorsSection() {
+    let out = [], errors = _arr(S._errors);
+    return out.push("  \u5F02\u5E38\u8BB0\u5F55: " + errors.length + " \u6761\uFF08\u73AF\u5F62\u7F13\u51B2\u6700\u591A " + MAX_ERRORS + " \u6761\uFF09"), errors.forEach(function(e, i) {
+      out.push("    #" + i + " [" + _fmtTs(e && e.ts) + "] " + _json(e && e.label) + ": " + _json(e && e.msg));
+    }), errors.length || out.push("    \uFF08\u65E0\uFF09"), out;
+  }
+  async function buildDiagnosticLog() {
+    let startedAt = Date.now(), lines = [], summary = "";
+    try {
+      summary = await buildDiagnosticReport();
+    } catch (e) {
+      summary = "\uFF08\u6458\u8981\u751F\u6210\u5931\u8D25: " + _errText(e) + "\uFF09";
+    }
+    let apiSnap = null;
+    try {
+      apiSnap = await _apiSnapshotDetailed();
+    } catch (e) {
+      apiSnap = { error: _errText(e) };
+    }
+    lines.push("===== Better Intschool \u8BE6\u7EC6\u81EA\u68C0\u65E5\u5FD7 ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(startedAt)), lines.push("\u65E5\u5FD7\u683C\u5F0F: " + LOG_FORMAT + "    \u7248\u672C: " + _versionText() + "\uFF08" + _channelText() + "\uFF09    \u9875\u9762: " + location.pathname + location.search), lines.push("\u8BF4\u660E: \u672C\u6587\u4EF6\u7531 __INTS_DIAG() \u5728\u672C\u5730\u751F\u6210\uFF0C\u4E0D\u542B token / schoolId \u660E\u6587\uFF1B\u4EFB\u52A1\u7EA7 entityId / taskStudentId \u4FDD\u7559\uFF08\u4EFB\u52A1 join \u6392\u67E5\u5FC5\u9700\uFF09\u3002\u53EF\u6574\u4EFD\u53D1\u56DE\u6392\u67E5\u3002"), lines.push(""), lines.push("===== \u6458\u8981\uFF08\u4E0E\u5F39\u7A97\u5185\u5BB9\u4E00\u81F4\uFF09 ====="), lines.push(summary), lines.push(""), lines.push("===== \u8BE6\u7EC6\u6570\u636E ====="), _putSection(lines, "[1] \u73AF\u5883", _envSection), _putSection(lines, "[2] \u5F00\u5173\u4E0E\u672C\u5730\u5B58\u50A8", function() {
+      return _prefSection().concat(_storageSnapshot());
+    }), _putSection(lines, "[3] \u5168\u5C40\u72B6\u6001", _stateSection), _putSection(lines, "[4] \u5B66\u5E74\u7F13\u5B58 / \u5B66\u5206 / \u6807\u8BB0", _cacheSection), _putSection(lines, "[5] \u63A5\u53E3\u73B0\u573A", function() {
+      return _apiSection(apiSnap);
+    }), _putSection(lines, "[6] \u8BFE\u7A0B\u660E\u7EC6", _coursesSection), _putSection(lines, "[7] \u6743\u91CD\u89C4\u5219\u4E0E\u547D\u4E2D", _weightsSection), _putSection(lines, "[8] \u6570\u636E\u5BF9\u8D26", function() {
+      return _reconcileSection(apiSnap);
+    }), _putSection(lines, "[9] /points \u5185\u8054\u73B0\u573A", _inlineSection), _putSection(lines, "[10] DDL \u73B0\u573A", _ddlSection), _putSection(lines, "[11] \u591A\u5E74\u7EA7\u603B\u89C8 / \u76EE\u6807GPA / \u7A97\u53E3", _multiYearSection), _putSection(lines, "[12] \u8FD0\u884C\u65E5\u5FD7\uFF08\u672C\u4F1A\u8BDD\uFF09", _logBufferSection), _putSection(lines, "[13] \u5F02\u5E38\u8BB0\u5F55", _errorsSection), _putSection(lines, "[14] \u6587\u4EF6\u8BF4\u660E", function() {
+      return [
+        "  \u751F\u6210\u8017\u65F6: " + ((Date.now() - startedAt) / 1e3).toFixed(2) + "s",
+        "  \u6765\u6E90: \u9875\u9762\u5185\u8FD0\u884C\u72B6\u6001 + \u73B0\u62C9\u63A5\u53E3 + \u672C\u5730\u7F13\u5B58\uFF1B\u516C\u5F00\u5165\u53E3\u53EA\u6709\u63A7\u5236\u53F0 __INTS_DIAG()\u3002",
+        "  \u9690\u79C1: token / schoolId \u53EA\u8BB0\u5F55\u6709|\u65E0\uFF1B\u4EFB\u52A1\u7EA7 entityId / taskStudentId \u4FDD\u7559\uFF08\u4EFB\u52A1 join \u6392\u67E5\u5FC5\u9700\uFF0C\u4E0D\u662F\u8EAB\u4EFD\u5B57\u6BB5\uFF09\uFF1B\u8BFE\u8868\u7F13\u5B58\u53EA\u8BB0\u5F62\u72B6\u4E0E\u6570\u91CF\uFF0C\u4E0D\u843D\u539F\u6587\u3002"
+      ];
+    });
+    let text = lines.join(`
+`);
+    text.length > LOG_CHAR_LIMIT && (text = text.slice(0, LOG_CHAR_LIMIT) + `
+
+[\u65E5\u5FD7\u8D85\u957F\uFF0C\u5DF2\u622A\u65AD\uFF1A\u539F\u59CB\u957F\u5EA6 ` + text.length + " \u5B57\u7B26]");
+    try {
+      log("[\u8BCA\u65AD] \u8BE6\u7EC6\u65E5\u5FD7\u5DF2\u751F\u6210: " + text.length + " \u5B57\u7B26 / " + text.split(`
+`).length + " \u884C");
+    } catch (e) {
+    }
+    return text;
+  }
+  function _dataSnapshot() {
+    let credits = [];
+    try {
+      for (let [k, v] of S.creditMap) credits.push(k + "=" + v);
+    } catch (e) {
+    }
+    let starred = (S.originalCourses || []).filter((c) => c && c.showStar && (c.showStar.s1 || c.showStar.s2)).map((c) => c.name), zeroCredit = (S.originalCourses || []).filter((c) => c && !(c.credit > 0)).length, marks = Object.keys(S._taskMarks || {}), dt = S._deadlineAllTasks || [];
+    return {
+      creditMapSize: S.creditMap ? S.creditMap.size : 0,
+      creditSample: credits.slice(0, 12).join(", ") + (credits.length > 12 ? " \u2026" : ""),
+      courses: (S.originalCourses || []).length,
+      zeroCredit,
+      starred: starred.length + (starred.length ? " [" + starred.join(" | ") + "]" : ""),
+      marks: marks.length,
+      markIds: marks.slice(0, 12).join(","),
+      ddlAll: dt.length,
+      ddlDetected: dt.filter((x) => x.detected).length,
+      ddlInferred: dt.filter((x) => x.inferred && !x.ignored).length,
+      ddlIgnored: dt.filter((x) => x.ignored).length,
+      ddlIgnoreStore: getTaskIgnoreCountSafe(),
+      ddlMarked: dt.filter((x) => x.marked).length,
+      ddlCacheAge: S._deadlineCache && S._deadlineCache.ts ? Math.round((Date.now() - S._deadlineCache.ts) / 1e3) + "s" : "\u65E0",
+      yearCache: S.yearDataCache ? S.yearDataCache.size : 0,
+      simCourses: (S.simCourses || []).length
+    };
+  }
+  function _inlineSnapshot() {
+    let absent = { colsExpanded: "\u672A\u68C0\u6D4B", synthCols: "-" };
+    try {
+      let fn = window.__INTS_DEBUG && window.__INTS_DEBUG.getInlineStats, st = typeof fn == "function" ? fn() : null;
+      return !st || typeof st != "object" ? absent : {
+        colsExpanded: typeof st.colsExpanded == "boolean" ? st.colsExpanded ? "\u5C55\u5F00" : "\u6536\u8D77" : absent.colsExpanded,
+        synthCols: typeof st.synthCols == "number" && isFinite(st.synthCols) ? st.synthCols : absent.synthCols
+      };
+    } catch (e) {
+      return absent;
+    }
+  }
+  function _weightsSnapshot() {
+    try {
+      let courses = (S.simCourses && S.simCourses.length ? S.simCourses : S.originalCourses) || [];
+      if (!courses.length) return ["  \uFF08\u8BFE\u7A0B\u6570\u636E\u8FD8\u6CA1\u52A0\u8F7D\uFF09"];
+      let bySubject = /* @__PURE__ */ new Map();
+      for (let c of courses) {
+        let raw = String(c.subject || c.name || ""), subject = c.subject || "(\u65E0\u5B66\u79D1\u540D\uFF0C\u6309\u8BFE\u7A0B\u540D\u5339\u914D)", rule = null;
+        try {
+          rule = getSubjectWeightRule(raw);
+        } catch (e) {
+          rule = null;
+        }
+        let entry = bySubject.get(subject);
+        entry || (entry = { subject, rule: rule ? rule.keywords.join("+") : "\u9ED8\u8BA4", w: getCourseWeights(raw), count: 0, starred: 0 }, bySubject.set(subject, entry)), entry.count++, c.showStar && (c.showStar.s1 || c.showStar.s2) && entry.starred++;
+      }
+      let out = [];
+      for (let e of [...bySubject.values()].sort((a, b) => a.subject.localeCompare(b.subject)))
+        out.push("  " + e.subject + " \u2192 " + e.rule + " [" + _pct(e.w) + "]  \u8BFE\u7A0B " + e.count + (e.starred ? "  \u6743\u91CD\u5F02\u5E38 " + e.starred : ""));
+      return out.push("  \u89C4\u5219\u8868\u987A\u5E8F: " + SUBJECT_WEIGHT_RULES.map((r) => r.keywords.join("+")).join(" > ") + " > \u9ED8\u8BA4 [" + _pct(DEFAULT_WEIGHTS) + "]"), out;
+    } catch (e) {
+      return ["  \u6743\u91CD\u5FEB\u7167\u5931\u8D25: " + _errText(e)];
+    }
+  }
+  async function _apiSnapshot() {
+    let out = { gradeBook: "\u672A\u68C0\u6D4B", customColumns: "\u2014", columns: "\u2014", yearList: "\u672A\u68C0\u6D4B" }, snap = null;
+    try {
+      snap = await _apiSnapshotDetailed();
+    } catch (e) {
+      snap = null;
+    }
+    if (!snap)
+      return out.yearList = "\u83B7\u53D6\u5931\u8D25", out.gradeBook = "\u83B7\u53D6\u5931\u8D25", out;
+    if (snap.yearsError ? out.yearList = "\u83B7\u53D6\u5931\u8D25: " + snap.yearsError : out.yearList = _apiListText(snap.years), snap.gradeError)
+      return out.gradeBook = "\u83B7\u53D6\u5931\u8D25: " + snap.gradeError, out;
+    let gb = snap.grade || {}, items = gb && gb.gradeBookItems || [];
+    out.gradeBook = items.length + " \u6761\u8BFE\u7A0B";
+    let cols = gb && gb.customColumns || [];
+    return out.customColumns = cols.length + " \u5217", out.columns = cols.map((c) => c.customColumnName).join("/") || "\u2014", out.firstCourse = items[0] ? items[0].courseName + " (subject=" + (items[0].subject || "\u7A7A") + ", courseId=" + items[0].courseId + ")" : "\u2014", out;
+  }
+  function _apiListText(years) {
+    let arr = _arr(years);
+    return arr.length + " \u6761 [" + arr.map((y) => y.value).join(", ") + "]";
+  }
+  async function buildDiagnosticReport() {
+    let env = {
+      version: _versionText(),
+      locale: getLocale(),
+      url: location.pathname + location.search,
+      ua: navigator.userAgent,
+      viewport: window.innerWidth + "x" + window.innerHeight,
+      token: (function() {
+        try {
+          return getToken() ? "\u6709" : "\u65E0";
+        } catch (e) {
+          return "?";
+        }
+      })(),
+      schoolId: (function() {
+        try {
+          return getSchoolId() ? "\u6709" : "\u65E0";
+        } catch (e) {
+          return "?";
+        }
+      })(),
+      markIcon: (function() {
+        try {
+          return localStorage.getItem("ints_mark_icon") || "\u9ED8\u8BA4(tag)";
+        } catch (e) {
+          return "?";
+        }
+      })(),
+      autoCalibrate: (function() {
+        try {
+          return localStorage.getItem("ints_auto_calibrate") === "0" ? "\u5173\u95ED" : "\u5F00\u542F";
+        } catch (e) {
+          return "?";
+        }
+      })(),
+      diagLog: isLogOn() ? "\u5F00\u542F" : "\u5173\u95ED",
+      build: getBuildChannel() === "dev" ? "\u5F00\u53D1\u4EF6" : "\u53D1\u5E03\u4EF6"
+    }, data = _dataSnapshot(), inline = _inlineSnapshot(), api = await _apiSnapshot(), dt = S._deadlineAllTasks || [], errors = S._errors.slice(-5).map((e) => "  \xB7 [" + _fmtTs(e.ts) + "] " + e.label + ": " + e.msg), lines = [];
+    lines.push("===== Better Intschool \u81EA\u68C0\u62A5\u544A ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(Date.now())), lines.push(""), lines.push("[\u73AF\u5883]"), lines.push("  \u7248\u672C: " + env.version + "\uFF08" + env.build + "\uFF09    \u754C\u9762\u8BED\u8A00: " + env.locale + "    \u6807\u8BB0\u56FE\u6807: " + env.markIcon), lines.push("  \u9875\u9762: " + env.url + "    \u89C6\u53E3: " + env.viewport), lines.push("  \u767B\u5F55\u6001: token=" + env.token + "  schoolId=" + env.schoolId), lines.push("  \u81EA\u52A8\u6821\u51C6: " + env.autoCalibrate + "    \u8BCA\u65AD\u65E5\u5FD7: " + env.diagLog + "\uFF08__INTS_LOG(1) \u53EF\u5F00\uFF09"), lines.push("  \u6D4F\u89C8\u5668: " + env.ua), lines.push(""), lines.push("[\u63A5\u53E3]"), lines.push("  \u5B66\u5E74\u5217\u8868: " + api.yearList), lines.push("  \u5F53\u524D\u5B66\u5E74: key=" + S.currentYearKey + " value=" + S.currentYearValue + " isCurrentYear=" + S.isCurrentYear), lines.push("  grade-book: " + api.gradeBook + "    customColumns: " + api.customColumns + " [" + api.columns + "]"), api.firstCourse && lines.push("  \u9996\u95E8\u8BFE\u7A0B: " + api.firstCourse), lines.push(""), lines.push("[\u6570\u636E]"), lines.push("  \u5B66\u5206\u6620\u5C04: " + data.creditMapSize + " \u6761    " + (data.creditSample || "\uFF08\u7A7A\uFF09")), lines.push("  \u8BFE\u7A0B: " + data.courses + " \u95E8\uFF08\u96F6\u5B66\u5206 " + data.zeroCredit + "\uFF09    \u6743\u91CD\u5F02\u5E38\u79D1\u76EE: " + data.starred), lines.push("  \u624B\u52A8\u6807\u8BB0: " + data.marks + (data.markIds ? " [" + data.markIds + "]" : "")), lines.push("  DDL: \u5168\u90E8 " + data.ddlAll + " / \u68C0\u6D4B\u5230 " + data.ddlDetected + " / \u7EBF\u4E0B " + data.ddlInferred + " / \u6807\u8BB0 " + data.ddlMarked + " / \u5DF2\u5FFD\u7565 " + data.ddlIgnoreStore + "    \u7F13\u5B58\u5E74\u9F84: " + data.ddlCacheAge), lines.push("    \u5224\u5B9A: type=" + DEADLINE_ASSIGNMENT_TYPE + " \u4E14\u672A\u63D0\u4EA4\uFF1B\u7EBF\u4E0A\u21D2\u68C0\u6D4B\u5230\uFF0C\u7EBF\u4E0B\u4E14\u672A\u8BB0\u5206\u21D2\u7EBF\u4E0B\u4EFB\u52A1\uFF1B\u8BB0\u5206\u578B\uFF08\u4E0D\u7B97\u5F85\u529E\uFF09: " + DEADLINE_RECORD_ONLY_TYPES.join("/"));
+    let typed = dt.filter((x) => x.inferred || x.detected).map((x) => x.typeName).filter(Boolean);
+    return lines.push("    \u53D6\u5230\u7C7B\u578B\u7684\u5F85\u529E: " + typed.length + " \u6761" + (typed.length ? "\uFF08" + Array.from(new Set(typed)).join(" / ") + "\uFF09" : "\uFF08\u4E00\u6761\u90FD\u6CA1\u6709 \u21D2 \u53EF\u80FD grade-book \u91CC\u6CA1\u6709\u8FD9\u4E9B\u4EFB\u52A1\uFF09")), lines.push("  \u7F13\u5B58: \u5B66\u5E74 " + data.yearCache + " \u6761    \u6A21\u62DF\u8BFE\u7A0B " + data.simCourses + " \u95E8"), lines.push("  /points \u5185\u8054: \u8BE6\u60C5\uFF1A" + inline.colsExpanded + "    \u5408\u6210\u5217\u6570\uFF1A" + inline.synthCols), lines.push(""), lines.push("[\u6743\u91CD] \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [Homework/In-Class/Projects/Tests/Quizzes]"), _weightsSnapshot().forEach((l) => lines.push(l)), lines.push(""), lines.push("[\u5F02\u5E38\u8BB0\u5F55] " + S._errors.length + " \u6761" + (errors.length ? `
+` + errors.join(`
+`) : "\uFF08\u65E0\uFF09")), lines.push(""), lines.push('\u63D0\u793A: \u62A5\u544A\u4E0D\u542B token/schoolId \u660E\u6587\uFF1B\u5982\u67D0\u9879\u663E\u793A"\u83B7\u53D6\u5931\u8D25"\uFF0C\u591A\u534A\u662F\u767B\u5F55\u6001\u8FC7\u671F\u6216\u7F51\u7EDC\u95EE\u9898\u3002'), lines.push("\u63D0\u793A: \u9700\u8981\u9010\u95E8\u8BFE\u7A0B / \u5168\u90E8\u4EFB\u52A1 / \u5B66\u5206\u6620\u5C04 / \u8FD0\u884C\u65E5\u5FD7\u7B49\u5B8C\u6574\u73B0\u573A\u65F6\uFF0C\u70B9\u300C\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7(.log)\u300D\u628A\u6587\u4EF6\u53D1\u56DE\uFF1B\u672C\u6458\u8981\u53EA\u5217\u8BA1\u6570\u4E0E\u6837\u672C\u3002"), lines.join(`
+`);
+  }
+  function _pad2(n) {
+    return (n < 10 ? "0" : "") + n;
+  }
+  function _logFileName() {
+    let d = /* @__PURE__ */ new Date(), stamp = "" + d.getFullYear() + _pad2(d.getMonth() + 1) + _pad2(d.getDate()) + "-" + _pad2(d.getHours()) + _pad2(d.getMinutes()) + _pad2(d.getSeconds());
+    return "better-intschool-diag-" + _versionText() + "-" + stamp + ".log";
+  }
+  function _downloadLogFile(text, filename) {
+    let blob = new Blob([text], { type: "text/plain;charset=utf-8" }), url = URL.createObjectURL(blob);
+    try {
+      let a = document.createElement("a");
+      a.href = url, a.download = filename, a.style.display = "none", document.body.appendChild(a), a.click(), setTimeout(function() {
+        try {
+          a.remove();
+        } catch (e) {
+        }
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+        }
+      }, 1500);
+    } catch (e) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e2) {
+      }
+      throw e;
+    }
+  }
+  async function showDiagnostics() {
+    let modalId = "ints-diag-modal", stale = document.getElementById(modalId);
+    stale && stale.remove();
+    let wrap = document.createElement("div");
+    wrap.id = modalId, wrap.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:20100;display:flex;align-items:center;justify-content:center;";
+    let panel = document.createElement("div");
+    panel.style.cssText = "width:min(760px,92vw);max-height:86vh;background:#fff;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden;", panel.innerHTML = '<div style="padding:12px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;"><strong>' + t("\u81EA\u68C0\u8BCA\u65AD", "Diagnostics") + '</strong><button id="ints-diag-close" style="background:none;border:none;font-size:22px;cursor:pointer;">&times;</button></div><div style="padding:14px 18px;overflow:auto;flex:1;"><div id="ints-diag-body" style="font-size:13px;color:#555;">' + t("\u6B63\u5728\u68C0\u6D4B\u2026", "Checking\u2026") + '</div></div><div style="padding:10px 18px;border-top:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><span id="ints-diag-status" style="font-size:12px;color:#999;"></span><span style="display:inline-flex;gap:10px;"><button id="ints-diag-copy" class="ant-btn" style="padding:5px 16px;">' + t("\u590D\u5236\u6458\u8981", "Copy summary") + '</button><button id="ints-diag-save" class="ant-btn ant-btn-primary" style="padding:5px 16px;">' + t("\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7(.log)", "Save detailed log (.log)") + "</button></span></div>", wrap.appendChild(panel), document.body.appendChild(wrap);
+    let close = () => wrap.remove();
+    panel.querySelector("#ints-diag-close").addEventListener("click", close), wrap.addEventListener("click", (e) => {
+      e.target === wrap && close();
+    });
+    let report = await safeAsync("\u8BCA\u65AD\u62A5\u544A\u751F\u6210", buildDiagnosticReport, "\u62A5\u544A\u751F\u6210\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u63A7\u5236\u53F0"), body = panel.querySelector("#ints-diag-body");
+    body.innerHTML = '<textarea id="ints-diag-text" readonly style="width:100%;height:46vh;font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.5;border:1px solid #e0e0e0;border-radius:6px;padding:10px;box-sizing:border-box;white-space:pre;overflow:auto;"></textarea>';
+    let textarea = body.querySelector("#ints-diag-text");
+    textarea.value = report;
+    let statusEl = panel.querySelector("#ints-diag-status");
+    statusEl.textContent = t("\u6458\u8981\u53EA\u542B\u8BA1\u6570\u4E0E\u6837\u672C\uFF1B\u70B9\u53F3\u4FA7\u6309\u94AE\u751F\u6210\u5B8C\u6574\u65E5\u5FD7\u6587\u4EF6\u3002", "The summary only has counts; save the detailed log file with the button.");
+    let copyBtn = panel.querySelector("#ints-diag-copy");
+    copyBtn.addEventListener("click", () => {
+      textarea.select();
+      let ok = !1;
+      try {
+        ok = document.execCommand("copy");
+      } catch (e) {
+        ok = !1;
+      }
+      !ok && navigator.clipboard && navigator.clipboard.writeText(textarea.value).catch(() => {
+      }), copyBtn.textContent = t("\u5DF2\u590D\u5236", "Copied"), setTimeout(() => {
+        copyBtn.textContent = t("\u590D\u5236\u6458\u8981", "Copy summary");
+      }, 1500);
+    });
+    let saveBtn = panel.querySelector("#ints-diag-save"), cachedLog = null;
+    saveBtn.addEventListener("click", () => {
+      let oldText = saveBtn.textContent;
+      return saveBtn.disabled = !0, saveBtn.textContent = t("\u751F\u6210\u4E2D\u2026", "Generating\u2026"), statusEl.textContent = t("\u6B63\u5728\u6536\u96C6\u8BE6\u7EC6\u73B0\u573A\u2026", "Collecting\u2026"), (async function() {
+        try {
+          cachedLog || (cachedLog = await buildDiagnosticLog());
+          let filename = _logFileName();
+          _downloadLogFile(cachedLog, filename);
+          let kb = Math.max(1, Math.round(cachedLog.length / 1024));
+          statusEl.textContent = t("\u5DF2\u4FDD\u5B58\uFF1A" + filename + "\uFF08" + kb + " KB\uFF09", "Saved: " + filename + " (" + kb + " KB)"), saveBtn.textContent = t("\u5DF2\u4FDD\u5B58", "Saved"), log("[\u8BCA\u65AD] \u5DF2\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7\u6587\u4EF6 " + filename + "\uFF08" + kb + " KB\uFF09"), setTimeout(() => {
+            saveBtn.textContent = t("\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7(.log)", "Save detailed log (.log)"), saveBtn.disabled = !1;
+          }, 2e3);
+        } catch (e) {
+          let msg = _errText(e);
+          recordError("\u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58", e), cachedLog ? (statusEl.textContent = t(
+            "\u4FDD\u5B58\u5931\u8D25\uFF1A" + msg + "\uFF08\u5B8C\u6574\u65E5\u5FD7\u5DF2\u663E\u793A\u5728\u4E0A\u65B9\uFF0C\u53EF\u624B\u52A8\u590D\u5236\uFF09",
+            "Save failed: " + msg + " (the full log is shown above for manual copy)"
+          ), textarea.value = cachedLog, textarea.style.height = "46vh") : statusEl.textContent = t(
+            "\u751F\u6210\u5931\u8D25\uFF1A" + msg + "\uFF08\u9875\u9762\u72B6\u6001\u672A\u53D7\u5F71\u54CD\uFF0C\u53EF\u91CD\u8BD5\u6216\u5237\u65B0\u540E\u518D\u8BD5\uFF09",
+            "Generation failed: " + msg + " (page state is unaffected; retry or reload)"
+          ), saveBtn.textContent = t("\u91CD\u8BD5\u4FDD\u5B58", "Retry"), saveBtn.disabled = !1, console.error("[Better Intschool] \u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58\u5931\u8D25:", e);
+        }
+      })(), oldText;
+    });
+  }
+  var MAX_ERRORS, LOG_FORMAT, LOG_CHAR_LIMIT, ENTRY_CHAR_LIMIT, API_TIMEOUT_MS, _apiSnapshotCache, API_SNAPSHOT_TTL, init_diagnose = __esm({
+    "v8.30/diagnose.js"() {
+      init_state();
+      init_utils();
+      init_log();
+      init_deadline();
+      init_api();
+      init_courses();
+      MAX_ERRORS = 20, LOG_FORMAT = "v1", LOG_CHAR_LIMIT = 3 * 1024 * 1024, ENTRY_CHAR_LIMIT = 300, API_TIMEOUT_MS = 1e4;
+      _apiSnapshotCache = null, API_SNAPSHOT_TTL = 12e4;
+    }
+  });
+
   // v8.30/deadline.js
   function DL(...a) {
     log(...a);
@@ -1176,16 +2151,26 @@
     }
     let rect = btn.getBoundingClientRect();
     _deadlineFloatTip.style.visibility = "hidden", _deadlineFloatTip.style.display = "block", _deadlineFloatTip.style.left = "0", _deadlineFloatTip.style.top = "0";
-    let tw = _deadlineFloatBox.offsetWidth, th = _deadlineFloatBox.offsetHeight, margin = 8, left = rect.left + rect.width / 2 - tw / 2, top = rect.bottom + 8;
-    left < margin && (left = margin), left + tw > window.innerWidth - margin && (left = window.innerWidth - tw - margin), top + th > window.innerHeight - margin && (top = rect.top - th - 8), _deadlineFloatTip.style.left = left - ZONE_PAD + "px", _deadlineFloatTip.style.top = top - ZONE_PAD + "px", _deadlineFloatTip.style.visibility = "", DL("[DDL] _positionFloatTip: btn=" + rect.top.toFixed(0) + "," + rect.left.toFixed(0) + " box=" + tw + "x" + th + " zoneLeft=" + (left - ZONE_PAD) + " zoneTop=" + (top - ZONE_PAD));
+    let margin = 8, spaceBelow = window.innerHeight - rect.bottom - margin, spaceAbove = rect.top - margin, side = spaceBelow >= spaceAbove ? "below" : "above", avail = side === "below" ? spaceBelow : spaceAbove, maxH = Math.min(_ddlExpanded ? 560 : 480, Math.max(200, avail - margin));
+    avail - margin < 200 && (maxH = Math.max(120, window.innerHeight - 16)), _deadlineFloatBox.style.maxHeight = Math.round(maxH) + "px", _deadlineFloatBox.style.height = _ddlExpanded ? Math.round(maxH) + "px" : "";
+    let tw = _deadlineFloatBox.offsetWidth, th = _deadlineFloatBox.offsetHeight, left = rect.left + rect.width / 2 - tw / 2;
+    left < margin && (left = margin), left + tw > window.innerWidth - margin && (left = Math.max(margin, window.innerWidth - tw - margin));
+    let top = side === "below" ? rect.bottom + margin : rect.top - th - margin;
+    top = Math.min(Math.max(top, margin), Math.max(margin, window.innerHeight - th - margin));
+    let above = top + th <= rect.top + 1;
+    _deadlineFloatBox.classList.contains("ints-ddl-above") !== above && _deadlineFloatBox.classList.toggle("ints-ddl-above", above), _deadlineFloatTip.style.left = left - ZONE_PAD + "px", _deadlineFloatTip.style.top = top - ZONE_PAD + "px", _deadlineFloatTip.style.visibility = "", DL("[DDL] _positionFloatTip: btn=" + rect.top.toFixed(0) + "," + rect.left.toFixed(0) + " box=" + tw + "x" + th + " side=" + side + " maxH=" + Math.round(maxH) + " zoneLeft=" + (left - ZONE_PAD) + " zoneTop=" + (top - ZONE_PAD));
   }
   function _hideFloatTip() {
     if (S._taskDragging) {
       DL("[DDL] _hideFloatTip: \u62D6\u62FD\u8FDB\u884C\u4E2D\uFF0C\u6682\u4E0D\u9690\u85CF");
       return;
     }
+    if (_ddlPinned) {
+      DL("[DDL] _hideFloatTip: \u5C55\u5F00\u9489\u4F4F\uFF0C\u6682\u4E0D\u9690\u85CF");
+      return;
+    }
     _deadlineFloatTimer = setTimeout(function() {
-      _deadlineFloatTip && (_deadlineFloatTip.style.display = "none");
+      _deadlineFloatTip && (_deadlineFloatTip.style.display = "none"), _ddlExpanded = !1, _ddlPinned = !1, _ddlUnbindOutside();
     }, 180);
   }
   function _bindFloatTipEvents(wrap) {
@@ -1218,10 +2203,6 @@
     let i = TYPE_ORDER.indexOf(String(name || ""));
     return i < 0 ? TYPE_ORDER.length : i;
   }
-  function _typeLabel(name) {
-    let raw = String(name || "");
-    return raw ? t(raw, raw) : "";
-  }
   function classifyDeadlineTask(raw, ctx) {
     let c = ctx || {};
     if (!raw || !raw.endDate) return { verdict: "skip", reason: "no-deadline" };
@@ -1240,48 +2221,133 @@
       }
     return map;
   }
+  function _ddlHexRgb(hex) {
+    let s = String(hex || "#d9d9d9").replace("#", "");
+    return [
+      parseInt(s.slice(0, 2), 16) || 0,
+      parseInt(s.slice(2, 4), 16) || 0,
+      parseInt(s.slice(4, 6), 16) || 0
+    ];
+  }
+  function _ddlRgba(hex, alpha) {
+    let c = _ddlHexRgb(hex);
+    return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + alpha + ")";
+  }
+  function _ddlDarken(hex, k) {
+    return "#" + _ddlHexRgb(hex).map(function(v) {
+      return Math.max(0, Math.round(v * k)).toString(16).padStart(2, "0");
+    }).join("");
+  }
+  function _ddlDateText(ts, nowTs) {
+    let d = new Date(ts);
+    if (isNaN(d.getTime())) return "";
+    let n = new Date(nowTs), md = d.getMonth() + 1 + "." + d.getDate(), day = 864e5, a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(), b = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime(), diff = Math.round((a - b) / day), prefix = diff === 0 ? t("\u4ECA\u5929 ", "Today ") : diff === 1 ? t("\u660E\u5929 ", "Tomorrow ") : "", year = d.getFullYear() === n.getFullYear() ? "" : d.getFullYear() + ".";
+    return prefix + year + md;
+  }
+  function _ddlTypeBadge(task) {
+    let raw = String(task.typeName || ""), color = typeColorOf(raw), short = typeShortName(raw);
+    return '<span class="ints-ddl-type" data-ints-type-colors="' + escapeHtml(color) + '" style="background:' + _ddlRgba(color, 0.4) + ";color:" + _ddlDarken(color, 0.55) + ";border:1px solid " + _ddlRgba(color, 0.75) + ';">' + escapeHtml(short) + "</span>";
+  }
+  function _ddlTags(task) {
+    let html = "";
+    return task.inferred && (html += '<span class="task-src-tag ints-ddl-tag ints-ddl-offline">' + t("\u7EBF\u4E0B", "Offline") + "</span>"), task.marked && (html += '<span class="task-src-tag ints-ddl-tag ints-ddl-marked">' + t("\u6807\u8BB0", "Marked") + "</span>"), html;
+  }
+  function _ddlToggle(task, brief) {
+    let shown = isTaskShown(task.entityId), label = t("\u63D0\u9192\uFF1A", "Remind: ") + task.taskName;
+    return '<label class="task-toggle-label ints-ddl-toggle">' + (brief ? "" : '<span class="ints-ddl-toggle-text">' + (shown ? t("\u5DF2\u5F00\u542F", "On") : t("\u5DF2\u5173\u95ED", "Off")) + "</span>") + '<input type="checkbox" class="task-toggle-switch" data-entity="' + task.entityId + '"' + (shown ? " checked" : "") + ' aria-label="' + escapeHtml(label) + '"></label>';
+  }
+  function _ddlTaskRowHtml(task, mode, nowTs) {
+    let source = task.inferred ? "inferred" : "detected", href = taskHref(task.entityId), name = href ? '<a href="' + escapeHtml(href) + '" draggable="true" class="ints-ddl-task-link">' + escapeHtml(task.taskName) + "</a>" : '<span draggable="true" class="ints-ddl-task-link">' + escapeHtml(task.taskName) + "</span>", date = '<span class="ints-ddl-date">' + escapeHtml(_ddlDateText(task.endDate, nowTs)) + "</span>", inner;
+    return mode === "brief" ? inner = date + _ddlTypeBadge(task) + '<span class="ints-ddl-main">' + name + '<span class="ints-ddl-course">' + escapeHtml(task.courseName || "") + "</span>" + _ddlTags(task) + "</span>" + _ddlToggle(task, !0) : inner = _ddlTypeBadge(task) + '<span class="ints-ddl-main">' + name + _ddlTags(task) + "</span>" + date + _ddlToggle(task, !1), '<div class="task-dash-row ints-ddl-row ints-ddl-row-' + mode + '" data-entity="' + task.entityId + '" data-name="' + escapeHtml(task.taskName) + '" data-type="' + escapeHtml(String(task.typeName || "")) + '" data-source="' + source + '">' + inner + "</div>";
+  }
+  function _ddlGroupedHtml(tasks, nowTs, expanded) {
+    let grouped = {};
+    for (let task of tasks)
+      grouped[task.courseName] || (grouped[task.courseName] = []), grouped[task.courseName].push(task);
+    let html = "";
+    return Object.keys(grouped).sort().forEach(function(courseName) {
+      let list = grouped[courseName].slice().sort(function(a, b) {
+        return _typeRank(a.typeName) - _typeRank(b.typeName) || a.endDate - b.endDate;
+      });
+      html += '<div class="task-dash-course" data-course="' + escapeHtml(courseName) + '"><span>' + escapeHtml(courseName) + "</span>" + (expanded ? '<span class="ints-ddl-course-count">' + list.length + " " + t("\u9879", "tasks") + "</span>" : "") + "</div>";
+      for (let task of list) html += _ddlTaskRowHtml(task, expanded ? "expanded" : "full", nowTs);
+    }), html;
+  }
+  function _ddlBriefHtml(tasks, nowTs) {
+    let sorted = tasks.slice().sort(function(a, b) {
+      return a.endDate - b.endDate;
+    }), html = "";
+    for (let i = 0; i < Math.min(DDL_BRIEF_ROWS, sorted.length); i++) html += _ddlTaskRowHtml(sorted[i], "brief", nowTs);
+    return html;
+  }
+  function _ddlSummaryHtml(tasks, nowTs) {
+    let courses = {}, nearest = null, inferred = 0;
+    for (let task of tasks)
+      courses[task.courseName] = !0, task.inferred && inferred++, (nearest === null || task.endDate < nearest) && (nearest = task.endDate);
+    let courseCount = Object.keys(courses).length, nearestText = nearest === null ? "-" : _ddlDateText(nearest, nowTs);
+    return '<div class="ints-ddl-head"><div class="ints-ddl-head-main"><span class="ints-ddl-warn">&#9888;</span><strong>' + tasks.length + " " + t("\u9879\u672A\u5B8C\u6210", "pending") + '</strong><span class="ints-ddl-dot">\xB7</span><span>' + courseCount + " " + t("\u95E8\u8BFE", "courses") + '</span><span class="ints-ddl-dot">\xB7</span><span>' + t("\u6700\u8FD1 ", "nearest ") + "<b>" + escapeHtml(nearestText) + '</b></span></div><div class="ints-ddl-head-sub">' + (inferred ? '<span data-ints-note="inferred" class="ints-ddl-note-inferred">' + t("\u542B ", "") + inferred + t(" \u9879\u7EBF\u4E0B\u4EFB\u52A1", " offline task(s)") + "</span> \xB7 " : "") + t("\u4EFB\u52A1\u5F00\u5173\u53EA\u5F71\u54CD\u63D0\u9192\uFF0C\u4E0D\u63D0\u4EA4\u5B66\u6821", "Reminders are local and are not submitted") + "</div></div>";
+  }
+  function _ddlIgnoreHtml() {
+    let n = getTaskIgnoreCount();
+    return n ? '<span data-ints-note="ignored" class="ints-ddl-ignore" role="button">' + escapeHtml(t("\u5DF2\u5FFD\u7565 " + n + " \u9879 \xB7 \u70B9\u6B64\u6062\u590D", "Ignored " + n + " \xB7 click to restore")) + "</span>" : "";
+  }
+  function _ddlFootHtml(count) {
+    let html = _ddlIgnoreHtml();
+    return html += '<span class="ints-ddl-foot-space"></span>', _ddlExpanded ? html += '<button type="button" class="ant-btn ant-btn-link ints-ddl-act" data-ints-ddl-act="collapse">' + t("\u6536\u8D77", "Collapse") + "</button>" : count > DDL_BRIEF_MAX && (html += '<button type="button" class="ant-btn ant-btn-link ints-ddl-act" data-ints-ddl-act="expand">' + t("\u5C55\u5F00\u5168\u90E8 " + count + " \u9879", "Show all " + count) + "</button>"), '<div class="ints-ddl-foot">' + html + "</div>";
+  }
+  function _ddlUnbindOutside() {
+    _ddlOutside && (document.removeEventListener("mousedown", _ddlOutside, !0), _ddlOutside = null), _ddlEsc && (document.removeEventListener("keydown", _ddlEsc, !0), _ddlEsc = null);
+  }
+  function _ddlBindOutside() {
+    _ddlOutside || (_ddlOutside = guardListener("DDL \u70B9\u5916\u6536\u8D77", function(e) {
+      if (!_ddlPinned) return;
+      let tip = _deadlineFloatTip, wrap = document.getElementById("intschool-deadline-wrap");
+      tip && tip.contains(e.target) || wrap && wrap.contains(e.target) || (_ddlExpanded = !1, _ddlPinned = !1, _ddlUnbindOutside(), renderTooltipContent(), _positionFloatTip());
+    }), _ddlEsc = guardListener("DDL Esc \u6536\u8D77", function(e) {
+      e.key === "Escape" && _ddlPinned && (_ddlExpanded = !1, _ddlPinned = !1, _ddlUnbindOutside(), renderTooltipContent(), _positionFloatTip());
+    }), document.addEventListener("mousedown", _ddlOutside, !0), document.addEventListener("keydown", _ddlEsc, !0));
+  }
+  function _ddlBindCard() {
+    if (!_deadlineFloatBox) return;
+    _deadlineFloatBox.querySelectorAll(".task-toggle-switch").forEach(function(cb) {
+      cb.addEventListener("change", function() {
+        let entityId = parseInt(this.dataset.entity, 10);
+        isNaN(entityId) || setTaskShown(entityId, this.checked);
+      });
+    });
+    let restoreEl = _deadlineFloatBox.querySelector('[data-ints-note="ignored"]');
+    restoreEl && restoreEl.addEventListener("click", function(e) {
+      e.stopPropagation(), clearTaskIgnore();
+    });
+    let expandEl = _deadlineFloatBox.querySelector('[data-ints-ddl-act="expand"]');
+    expandEl && expandEl.addEventListener("click", function(e) {
+      e.preventDefault(), e.stopPropagation(), _ddlExpanded = !0, _ddlPinned = !0, renderTooltipContent(), _positionFloatTip(), _ddlBindOutside(), DL("[DDL] \u5361\u7247\u5C55\u5F00");
+    });
+    let collapseEl = _deadlineFloatBox.querySelector('[data-ints-ddl-act="collapse"]');
+    collapseEl && collapseEl.addEventListener("click", function(e) {
+      e.preventDefault(), e.stopPropagation(), _ddlExpanded = !1, _ddlPinned = !1, _ddlUnbindOutside(), renderTooltipContent(), _positionFloatTip(), DL("[DDL] \u5361\u7247\u6536\u8D77");
+    });
+  }
   function renderTooltipContent() {
     if (!_deadlineFloatBox) {
       console.warn("[DDL] renderTooltipContent: \u5361\u7247\u8282\u70B9\u4E0D\u5B58\u5728");
       return;
     }
     if (!S._deadlineCheckedOnce || S._deadlineCheckInFlight) {
+      _ddlExpanded = !1, _ddlPinned = !1, _ddlUnbindOutside();
       let unloaded = !S._deadlineCheckedOnce;
-      _deadlineFloatBox.dataset.intsState = unloaded ? "unloaded" : "loading", _deadlineFloatBox.dataset.hasTasks = "0", _deadlineFloatBox.innerHTML = '<div style="padding:6px;font-size:13px;color:#666;">' + escapeHtml(unloaded ? t("\u5C1A\u672A\u68C0\u67E5\u672A\u5B8C\u6210\u4EFB\u52A1 \u2014 \u628A\u9F20\u6807\u505C\u5728\u6309\u94AE\u4E0A\u5373\u53EF\u5F00\u59CB", "Not checked yet \u2014 hover the button to start") : t("\u6B63\u5728\u68C0\u67E5\u672A\u5B8C\u6210\u7684\u4EFB\u52A1\u2026", "Checking pending tasks...")) + "</div>", _repositionIfVisible();
+      _deadlineFloatBox.className = "intschool-deadline-tooltip-box", _deadlineFloatBox.dataset.intsState = unloaded ? "unloaded" : "loading", _deadlineFloatBox.dataset.hasTasks = "0", _deadlineFloatBox.dataset.intsDdlMode = unloaded ? "unloaded" : "loading", _deadlineFloatBox.dataset.intsDdlPinned = "0", _deadlineFloatBox.innerHTML = '<div class="ints-ddl-status">' + escapeHtml(unloaded ? t("\u5C1A\u672A\u68C0\u67E5\u672A\u5B8C\u6210\u4EFB\u52A1 \u2014 \u628A\u9F20\u6807\u505C\u5728\u6309\u94AE\u4E0A\u5373\u53EF\u5F00\u59CB", "Not checked yet \u2014 hover the button to start") : t("\u6B63\u5728\u68C0\u67E5\u672A\u5B8C\u6210\u7684\u4EFB\u52A1\u2026", "Checking pending tasks...")) + "</div>", _repositionIfVisible();
       return;
     }
     _deadlineFloatBox.dataset.intsState = "ready";
     try {
-      let nowTs = Date.now(), allFutureTasks = (S._deadlineAllTasks || []).filter((t4) => _taskVisible(t4, nowTs)), grouped = {};
-      for (let w of allFutureTasks)
-        grouped[w.courseName] || (grouped[w.courseName] = []), grouped[w.courseName].push(w);
-      let sortedCourses = Object.keys(grouped).sort(), html = "", rowCount = 0, inferredCount = 0;
-      for (let w of allFutureTasks)
-        w.inferred && inferredCount++;
-      inferredCount > 0 && (html += '<div data-ints-note="inferred" style="padding:5px 6px;font-size:11px;color:#8c8c8c;background:#fafafa;border-bottom:1px solid #f0f0f0;">' + escapeHtml(t(
+      let nowTs = Date.now(), allFutureTasks = (S._deadlineAllTasks || []).filter((t4) => _taskVisible(t4, nowTs)), inferredCount = allFutureTasks.filter((t4) => t4.inferred).length, count = allFutureTasks.length, mode;
+      count <= DDL_BRIEF_MAX ? (mode = "full", _ddlExpanded = !1, _ddlPinned = !1, _ddlUnbindOutside()) : mode = _ddlExpanded ? "expanded" : "brief", _deadlineFloatBox.className = "intschool-deadline-tooltip-box ints-ddl-" + mode, _deadlineFloatBox.dataset.intsDdlMode = mode, _deadlineFloatBox.dataset.intsDdlPinned = _ddlPinned ? "1" : "0";
+      let html = "";
+      mode === "full" ? (inferredCount > 0 && (html += '<div data-ints-note="inferred" class="ints-ddl-inferred-note">' + escapeHtml(t(
         "\u68C0\u6D4B\u5230 " + inferredCount + " \u9879\u7EBF\u4E0B\u4EFB\u52A1 \xB7 \u62D6\u5230\u4E0B\u65B9\u5373\u53EF\u5FFD\u7565",
-        inferredCount + " offline task(s) \xB7 drag below to dismiss"
-      )) + "</div>");
-      for (let courseName of sortedCourses) {
-        let tasks = grouped[courseName];
-        tasks.sort((a, b) => _typeRank(a.typeName) - _typeRank(b.typeName) || a.endDate - b.endDate), html += '<div class="task-dash-course" data-course="' + escapeHtml(courseName) + '" style="font-size:12px;color:#555;font-weight:600;padding:6px 6px 2px;border-bottom:1px solid #f0f0f0;">' + escapeHtml(courseName) + "</div>";
-        for (let task of tasks) {
-          rowCount++;
-          let taskDate = new Date(task.endDate), ds = taskDate.getFullYear() + "." + (taskDate.getMonth() + 1) + "." + taskDate.getDate(), shown = isTaskShown(task.entityId), href = taskHref(task.entityId), taskNameHtml = href ? '<a href="' + escapeHtml(href) + '" draggable="true" title="' + t("\u6253\u5F00\u4EFB\u52A1\u9875\uFF08\u53EF\u62D6\u5230\u4E0B\u65B9\u4EFB\u52A1\u5217\u8868\u6807\u8BB0 / \u62D6\u5230\u522B\u5904\u53D6\u6D88\u6807\u8BB0\uFF09", "Open task page (drag onto the task list to mark, drag elsewhere to unmark)") + '" style="color:#1890ff;text-decoration:underline;cursor:grab;">' + escapeHtml(task.taskName) + "</a>" : '<span draggable="true" style="cursor:grab;">' + escapeHtml(task.taskName) + "</span>", typeLabel = _typeLabel(task.typeName), source = task.inferred ? "inferred" : "detected";
-          html += '<div class="task-dash-row" data-entity="' + task.entityId + '" data-name="' + escapeHtml(task.taskName) + '" data-type="' + escapeHtml(String(task.typeName || "")) + '" data-source="' + source + '" style="padding:3px 6px;border-bottom:1px solid #f5f5f5;font-size:13px;">', html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">', html += '<span style="flex:1;white-space:nowrap;">' + (typeLabel ? '<span style="color:#bfbfbf;font-size:11px;margin-right:6px;">' + escapeHtml(typeLabel) + "</span>" : "") + taskNameHtml + "\uFF08" + ds + "\uFF09" + (task.inferred ? '<span class="task-src-tag" title="' + t("\u7AD9\u70B9\u6CA1\u6709\u5F00\u5728\u7EBF\u63D0\u4EA4\u5165\u53E3\uFF0C\u6309\u7EBF\u4E0B\u4EFB\u52A1\u5904\u7406\uFF1B\u62D6\u5230\u4E0B\u65B9\u5373\u53EF\u4E0D\u518D\u63D0\u9192", "No online submission \u2014 treated as offline work; drag below to stop reminding") + '" style="margin-left:6px;padding:0 4px;border:1px solid #d9d9d9;border-radius:3px;color:#8c8c8c;font-size:10px;">' + t("\u7EBF\u4E0B", "Offline") + "</span>" : "") + (task.marked ? '<span title="' + t("\u624B\u52A8\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210", "Manually marked as pending") + '" style="margin-left:6px;padding:0 4px;border:1px solid #ffa39e;border-radius:3px;color:#cf1322;font-size:10px;">' + t("\u6807\u8BB0", "Marked") + "</span>" : "") + "</span>", html += '<label class="task-toggle-label" title="' + t("\u5F00\u542F\u540E\u8BE5\u4EFB\u52A1\u5C06\u8BA1\u5165\u63D0\u9192", "Show this task in reminders") + '" style="display:flex;align-items:center;gap:6px;font-size:11px;color:#666;cursor:pointer;flex-shrink:0;">', html += "<span>" + (shown ? t("\u5DF2\u5F00\u542F", "On") : t("\u5DF2\u5173\u95ED", "Off")) + '</span><input type="checkbox" class="task-toggle-switch" data-entity="' + task.entityId + '"' + (shown ? " checked" : "") + "></label></div></div>";
-        }
-      }
-      let ignoreCount = getTaskIgnoreCount();
-      ignoreCount > 0 && (html += '<div data-ints-note="ignored" title="' + t("\u88AB\u5FFD\u7565\u7684\u4EFB\u52A1\u4E0D\u518D\u51FA\u73B0\u5728\u63D0\u9192\u91CC", "Ignored tasks are not reminded") + '" style="padding:5px 6px;font-size:11px;color:#8c8c8c;border-top:1px solid #f0f0f0;cursor:pointer;text-decoration:underline;">' + escapeHtml(t("\u5DF2\u5FFD\u7565 " + ignoreCount + " \u9879 \xB7 \u70B9\u6B64\u6062\u590D", "Ignored " + ignoreCount + " \xB7 click to restore")) + "</div>"), _deadlineFloatBox.innerHTML = html, _deadlineFloatBox.dataset.hasTasks = rowCount > 0 || ignoreCount > 0 ? "1" : "0", _deadlineFloatBox.querySelectorAll(".task-toggle-switch").forEach((cb) => {
-        cb.addEventListener("change", function() {
-          let entityId = parseInt(this.dataset.entity, 10);
-          isNaN(entityId) || setTaskShown(entityId, this.checked);
-        });
-      });
-      let restoreEl = _deadlineFloatBox.querySelector('[data-ints-note="ignored"]');
-      restoreEl && restoreEl.addEventListener("click", function(e) {
-        e.stopPropagation(), clearTaskIgnore();
-      }), DL("[DDL] renderTooltipContent: courses=" + sortedCourses.length + " rows=" + rowCount + " inferred=" + inferredCount + " \u5FFD\u7565=" + ignoreCount + " htmlLen=" + html.length + " (\u542B\u5DF2\u5173\u95ED\u63D0\u9192\u7684\u4EFB\u52A1)"), _repositionIfVisible();
+        "Detected " + inferredCount + " offline task(s) \xB7 drag below to dismiss"
+      )) + "</div>"), html += _ddlGroupedHtml(allFutureTasks, nowTs, !1), html += '<div class="ints-ddl-full-foot">' + _ddlIgnoreHtml() + "</div>") : (html += _ddlSummaryHtml(allFutureTasks, nowTs), html += '<div class="ints-ddl-body">' + (mode === "expanded" ? '<div class="ints-ddl-scroll">' + _ddlGroupedHtml(allFutureTasks, nowTs, !0) + "</div>" : '<div class="ints-ddl-brief-body">' + _ddlBriefHtml(allFutureTasks, nowTs) + "</div>") + "</div>", html += _ddlFootHtml(count)), _deadlineFloatBox.innerHTML = html, _deadlineFloatBox.dataset.hasTasks = count > 0 || getTaskIgnoreCount() > 0 ? "1" : "0", _ddlBindCard(), mode === "expanded" ? _ddlBindOutside() : _ddlUnbindOutside(), DL("[DDL] renderTooltipContent: mode=" + mode + " rows=" + count + " inferred=" + inferredCount + " \u5FFD\u7565=" + getTaskIgnoreCount() + " htmlLen=" + html.length), _repositionIfVisible();
     } catch (e) {
       console.error("[DDL] renderTooltipContent \u5F02\u5E38:", e);
     }
@@ -1423,7 +2489,7 @@
     let color = marked ? MARK_COLOR_ON : MARK_COLOR_OFF, icon = iconMark(color);
     ring ? btn.innerHTML = '<span class="ints-mark-ring" style="display:inline-flex;align-items:center;justify-content:center;border:1.5px solid ' + color + ';border-radius:4px;padding:2px 3px;box-sizing:border-box;line-height:1;">' + icon + "</span>" : btn.innerHTML = icon, btn.style.color = color, btn.style.fontSize = ring ? "15px" : "18px", btn.style.lineHeight = "1", btn.style.padding = ring ? "2px 4px" : "0 4px", btn.style.verticalAlign = "middle", btn.style.marginLeft = ring ? "8px" : "0";
     let label = marked ? t("\u8BE5\u4EFB\u52A1\u5DF2\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210\uFF0C\u70B9\u51FB\u79FB\u9664\u6807\u8BB0", "Marked as pending \u2014 click to remove the mark") : t("\u6807\u8BB0\u540E\u8BE5\u4EFB\u52A1\u89C6\u4E3A\u672A\u5B8C\u6210\uFF0C\u51FA\u73B0\u5728\u672A\u5B8C\u6210\u4EFB\u52A1\u5217\u8868\u4E2D", "Marked tasks count as pending and appear in the pending list");
-    btn.title = label, btn.setAttribute("aria-label", label);
+    btn.setAttribute("aria-label", label);
   }
   function syncTaskMarkButton() {
     let entityId = _detailEntityId(), existing = document.getElementById(MARK_BTN_ID);
@@ -1629,6 +2695,9 @@
   function stopDeadlinePolling() {
     _deadlinePollTimer && (clearInterval(_deadlinePollTimer), _deadlinePollTimer = null), _deadlineVisibilityHandler && (document.removeEventListener("visibilitychange", _deadlineVisibilityHandler), _deadlineVisibilityHandler = null), _pollingStarted = !1;
   }
+  function resetDeadlineCard() {
+    _ddlExpanded = !1, _ddlPinned = !1, _ddlUnbindOutside(), clearTimeout(_deadlineFloatTimer), _deadlineFloatTip && (_deadlineFloatTip.style.display = "none");
+  }
   async function fetchGradeReportsForYear(schoolYearId) {
     let url = `${BASE_URL}/grade/grade-report/by-student?schoolYearId=${schoolYearId}`;
     return await apiRequest(url);
@@ -1637,14 +2706,15 @@
     let url = `${BASE_URL}/${requestUrl}?studentId=${studentId}&gradePeriodId=${gradePeriodId}`;
     return await apiRequest(url);
   }
-  var DEADLINE_POLL_INTERVAL, DEADLINE_VISIBILITY_MIN_INTERVAL, DEADLINE_BATCH_SIZE, _pollingStarted, _checkStarts, _lastCheckTs, ZONE_PAD, _deadlineFloatTip, _deadlineFloatBox, _deadlineFloatTimer, _floatTipBoundWrap, _TASK_HREF_PATTERN, TYPE_ORDER, DEADLINE_ASSIGNMENT_TYPE, DEADLINE_RECORD_ONLY_TYPES, _getGradeBookDataFn, MARK_BTN_ID, DETAIL_TITLE_SELECTORS, DETAIL_BTN_SELECTORS, DEADLINE_NAV_MIN_INTERVAL, _lastNavPath, _lastNavRefreshTs, _deadlinePollTimer, _deadlineVisibilityHandler, init_deadline = __esm({
+  var DEADLINE_POLL_INTERVAL, DEADLINE_VISIBILITY_MIN_INTERVAL, DEADLINE_BATCH_SIZE, _pollingStarted, _checkStarts, _lastCheckTs, ZONE_PAD, _deadlineFloatTip, _deadlineFloatBox, _deadlineFloatTimer, _floatTipBoundWrap, DDL_BRIEF_MAX, DDL_BRIEF_ROWS, _ddlExpanded, _ddlPinned, _ddlOutside, _ddlEsc, _TASK_HREF_PATTERN, TYPE_ORDER, DEADLINE_ASSIGNMENT_TYPE, DEADLINE_RECORD_ONLY_TYPES, _getGradeBookDataFn, MARK_BTN_ID, DETAIL_TITLE_SELECTORS, DETAIL_BTN_SELECTORS, DEADLINE_NAV_MIN_INTERVAL, _lastNavPath, _lastNavRefreshTs, _deadlinePollTimer, _deadlineVisibilityHandler, init_deadline = __esm({
     "v8.30/deadline.js"() {
       init_state();
       init_utils();
       init_api();
+      init_diagnose();
       init_log();
       DEADLINE_POLL_INTERVAL = 900 * 1e3, DEADLINE_VISIBILITY_MIN_INTERVAL = 120 * 1e3, DEADLINE_BATCH_SIZE = 4, _pollingStarted = !1, _checkStarts = 0;
-      _lastCheckTs = 0, ZONE_PAD = 0, _deadlineFloatTip = null, _deadlineFloatBox = null, _deadlineFloatTimer = null, _floatTipBoundWrap = null, _TASK_HREF_PATTERN = "https://shc.intschool.cn/teaching/assignmentDetail/{id}?assignType=subjectClass";
+      _lastCheckTs = 0, ZONE_PAD = 0, _deadlineFloatTip = null, _deadlineFloatBox = null, _deadlineFloatTimer = null, _floatTipBoundWrap = null, DDL_BRIEF_MAX = 6, DDL_BRIEF_ROWS = 5, _ddlExpanded = !1, _ddlPinned = !1, _ddlOutside = null, _ddlEsc = null, _TASK_HREF_PATTERN = "https://shc.intschool.cn/teaching/assignmentDetail/{id}?assignType=subjectClass";
       TYPE_ORDER = [
         "Homework",
         "In-Class Assignments/Classwork",
@@ -2411,880 +3481,6 @@
     }
   });
 
-  // v8.30/diagnose.js
-  function recordError(label, err) {
-    try {
-      let msg = String(err && err.message || err).slice(0, ENTRY_CHAR_LIMIT);
-      S._errors.push({ ts: Date.now(), label, msg }), S._errors.length > MAX_ERRORS && S._errors.shift();
-    } catch (e) {
-    }
-  }
-  function safe(label, fn, fallback) {
-    try {
-      return fn();
-    } catch (e) {
-      return recordError(label, e), console.error("[Better Intschool] " + label + " \u5F02\u5E38\uFF08\u5DF2\u9694\u79BB\uFF0C\u4E0D\u5F71\u54CD\u9875\u9762\uFF09:", e), fallback;
-    }
-  }
-  async function safeAsync(label, fn, fallback) {
-    try {
-      return await fn();
-    } catch (e) {
-      return recordError(label, e), console.error("[Better Intschool] " + label + " \u5F02\u5E38\uFF08\u5DF2\u9694\u79BB\uFF09:", e), fallback;
-    }
-  }
-  function guardListener(label, handler, capture) {
-    return function(e) {
-      try {
-        return handler(e);
-      } catch (err) {
-        recordError(label, err), console.error("[Better Intschool] " + label + " \u5F02\u5E38\uFF08\u5DF2\u9694\u79BB\uFF09:", err);
-      }
-    };
-  }
-  function _errText(e) {
-    try {
-      return e ? String(e && e.message || e).slice(0, ENTRY_CHAR_LIMIT) : "\u672A\u77E5\u9519\u8BEF";
-    } catch (e2) {
-      return "\u65E0\u6CD5\u8BFB\u53D6\u7684\u9519\u8BEF";
-    }
-  }
-  function _fmtTs(ts) {
-    try {
-      return ts ? new Date(ts).toLocaleString() : "\u65E0";
-    } catch (e) {
-      return String(ts);
-    }
-  }
-  function _age(ts) {
-    let n = Number(ts);
-    if (!n || !isFinite(n)) return "\u65E0";
-    let sec = Math.max(0, Math.round((Date.now() - n) / 1e3));
-    if (sec < 60) return sec + "s";
-    let min = Math.round(sec / 60);
-    return min < 120 ? min + "min" : min < 2880 ? (min / 60).toFixed(1) + "h" : (min / 1440).toFixed(1) + "d";
-  }
-  function _json(v, maxLen) {
-    let s = null;
-    try {
-      let seen = [];
-      s = JSON.stringify(v, function(k, val) {
-        if (typeof val == "object" && val !== null) {
-          if (seen.indexOf(val) >= 0) return "[\u5FAA\u73AF]";
-          seen.push(val);
-        }
-        return typeof val == "bigint" ? String(val) : typeof val == "function" ? "[Function]" : typeof val == "symbol" ? String(val) : val;
-      });
-    } catch (e) {
-      s = null;
-    }
-    if (s == null)
-      try {
-        s = String(v);
-      } catch (e2) {
-        s = "[\u65E0\u6CD5\u5E8F\u5217\u5316]";
-      }
-    let cap = typeof maxLen == "number" ? maxLen : 4e3;
-    return s.length > cap ? s.slice(0, cap) + " \u2026[\u622A\u65AD]" : s;
-  }
-  function _yes(b) {
-    return b ? "\u6709" : "\u65E0";
-  }
-  function _onOff(b) {
-    return b ? "\u5F00" : "\u5173";
-  }
-  function _arr(a) {
-    return Array.isArray(a) ? a : [];
-  }
-  function _pct(w) {
-    return _arr(w).map(function(x) {
-      return Math.round(x * 100) + "%";
-    }).join("/");
-  }
-  function _snippet(s, n) {
-    let txt = String(s == null ? "" : s).replace(/\s+/g, " ").trim(), cap = typeof n == "number" ? n : 200;
-    return txt.length > cap ? txt.slice(0, cap) + "\u2026" : txt;
-  }
-  function _ruleText(raw) {
-    try {
-      let rule = getSubjectWeightRule(raw);
-      return rule ? "#" + SUBJECT_WEIGHT_RULES.indexOf(rule) + " " + rule.keywords.join("+") + " [" + _pct(getCourseWeights(raw)) + "]" : "\u9ED8\u8BA4 [" + _pct(DEFAULT_WEIGHTS) + "]";
-    } catch (e) {
-      return "\u89C4\u5219\u5339\u914D\u5931\u8D25: " + _errText(e);
-    }
-  }
-  function _withTimeout(label, fn, ms) {
-    let limit = typeof ms == "number" ? ms : API_TIMEOUT_MS;
-    return new Promise(function(resolve, reject) {
-      let done = !1, timer = setTimeout(function() {
-        done || (done = !0, reject(new Error(label + " \u8D85\u65F6\uFF08" + Math.round(limit / 1e3) + "s\uFF09")));
-      }, limit);
-      Promise.resolve().then(fn).then(function(v) {
-        done || (done = !0, clearTimeout(timer), resolve(v));
-      }, function(e) {
-        done || (done = !0, clearTimeout(timer), reject(e));
-      });
-    });
-  }
-  function _putSection(target, title, fn) {
-    target.push(""), target.push("----- " + title + " -----");
-    try {
-      let got = fn();
-      if (Array.isArray(got))
-        for (let i = 0; i < got.length; i++) target.push(String(got[i]));
-    } catch (e) {
-      target.push("  \u672C\u6BB5\u5931\u8D25: " + _errText(e));
-    }
-  }
-  function _gmInfo() {
-    try {
-      if (typeof GM_info != "undefined" && GM_info && GM_info.script) return GM_info;
-    } catch (e) {
-    }
-    return null;
-  }
-  function _versionText() {
-    try {
-      let gmi = _gmInfo();
-      return gmi && gmi.script && gmi.script.version || "\u672A\u77E5";
-    } catch (e) {
-      return "\u672A\u77E5";
-    }
-  }
-  function _channelText() {
-    try {
-      return getBuildChannel() === "dev" ? "\u5F00\u53D1\u4EF6" : "\u53D1\u5E03\u4EF6";
-    } catch (e) {
-      return "\u672A\u77E5";
-    }
-  }
-  function _envSection() {
-    let out = [], gmi = _gmInfo(), nav = navigator;
-    return out.push("  \u7248\u672C: " + _versionText() + "\uFF08" + _channelText() + "\uFF09    \u811A\u672C\u540D: " + (gmi && gmi.script && gmi.script.name ? gmi.script.name : "\u672A\u77E5")), gmi && out.push("  \u811A\u672C\u7BA1\u7406\u5668: " + String(gmi.scriptHandler || "\u672A\u77E5") + "    \u811A\u672C\u7248\u672C: " + String(gmi.script.version || "\u672A\u77E5")), out.push("  \u754C\u9762\u8BED\u8A00: " + getLocale() + "    \u6D4F\u89C8\u5668\u8BED\u8A00: " + String(nav.language || "-") + " [" + _arr(nav.languages).join(",") + "]"), out.push("  \u9875\u9762: " + location.pathname + location.search + (location.hash ? location.hash : "") + "    \u6807\u9898: " + _snippet(document.title, 80)), out.push("  \u9875\u9762\u72B6\u6001: readyState=" + String(document.readyState) + "    \u53EF\u89C1\u6027=" + String(document.visibilityState) + "    \u9876\u5C42\u7A97\u53E3=" + _yes(window.top === window.self)), out.push("  \u89C6\u53E3: " + window.innerWidth + "x" + window.innerHeight + "    DPR: " + (window.devicePixelRatio || 1) + "    \u6EDA\u52A8: " + window.scrollX + "," + window.scrollY), window.screen && out.push("  \u5C4F\u5E55: " + window.screen.width + "x" + window.screen.height + "\uFF08\u53EF\u7528 " + window.screen.availWidth + "x" + window.screen.availHeight + "\uFF09"), out.push("  \u65F6\u533A: " + (function() {
-      try {
-        return String(Intl.DateTimeFormat().resolvedOptions().timeZone || "\u672A\u77E5");
-      } catch (e) {
-        return "\u672A\u77E5";
-      }
-    })() + "    UTC\u504F\u79FB: " + (/* @__PURE__ */ new Date()).getTimezoneOffset() + "min    \u672C\u5730\u65F6\u95F4: " + _fmtTs(Date.now())), out.push("  \u6D4F\u89C8\u5668: " + nav.userAgent), out.push("  \u5E73\u53F0: " + String(nav.platform || "-") + "    \u5728\u7EBF: " + _yes(nav.onLine) + "    Cookie: " + _yes(nav.cookieEnabled) + "    \u903B\u8F91\u6838: " + String(nav.hardwareConcurrency || "-") + "    \u8BBE\u5907\u5185\u5B58: " + String(nav.deviceMemory || "-") + "GB"), out.push("  \u9875\u9762\u5DF2\u8FD0\u884C: " + _age((function() {
-      try {
-        return performance.timeOrigin;
-      } catch (e) {
-        return Date.now();
-      }
-    })()) + "    performance.now: " + (function() {
-      try {
-        return Math.round(performance.now()) + "ms";
-      } catch (e) {
-        return "-";
-      }
-    })()), out.push("  \u767B\u5F55\u6001: token=" + _yes((function() {
-      try {
-        return !!getToken();
-      } catch (e) {
-        return !1;
-      }
-    })()) + "    schoolId=" + _yes((function() {
-      try {
-        return !!getSchoolId();
-      } catch (e) {
-        return !1;
-      }
-    })()) + "    studentIdCache=" + _yes(!!S.studentIdCache)), out;
-  }
-  function _storageSnapshot() {
-    let out = [], ls = { ok: !0, keys: 0, bytes: 0, intsKeys: 0, intsBytes: 0, top: [] };
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        let k = localStorage.key(i);
-        if (k == null) continue;
-        let v = localStorage.getItem(k) || "", size = String(k).length + v.length;
-        ls.keys++, ls.bytes += size, String(k).indexOf("ints") === 0 && (ls.intsKeys++, ls.intsBytes += size), ls.top.push({ k: String(k), size });
-      }
-    } catch (e) {
-      ls.ok = !1, ls.error = _errText(e);
-    }
-    ls.top.sort(function(a, b) {
-      return b.size - a.size;
-    }), out.push("  localStorage: " + (ls.ok ? "\u53EF\u7528" : "\u4E0D\u53EF\u7528\uFF08" + ls.error + "\uFF09") + "    \u952E " + ls.keys + " \u4E2A / \u7EA6 " + Math.round(ls.bytes / 1024) + " KB    \u5176\u4E2D ints_* " + ls.intsKeys + " \u4E2A / \u7EA6 " + Math.round(ls.intsBytes / 1024) + " KB"), ls.ok && ls.top.length && out.push("  \u6700\u5927\u952E: " + ls.top.slice(0, 10).map(function(x) {
-      return x.k + "=" + Math.round(x.size / 1024) + "KB";
-    }).join("  "));
-    let ss = { keys: 0, bytes: 0, token: !1 };
-    try {
-      for (let i = 0; i < sessionStorage.length; i++) {
-        let k = sessionStorage.key(i);
-        k != null && (ss.keys++, ss.bytes += String(k).length + String(sessionStorage.getItem(k) || "").length, String(k) === "token" && (ss.token = !0));
-      }
-    } catch (e) {
-    }
-    return out.push("  sessionStorage: \u952E " + ss.keys + " \u4E2A / \u7EA6 " + Math.round(ss.bytes / 1024) + " KB    token \u952E=" + _yes(ss.token) + "\uFF08\u503C\u4E0D\u8F93\u51FA\uFF09"), out;
-  }
-  function _prefSection() {
-    let out = [];
-    function _raw(key) {
-      try {
-        return localStorage.getItem(key);
-      } catch (e) {
-        return null;
-      }
-    }
-    out.push("  \u8BCA\u65AD\u65E5\u5FD7\u5F00\u5173: " + _onOff(isLogOn()) + "    " + LOG_KEY + "=" + _json(_raw(LOG_KEY)) + "    \u81EA\u52A8\u6821\u51C6=" + (_raw("ints_auto_calibrate") === "0" ? "\u5173\u95ED" : "\u5F00\u542F") + "    \u6807\u8BB0\u56FE\u6807=" + _json(_raw("ints_mark_icon")) + "    locale=" + _json(_raw("locale"))), out.push("  \u89C6\u56FE\u504F\u597D: \u5C55\u5F00\u6001=" + _yes(!!S.colsExpanded) + "    currentFilter=" + _json(S.currentFilter) + "    lastYear=" + _json(S.lastSelectedYearKey) + "    lastFilter=" + _json(S.lastSelectedFilter)), out.push("  \u76EE\u6807GPA: UW=" + _json(S.targetUWGPA) + "    W=" + _json(S.targetWGPA) + "    \u6A21\u5F0F=" + _json(S.targetGPAMode));
-    let keys = [
-      "ints_log",
-      "ints_auto_calibrate",
-      "ints_mark_icon",
-      "ints_inline",
-      "ints_task_marks",
-      "ints_task_toggles",
-      "ints_ddl_ignore",
-      "ints_gs_cache",
-      "ints_gs_user",
-      "ints_calib_excluded",
-      "ints_gs_overrides",
-      "ints_gs_vtid",
-      "ints_gs_lastYear",
-      "ints_gs_lastFilter",
-      "ints_gs_colsExpanded",
-      "ints_gs_targetUW",
-      "ints_gs_targetW",
-      "ints_gs_targetMode",
-      "ints_dark"
-    ], rows = [];
-    for (let i = 0; i < keys.length; i++) {
-      let raw = _raw(keys[i]);
-      raw !== null && rows.push("  " + keys[i] + "\uFF08" + raw.length + " \u5B57\u7B26\uFF09: " + (raw.length <= 300 ? raw : _snippet(raw, 300)));
-    }
-    if (rows.length) {
-      out.push("  \u672C\u5730\u5B58\u50A8\u660E\u7EC6:");
-      for (let i = 0; i < rows.length; i++) out.push(rows[i]);
-    }
-    try {
-      let raw = _raw("schedule");
-      if (!raw) out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u65E0");
-      else if (raw.length > 2e6) out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u6709\uFF08" + raw.length + " \u5B57\u7B26\uFF0C\u8FC7\u5927\u672A\u89E3\u6790\uFF09");
-      else {
-        let j = JSON.parse(raw), scs = _arr(j.scsResponses), total = 0, withCredit = 0;
-        scs.forEach(function(s) {
-          let list = _arr(s.courses).concat(_arr(s.ongoingCourses));
-          total += list.length, list.forEach(function(c) {
-            c && c.courseId && typeof c.effectiveCredit == "number" && withCredit++;
-          });
-        }), out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u6709\uFF08" + raw.length + " \u5B57\u7B26\uFF0CscsResponses=" + scs.length + "\uFF0C\u8BFE\u7A0B=" + total + "\uFF0C\u5E26\u5B66\u5206=" + withCredit + "\uFF09");
-      }
-    } catch (e) {
-      out.push("  schedule\uFF08\u7AD9\u70B9\u8BFE\u8868\u7F13\u5B58\uFF09: \u89E3\u6790\u5931\u8D25: " + _errText(e));
-    }
-    return out;
-  }
-  function _stateSection() {
-    let out = [];
-    return out.push("  \u5B66\u5E74: currentYearKey=" + _json(S.currentYearKey) + "    currentYearValue=" + _json(S.currentYearValue) + "    schoolYearKey=" + _json(S.schoolYearKey) + "    simYearKey=" + _json(S.simYearKey) + "    isCurrentYear=" + _yes(!!S.isCurrentYear)), out.push("  \u5B66\u5E74\u5217\u8868: " + _arr(S.yearList).length + " \u6761    " + _json(S.yearList, 2e3)), out.push("  \u6A21\u62DF\u5C42: simCourses=" + _arr(S.simCourses).length + " \u95E8    originalCourses=" + _arr(S.originalCourses).length + " \u95E8    _simGen=" + _json(S._simGen) + "    _navGeneration=" + _json(S._navGeneration)), out.push("  \u52A0\u8F7D: loadingRequestCount=" + _json(S.loadingRequestCount) + "    expectedRequestCount=" + _json(S.expectedRequestCount) + "    \u5F53\u524D\u8BF7\u6C42=" + _yes(!!S.currentAbortController) + "    \u6B63\u5728\u6821\u51C6=" + _yes(!!S.isCalibrating)), out.push("  \u591A\u5E74\u7EA7: isMultiYearMode=" + _yes(!!S.isMultiYearMode) + "    entries=" + _arr(S.multiYearEntries).length + "    courseMap=" + (S.multiYearCourseMap && S.multiYearCourseMap.size ? S.multiYearCourseMap.size : 0) + "    \u5B66\u5E74GPA=" + _json(S.currentYearAnnualGPA) + "    \u7D2F\u8BA1GPA=" + _json(S.currentYearCumulativeGPA)), out.push("  \u5185\u5B58\u8868: yearDataCache=" + (S.yearDataCache ? S.yearDataCache.size : 0) + "    userSimCache=" + (S.userSimCache ? S.userSimCache.size : 0) + "    calibExcluded=" + (S.calibExcluded ? S.calibExcluded.size : 0) + "    taskDetailCache=" + (S.taskDetailCache ? S.taskDetailCache.size : 0) + "    autoCalibrateCounts=" + (S._autoCalibrateCounts ? S._autoCalibrateCounts.size : 0) + "    targetGapCache=" + (S._targetGapCache ? S._targetGapCache.size : 0)), out.push("  \u6742\u9879: virtualTaskIdCounter=" + _json(S.virtualTaskIdCounter) + "    activeSubModal=" + _yes(!!S.activeSubModal) + "    _saveDirty=" + _yes(!!S._saveDirty) + "    _storageLoaded=" + _yes(!!S._storageLoaded) + "    _saveTimer=" + _yes(!!S._saveTimer) + "    yearListCache=" + (S.yearListCache ? "\u6709(" + _arr(S.yearListCache).length + ")" : "\u65E0") + "    studentIdCache=" + _yes(!!S.studentIdCache) + "    taskDetailCache=" + (S.taskDetailCache ? S.taskDetailCache.size : 0)), out.push("  \u65F6\u95F4: \u9519\u8BEF\u8BB0\u5F55=" + _arr(S._errors).length + " \u6761    warningTimeout=" + _yes(S.warningTimeout !== null && S.warningTimeout !== void 0)), out;
-  }
-  function _cacheSection() {
-    let out = [], now = Date.now();
-    !S.yearDataCache || !S.yearDataCache.size ? out.push("  yearDataCache: \u7A7A") : (out.push("  yearDataCache: " + S.yearDataCache.size + " \u6761"), Array.from(S.yearDataCache.keys()).sort().forEach(function(k) {
-      try {
-        let v = S.yearDataCache.get(k) || {}, fresh = typeof v.dataTs == "number" && now - v.dataTs < CACHE_TTL ? "\u65B0\u9C9C" : "\u8FC7\u671F";
-        out.push("    " + k + ": src=" + _json(v.src || "\u672A\u77E5") + "    dataTs=" + _fmtTs(v.dataTs) + "\uFF08" + _age(v.dataTs) + "\u524D\uFF0C" + fresh + "\uFF09    sectionName=" + _json(v.sectionName) + "    annualGPA=" + _json(v.annualGPA) + "    cumulativeGPA=" + _json(v.cumulativeGPA) + "    oc=" + _arr(v.originalCourses).length + "    sc=" + _arr(v.simCourses).length + "    vt=" + _json(v.virtualTaskIdCounter));
-      } catch (e) {
-        out.push("    " + k + ": \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
-      }
-    })), S.userSimCache && S.userSimCache.size ? (out.push("  userSimCache\uFF08\u7528\u6237\u5C42\uFF09: " + S.userSimCache.size + " \u4E2A\u5B66\u5E74"), Array.from(S.userSimCache.keys()).sort().forEach(function(k) {
-      try {
-        out.push("    " + k + ": " + _json(S.userSimCache.get(k), 3e3));
-      } catch (e) {
-        out.push("    " + k + ": \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
-      }
-    })) : out.push("  userSimCache\uFF08\u7528\u6237\u5C42\uFF09: \u7A7A"), S.calibExcluded && S.calibExcluded.size ? (out.push("  calibExcluded\uFF08\u6821\u51C6\u786E\u8BA4\u4E0D\u8BA1\u5206\uFF09:"), Array.from(S.calibExcluded.keys()).sort().forEach(function(k) {
-      try {
-        let set = S.calibExcluded.get(k);
-        out.push("    " + k + ": " + (set ? Array.from(set).join(",") : "\uFF08\u7A7A\uFF09"));
-      } catch (e) {
-        out.push("    " + k + ": \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
-      }
-    })) : out.push("  calibExcluded\uFF08\u6821\u51C6\u786E\u8BA4\u4E0D\u8BA1\u5206\uFF09: \u7A7A"), out.push("  creditMap\uFF08\u5B66\u5206\u6620\u5C04\uFF09: " + (S.creditMap ? S.creditMap.size : 0) + " \u6761");
-    try {
-      if (S.creditMap && S.creditMap.size) {
-        let entries = Array.from(S.creditMap.entries()).sort(function(a, b) {
-          return String(a[0]).localeCompare(String(b[0]));
-        }), cap = Math.min(entries.length, 500);
-        for (let i = 0; i < cap; i++) out.push("    " + entries[i][0] + "=" + _json(entries[i][1]));
-        entries.length > cap && out.push("    \u2026\u5171 " + entries.length + " \u6761\uFF0C\u53EA\u5217\u524D " + cap + " \u6761");
-      }
-    } catch (e) {
-      out.push("    creditMap \u8BFB\u53D6\u5931\u8D25: " + _errText(e));
-    }
-    return out.push("  \u624B\u52A8\u6807\u8BB0: " + Object.keys(S._taskMarks || {}).length + " \u6761    " + _json(S._taskMarks, 2e3)), out.push("  \u63D0\u9192\u5F00\u5173: " + Object.keys(S._taskToggles || {}).length + " \u6761    " + _json(S._taskToggles, 2e3)), out.push("  \u5FFD\u7565\u8868: " + getTaskIgnoreCountSafe() + " \u6761    " + _json(S._taskIgnore, 2e3)), out.push("  \u603B\u89C8GPA\u8986\u76D6: " + _json(S.multiYearGPAOverrides, 2e3)), out;
-  }
-  function getTaskIgnoreCountSafe() {
-    try {
-      return getTaskIgnoreCount();
-    } catch (e) {
-      return -1;
-    }
-  }
-  async function _apiSnapshotDetailed() {
-    if (_apiSnapshotCache && Date.now() - _apiSnapshotCache.at < API_SNAPSHOT_TTL) return _apiSnapshotCache;
-    let snap = { at: Date.now(), years: null, yearsError: null, grade: null, gradeError: null };
-    try {
-      snap.years = await _withTimeout("\u5B66\u5E74\u5217\u8868", function() {
-        return fetchSchoolYearList();
-      });
-    } catch (e) {
-      snap.yearsError = _errText(e);
-    }
-    try {
-      snap.grade = await _withTimeout("grade-book", function() {
-        return getGradeBookData(S.currentYearKey);
-      });
-    } catch (e) {
-      snap.gradeError = _errText(e);
-    }
-    return _apiSnapshotCache = snap, snap;
-  }
-  function _apiSection(snap) {
-    let out = [];
-    if (!snap) return ["  \uFF08\u63A5\u53E3\u5FEB\u7167\u672A\u751F\u6210\uFF09"];
-    if (snap.yearsError) out.push("  \u5B66\u5E74\u5217\u8868: \u83B7\u53D6\u5931\u8D25: " + snap.yearsError);
-    else {
-      let years = _arr(snap.years);
-      out.push("  \u5B66\u5E74\u5217\u8868: " + years.length + " \u6761"), years.forEach(function(y, i) {
-        out.push("    #" + i + " key=" + _json(y && y.key) + " value=" + _json(y && y.value));
-      });
-    }
-    if (out.push("  \u5F53\u524D\u5B66\u5E74: key=" + _json(S.currentYearKey) + " value=" + _json(S.currentYearValue) + " isCurrentYear=" + _yes(!!S.isCurrentYear)), snap.gradeError)
-      return out.push("  grade-book: \u83B7\u53D6\u5931\u8D25: " + snap.gradeError), out;
-    let g = snap.grade || {}, cols = _arr(g.customColumns), items = _arr(g.gradeBookItems), taskTotal = 0;
-    return out.push("  grade-book: items=" + items.length + " \u6761    customColumns=" + cols.length + " \u5217"), cols.length && (out.push("  customColumns \u5168\u91CF:"), cols.forEach(function(c, i) {
-      out.push("    #" + i + " " + _json(c, 500));
-    })), out.push("  gradeBookItems \u5168\u91CF:"), items.forEach(function(it, i) {
-      let tasks = _arr(it && it.taskScores);
-      taskTotal += tasks.length, out.push("    #" + i + " courseId=" + _json(it && it.courseId) + "    courseName=" + _json(it && it.courseName) + "    subject=" + _json(it && it.subject) + "    inClass=" + _json(it && it.inClass) + "    creditFromMap=" + _json(it && S.creditMap ? S.creditMap.get(it.courseId) : void 0)), out.push("        customColumnScores: " + _json(it && it.customColumnScores, 800)), out.push("        taskScores: " + tasks.length + " \u6761"), tasks.forEach(function(t4, ti) {
-        out.push("          - #" + ti + " " + _json(t4, 500));
-      });
-    }), out.push("  \u5408\u8BA1: \u8BFE\u7A0B " + items.length + " \u6761\uFF0C\u4EFB\u52A1 " + taskTotal + " \u6761"), out;
-  }
-  function _gradesText(g) {
-    return !g || typeof g != "object" ? "\u65E0" : "s1p=" + _json(g.s1p) + " s1e=" + _json(g.s1e) + " s1f=" + _json(g.s1f) + "  s2p=" + _json(g.s2p) + " s2e=" + _json(g.s2e) + " s2f=" + _json(g.s2f) + (g.eoy !== void 0 ? "  eoy=" + _json(g.eoy) : "");
-  }
-  function _taskLine(t4, i) {
-    return "      - #" + i + " entityId=" + _json(t4 && t4.entityId) + " name=" + _json(t4 && t4.name) + " type=" + _json(t4 && t4.typeName) + " score=" + _json(t4 && t4.score) + "/" + _json(t4 && t4.topScore) + " originalScore=" + _json(t4 && t4.originalScore) + " simulatedScore=" + _json(t4 && t4.simulatedScore) + " endDate=" + _fmtTs(t4 && t4.endDate) + " term=" + _json(t4 && t4.termRaw) + " virtual=" + _yes(!!(t4 && t4.isVirtual)) + " excluded=" + _yes(!!(t4 && t4.excluded));
-  }
-  function _coursesSection() {
-    let out = [], orig = _arr(S.originalCourses), sims = _arr(S.simCourses);
-    return out.push("  originalCourses\uFF08\u5B66\u6821\u57FA\u7EBF\uFF09: " + orig.length + " \u95E8    simCourses\uFF08\u6A21\u62DF\u5C42\uFF09: " + sims.length + " \u95E8"), out.push("  \u2014\u2014 originalCourses \u2014\u2014"), orig.forEach(function(c, i) {
-      if (!c || typeof c != "object") {
-        out.push("    #" + i + " " + _json(c));
-        return;
-      }
-      let subject = c.subject || "", taskList = _arr(c.tasks), typeCount = {};
-      taskList.forEach(function(t4) {
-        let tn = String(t4 && t4.typeName || "\u5176\u4ED6");
-        typeCount[tn] = (typeCount[tn] || 0) + 1;
-      }), out.push("    #" + i + " " + _json(c.name) + "    courseId=" + _json(c.courseId) + " subject=" + _json(c.subject) + " credit=" + _json(c.credit) + " weightBonus=" + _json(c.weightBonus)), out.push("        showStar: s1=" + _yes(!!(c.showStar && c.showStar.s1)) + " s2=" + _yes(!!(c.showStar && c.showStar.s2)) + "    \u6743\u91CD\u89C4\u5219: " + _ruleText(subject || c.name || "")), out.push("        originalGrades: " + _gradesText(c.originalGrades)), out.push("        \u4EFB\u52A1: " + taskList.length + " \u6761 " + _json(typeCount, 500) + "    \u6392\u9664=" + taskList.filter(function(t4) {
-        return t4 && t4.excluded;
-      }).length + "    \u865A\u62DF=" + taskList.filter(function(t4) {
-        return t4 && t4.isVirtual;
-      }).length);
-    }), out.push("  \u2014\u2014 simCourses\uFF08\u6A21\u62DF\u5C42\uFF09\u2014\u2014"), sims.forEach(function(c, i) {
-      if (!c || typeof c != "object") {
-        out.push("    #" + i + " " + _json(c));
-        return;
-      }
-      let taskList = _arr(c.tasks);
-      out.push("    #" + i + " " + _json(c.name) + "    courseId=" + _json(c.courseId) + " subject=" + _json(c.subject) + " credit=" + _json(c.credit) + " weightBonus=" + _json(c.weightBonus)), out.push("        showStar: s1=" + _yes(!!(c.showStar && c.showStar.s1)) + " s2=" + _yes(!!(c.showStar && c.showStar.s2)) + "    \u6743\u91CD\u89C4\u5219: " + _ruleText(c.subject || c.name || "") + "    overrideP: s1=" + _json(c.overrideP && c.overrideP.s1) + " s2=" + _json(c.overrideP && c.overrideP.s2)), out.push("        simGrades: " + _gradesText(c.simGrades)), out.push("        originalGrades: " + _gradesText(c.originalGrades)), out.push("        \u4EFB\u52A1: " + taskList.length + " \u6761"), taskList.forEach(function(t4, ti) {
-        out.push(_taskLine(t4, ti));
-      });
-    }), out;
-  }
-  function _weightsSection() {
-    let out = [];
-    out.push("  \u9ED8\u8BA4\u6743\u91CD: [" + _pct(DEFAULT_WEIGHTS) + "]"), out.push('  \u89C4\u5219\u8868\uFF08\u987A\u5E8F\u5373\u4F18\u5148\u7EA7\uFF0C\u7B2C\u4E00\u6761"\u6240\u6709\u5173\u952E\u8BCD\u90FD\u88AB\u5B66\u79D1\u540D\u5305\u542B"\u7684\u751F\u6548\uFF09:'), SUBJECT_WEIGHT_RULES.forEach(function(r, i) {
-      out.push("    #" + i + " " + r.keywords.join("+") + " \u2192 [" + _pct(r.weights) + "]");
-    });
-    let courses = _arr(S.simCourses).length ? _arr(S.simCourses) : _arr(S.originalCourses);
-    if (!courses.length)
-      return out.push("  \u6309\u5B66\u79D1\u805A\u5408: \uFF08\u8BFE\u7A0B\u6570\u636E\u8FD8\u6CA1\u52A0\u8F7D\uFF09"), out;
-    let bySubject = /* @__PURE__ */ new Map();
-    return courses.forEach(function(c) {
-      let subject = c && c.subject ? String(c.subject) : "(\u65E0\u5B66\u79D1\u540D\uFF0C\u6309\u8BFE\u7A0B\u540D\u5339\u914D)", raw = String(c && c.subject || c && c.name || ""), entry = bySubject.get(subject);
-      entry || (entry = { subject, rule: _ruleText(raw), count: 0, starred: 0 }, bySubject.set(subject, entry)), entry.count++, c && c.showStar && (c.showStar.s1 || c.showStar.s2) && entry.starred++;
-    }), out.push("  \u6309\u5B66\u79D1\u805A\u5408\uFF08\u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [\u6743\u91CD]  \u8BFE\u7A0B\u6570  \u661F\u6807\u6570\uFF09:"), Array.from(bySubject.values()).sort(function(a, b) {
-      return a.subject.localeCompare(b.subject);
-    }).forEach(function(e) {
-      out.push("    " + e.subject + " \u2192 " + e.rule + "    \u8BFE\u7A0B " + e.count + (e.starred ? "    \u661F\u6807 " + e.starred : ""));
-    }), out.push("  \u6309\u8BFE\u7A0B\u805A\u5408\uFF08\u8BFE\u7A0B\u540D \u2192 \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219\uFF09:"), courses.forEach(function(c, i) {
-      out.push("    #" + i + " " + _json(c && c.name) + "  [" + _json(c && c.subject || "") + "] \u2192 " + _ruleText(String(c && c.subject || c && c.name || "")));
-    }), out;
-  }
-  function _reconcileSection(apiSnap) {
-    let out = [], clues = [], orig = _arr(S.originalCourses), sims = _arr(S.simCourses), courses = sims.length ? sims : orig, seenSubject = {}, unmatchedSubjects = [], emptySubjectCourses = [], starredCourses = [];
-    if (courses.forEach(function(c) {
-      if (!c) return;
-      let subject = c.subject ? String(c.subject) : "";
-      if (!subject)
-        emptySubjectCourses.push(String(c.name || ""));
-      else if (!seenSubject[subject]) {
-        seenSubject[subject] = !0;
-        try {
-          getSubjectWeightRule(subject) || unmatchedSubjects.push(subject);
-        } catch (e) {
-        }
-      }
-      c.showStar && (c.showStar.s1 || c.showStar.s2) && starredCourses.push(String(c.name || ""));
-    }), unmatchedSubjects.length && clues.push("\u672A\u547D\u4E2D\u6743\u91CD\u89C4\u5219\u7684\u5B66\u79D1 " + unmatchedSubjects.length + " \u4E2A: " + unmatchedSubjects.join(" / ")), emptySubjectCourses.length && clues.push("subject \u4E3A\u7A7A\u7684\u8BFE\u7A0B " + emptySubjectCourses.length + " \u95E8\uFF08\u6309\u8BFE\u7A0B\u540D\u5339\u914D\u6743\u91CD\uFF09: " + emptySubjectCourses.join(" / ")), starredCourses.length && clues.push("\u5E26\u661F\u6807\uFF08\u5B66\u6821\u503C\u4E0E\u4F30\u7B97\u4E0D\u4E00\u81F4\uFF09\u7684\u8BFE\u7A0B " + starredCourses.length + " \u95E8: " + starredCourses.join(" / ")), apiSnap && apiSnap.grade && !apiSnap.gradeError) {
-      let items = _arr(apiSnap.grade.gradeBookItems), cols = _arr(apiSnap.grade.customColumns), knownCols = { S1P: 1, S1E: 1, S1F: 1, S2P: 1, S2E: 1, S2F: 1, EOY: 1 }, unknownCols = [];
-      cols.forEach(function(c) {
-        let name = c && c.customColumnName ? String(c.customColumnName).trim() : "";
-        name && !knownCols[name.toUpperCase()] && unknownCols.push(name);
-      }), unknownCols.length && clues.push("customColumns \u91CC\u6709\u8BA4\u4E0D\u51FA\u7684\u5217\u540D " + unknownCols.length + " \u4E2A: " + unknownCols.join(" / "));
-      let noCredit = [];
-      items.forEach(function(it) {
-        try {
-          if (!it) return;
-          (!S.creditMap || S.creditMap.get(it.courseId) === void 0) && noCredit.push(String(it.courseName || it.courseId));
-        } catch (e) {
-        }
-      }), noCredit.length && clues.push("\u5B66\u5206\u6620\u5C04\u91CC\u627E\u4E0D\u5230\u7684\u8BFE\u7A0B " + noCredit.length + " \u95E8\uFF08\u5B66\u5206\u6309 0/1 \u515C\u5E95\uFF09: " + noCredit.join(" / ")), out.push("  \u63A5\u53E3\u8BA1\u6570: \u6210\u7EE9\u518C\u6761\u76EE " + items.length + " \u6761\uFF0CcustomColumns " + cols.length + " \u5217\uFF0C\u5B66\u5206\u6620\u5C04 " + (S.creditMap ? S.creditMap.size : 0) + " \u6761");
-    } else
-      out.push("  \u63A5\u53E3\u8BA1\u6570: \u672C\u6B21\u672A\u53D6\u5230 grade-book\uFF08\u89C1\u63A5\u53E3\u6BB5\uFF09"), apiSnap && apiSnap.gradeError && clues.push("grade-book \u63A5\u53E3\u83B7\u53D6\u5931\u8D25: " + apiSnap.gradeError), apiSnap && apiSnap.yearsError && clues.push("\u5B66\u5E74\u5217\u8868\u63A5\u53E3\u83B7\u53D6\u5931\u8D25: " + apiSnap.yearsError);
-    out.push("  \u8BFE\u7A0B\u8BA1\u6570: originalCourses " + orig.length + " \u95E8\uFF0CsimCourses " + sims.length + " \u95E8\uFF0C\u661F\u6807 " + starredCourses.length + " \u95E8");
-    let staleYears = [];
-    try {
-      S.yearDataCache && S.yearDataCache.forEach(function(v, k) {
-        (!v || typeof v.dataTs != "number" || Date.now() - v.dataTs >= CACHE_TTL) && staleYears.push(String(k));
-      });
-    } catch (e) {
-    }
-    return staleYears.length && clues.push("\u8FC7\u671F\uFF08\u6216\u6CA1\u6709 dataTs\uFF09\u7684\u5B66\u5E74\u7F13\u5B58 " + staleYears.length + " \u6761: " + staleYears.join(" / ")), out.push("  \u65F6\u95F4\u4E0E\u5F00\u5173: \u8BCA\u65AD\u65E5\u5FD7=" + _onOff(isLogOn()) + "    \u4EA7\u7269\u7EBF=" + _channelText() + "    \u81EA\u52A8\u6821\u51C6=" + (function() {
-      try {
-        return localStorage.getItem("ints_auto_calibrate") === "0" ? "\u5173\u95ED" : "\u5F00\u542F";
-      } catch (e) {
-        return "\u672A\u77E5";
-      }
-    })() + "    \u5F02\u5E38\u8BB0\u5F55=" + _arr(S._errors).length + " \u6761"), out.push("  \u5F02\u5E38\u7EBF\u7D22: " + (clues.length ? clues.length + " \u6761" : "\u65E0")), clues.forEach(function(c) {
-      out.push("    \xB7 " + c);
-    }), out;
-  }
-  function _debugApi() {
-    try {
-      return typeof window != "undefined" && window.__INTS_DEBUG ? window.__INTS_DEBUG : null;
-    } catch (e) {
-      return null;
-    }
-  }
-  function _countSel(sel) {
-    try {
-      return document.querySelectorAll(sel).length;
-    } catch (e) {
-      return -1;
-    }
-  }
-  function _inlineSection() {
-    let out = [], D = _debugApi();
-    out.push("  \u9875\u9762: /points=" + _yes(location.pathname.indexOf("/points") === 0) + "    /teaching=" + _yes(location.pathname.indexOf("/teaching") === 0));
-    let stats = null;
-    try {
-      stats = D && typeof D.getInlineStats == "function" ? D.getInlineStats() : null;
-    } catch (e) {
-      stats = "getInlineStats \u5931\u8D25: " + _errText(e);
-    }
-    out.push("  getInlineStats: " + _json(stats, 4e3));
-    let ths = document.querySelectorAll(".ant-table-thead th"), rows = document.querySelectorAll(".ant-table-tbody tr.ant-table-row");
-    out.push("  \u8868\u683C: \u884C " + rows.length + " \u6761    \u8868\u5934 " + ths.length + " \u5217"), ths.length && out.push("  \u8868\u5934\uFF08key=\u6587\u672C\uFF09: " + Array.prototype.map.call(ths, function(th) {
-      let key = "-";
-      try {
-        key = th.getAttribute("key") || th.getAttribute("data-key") || "-";
-      } catch (e) {
-        key = "-";
-      }
-      return key + "=" + _snippet(th.textContent, 20);
-    }).join(" | "));
-    let selectors = [
-      "[data-ints-inline]",
-      "[data-ints-sim]",
-      "[data-ints-fsim]",
-      "[data-ints-cgpa]",
-      "[data-ints-row]",
-      "[data-ints-task]",
-      "[data-ints-vtask-id]",
-      "[data-ints-taskscore]",
-      "[data-ints-coldelta]",
-      ".ints-task-flag",
-      "#ints-inline-gpa",
-      "#ints-inline-calc-btn",
-      "#ints-inline-show-menu-btn",
-      "#ints-overview-loading",
-      "#ints-help-float"
-    ];
-    out.push("  \u6CE8\u5165\u8282\u70B9/\u5C5E\u6027: " + selectors.map(function(sel) {
-      return sel + "=" + _countSel(sel);
-    }).join("  "));
-    let gpaEl = document.getElementById("ints-inline-gpa");
-    out.push("  \u5B66\u5E74GPA\u8282\u70B9: " + (gpaEl ? _snippet(gpaEl.textContent, 160) : "\u65E0"));
-    let titleEl = document.querySelector(".grade .section-title .title-text");
-    out.push("  \u6210\u7EE9\u518C\u6807\u9898: " + (titleEl ? _snippet(titleEl.textContent, 160) : "\u65E0"));
-    let filter = document.querySelector(".filter-container");
-    out.push("  \u7B5B\u9009\u680F\u6587\u672C: " + (filter ? _snippet(filter.textContent, 240) : "\u65E0")), filter && out.push("  \u7B5B\u9009\u680F\u5B50\u8282\u70B9: " + Array.prototype.map.call(filter.children, function(n) {
-      let cls = n.className && typeof n.className == "string" ? "." + n.className.split(/\s+/).filter(Boolean).slice(0, 2).join(".") : "";
-      return String(n.tagName || "").toLowerCase() + (n.id ? "#" + n.id : "") + cls;
-    }).join(" | "));
-    let selText = document.querySelector(".filter-container .ant-select-selection-selected-value");
-    out.push("  \u5B66\u5E74\u4E0B\u62C9\u6587\u672C: " + (selText ? _snippet(selText.textContent, 60) : "\u65E0"));
-    try {
-      out.push("  getShellStats: " + _json(D && typeof D.getShellStats == "function" ? D.getShellStats() : null, 1200));
-    } catch (e) {
-      out.push("  getShellStats: \u5931\u8D25: " + _errText(e));
-    }
-    try {
-      out.push("  getDragMarkState: " + _json(D && typeof D.getDragMarkState == "function" ? D.getDragMarkState() : null, 800));
-    } catch (e) {
-      out.push("  getDragMarkState: \u5931\u8D25: " + _errText(e));
-    }
-    try {
-      out.push("  \u5DF2\u5F00\u7A97\u53E3: " + _json(D && typeof D.listWindows == "function" ? D.listWindows() : null, 2e3));
-    } catch (e) {
-      out.push("  \u5DF2\u5F00\u7A97\u53E3: \u5931\u8D25: " + _errText(e));
-    }
-    return out;
-  }
-  function _ddlSection() {
-    let out = [], D = _debugApi();
-    try {
-      out.push("  getDeadlineState: " + _json(D && typeof D.getDeadlineState == "function" ? D.getDeadlineState() : null, 1500));
-    } catch (e) {
-      out.push("  getDeadlineState: \u5931\u8D25: " + _errText(e));
-    }
-    let cache = S._deadlineCache || {};
-    out.push("  _deadlineCache: ts=" + _fmtTs(cache.ts) + "\uFF08" + _age(cache.ts) + "\u524D\uFF09    warnings=" + _arr(cache.data).length + " \u6761");
-    let tasks = _arr(S._deadlineAllTasks), typed = tasks.filter(function(x) {
-      return x && x.inferred || x && x.detected;
-    }).map(function(x) {
-      return x && x.typeName;
-    }).filter(Boolean), typeSet = [];
-    return typed.forEach(function(x) {
-      typeSet.indexOf(x) < 0 && typeSet.push(x);
-    }), out.push("  _deadlineAllTasks: " + tasks.length + " \u6761    \u68C0\u6D4B\u5230=" + tasks.filter(function(x) {
-      return x && x.detected;
-    }).length + "    \u7EBF\u4E0B\u63A8\u65AD=" + tasks.filter(function(x) {
-      return x && x.inferred && !x.ignored;
-    }).length + "    \u5DF2\u5FFD\u7565=" + tasks.filter(function(x) {
-      return x && x.ignored;
-    }).length + "    \u624B\u52A8\u6807\u8BB0=" + tasks.filter(function(x) {
-      return x && x.marked;
-    }).length), out.push("  \u53D6\u5230\u7C7B\u578B\u7684\u5F85\u529E: " + typed.length + " \u6761" + (typeSet.length ? "\uFF08" + typeSet.join(" / ") + "\uFF09" : "\uFF08\u4E00\u6761\u90FD\u6CA1\u6709\uFF09")), out.push("  \u5F85\u529E\u6E32\u67D3\u5217\u8868 warnings: " + _json(cache.data, 4e3)), tasks.forEach(function(t4, i) {
-      out.push("    #" + i + " entityId=" + _json(t4 && t4.entityId) + " courseId=" + _json(t4 && t4.courseId) + " course=" + _json(t4 && t4.courseName) + " task=" + _json(t4 && t4.taskName) + " endDate=" + _fmtTs(t4 && t4.endDate) + " type=" + _json(t4 && t4.typeName) + " marked=" + _yes(!!(t4 && t4.marked)) + " detected=" + _yes(!!(t4 && t4.detected)) + " inferred=" + _yes(!!(t4 && t4.inferred)) + " ignored=" + _yes(!!(t4 && t4.ignored)) + " reason=" + _json(t4 && t4.reason));
-    }), out.push("  \u5FFD\u7565\u8868: " + _json(S._taskIgnore, 2e3)), out;
-  }
-  function _multiYearSection() {
-    let out = [], D = _debugApi(), entries = _arr(S.multiYearEntries);
-    out.push("  multiYearEntries: " + entries.length + " \u6761"), entries.forEach(function(e, i) {
-      if (!e || typeof e != "object") {
-        out.push("    #" + i + " " + _json(e));
-        return;
-      }
-      out.push("    #" + i + " grade=" + _json(e.grade) + " yearValue=" + _json(e.yearValue) + " sectionName=" + _json(e.sectionName) + " chained=" + _yes(!!e.chained) + " annualGPA=" + _json(e.annualGPA) + " cumulativeGPA=" + _json(e.cumulativeGPA) + " oc=" + _arr(e.originalCourses).length + " sc=" + _arr(e.simCourses).length);
-    });
-    try {
-      out.push("  multiYearCourseMap: " + (S.multiYearCourseMap ? S.multiYearCourseMap.size : 0) + " \u95E8  " + _json(S.multiYearCourseMap ? Array.from(S.multiYearCourseMap.keys()) : [], 2e3));
-    } catch (e) {
-      out.push("  multiYearCourseMap: \u5931\u8D25: " + _errText(e));
-    }
-    out.push("  multiYearGPAOverrides: " + _json(S.multiYearGPAOverrides, 2e3));
-    try {
-      out.push("  multiYearCgpa(): " + _json(D && typeof D.multiYearCgpa == "function" ? D.multiYearCgpa() : null, 4e3));
-    } catch (e) {
-      out.push("  multiYearCgpa(): \u5931\u8D25: " + _errText(e));
-    }
-    try {
-      out.push("  targetExamRows(): " + _json(D && typeof D.targetExamRows == "function" ? D.targetExamRows() : null, 4e3));
-    } catch (e) {
-      out.push("  targetExamRows(): \u5931\u8D25: " + _errText(e));
-    }
-    return out;
-  }
-  function _logBufferSection() {
-    let out = [], buf = null;
-    try {
-      buf = getLogBuffer();
-    } catch (e) {
-      return ["  getLogBuffer \u5931\u8D25: " + _errText(e)];
-    }
-    let lines = _arr(buf && buf.lines);
-    return out.push("  \u8BCA\u65AD\u65E5\u5FD7\u5F00\u5173: " + _onOff(isLogOn()) + "    \u811A\u672C\u542F\u52A8: " + _fmtTs(buf && buf.start) + "\uFF08" + _age(buf && buf.start) + "\u524D\uFF09"), isLogOn() ? (out.push("  \u672C\u4F1A\u8BDD\u8BB0\u5F55 " + lines.length + " \u6761" + (buf && buf.dropped ? "\uFF0C\u73AF\u5F62\u7F13\u51B2\u5DF2\u4E22\u5F03\u6700\u65E9\u7684 " + buf.dropped + " \u6761" : "") + ":"), lines.forEach(function(l) {
-      let rel = buf && buf.start && l && l.t ? ((l.t - buf.start) / 1e3).toFixed(3) : "?";
-      out.push("  [+" + rel + "s] " + String(l && l.m).replace(/\n/g, `
-      `));
-    }), out) : (out.push("  \u672C\u6B21\u6CA1\u6709\u8BB0\u5F55\u8FD0\u884C\u65E5\u5FD7\uFF08\u53D1\u5E03\u4EF6\u9ED8\u8BA4\u9759\u9ED8\uFF1B\u9700\u8981\u8FD0\u884C\u8F68\u8FF9\u65F6\u5148\u5728\u63A7\u5236\u53F0\u6267\u884C __INTS_LOG(1)\uFF0C\u518D\u590D\u73B0\u95EE\u9898\u3001\u518D\u751F\u6210\u65E5\u5FD7\uFF09\u3002"), out);
-  }
-  function _errorsSection() {
-    let out = [], errors = _arr(S._errors);
-    return out.push("  \u5F02\u5E38\u8BB0\u5F55: " + errors.length + " \u6761\uFF08\u73AF\u5F62\u7F13\u51B2\u6700\u591A " + MAX_ERRORS + " \u6761\uFF09"), errors.forEach(function(e, i) {
-      out.push("    #" + i + " [" + _fmtTs(e && e.ts) + "] " + _json(e && e.label) + ": " + _json(e && e.msg));
-    }), errors.length || out.push("    \uFF08\u65E0\uFF09"), out;
-  }
-  async function buildDiagnosticLog() {
-    let startedAt = Date.now(), lines = [], summary = "";
-    try {
-      summary = await buildDiagnosticReport();
-    } catch (e) {
-      summary = "\uFF08\u6458\u8981\u751F\u6210\u5931\u8D25: " + _errText(e) + "\uFF09";
-    }
-    let apiSnap = null;
-    try {
-      apiSnap = await _apiSnapshotDetailed();
-    } catch (e) {
-      apiSnap = { error: _errText(e) };
-    }
-    lines.push("===== Better Intschool \u8BE6\u7EC6\u81EA\u68C0\u65E5\u5FD7 ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(startedAt)), lines.push("\u65E5\u5FD7\u683C\u5F0F: " + LOG_FORMAT + "    \u7248\u672C: " + _versionText() + "\uFF08" + _channelText() + "\uFF09    \u9875\u9762: " + location.pathname + location.search), lines.push("\u8BF4\u660E: \u672C\u6587\u4EF6\u7531 __INTS_DIAG() \u5728\u672C\u5730\u751F\u6210\uFF0C\u4E0D\u542B token / schoolId \u660E\u6587\uFF1B\u4EFB\u52A1\u7EA7 entityId / taskStudentId \u4FDD\u7559\uFF08\u4EFB\u52A1 join \u6392\u67E5\u5FC5\u9700\uFF09\u3002\u53EF\u6574\u4EFD\u53D1\u56DE\u6392\u67E5\u3002"), lines.push(""), lines.push("===== \u6458\u8981\uFF08\u4E0E\u5F39\u7A97\u5185\u5BB9\u4E00\u81F4\uFF09 ====="), lines.push(summary), lines.push(""), lines.push("===== \u8BE6\u7EC6\u6570\u636E ====="), _putSection(lines, "[1] \u73AF\u5883", _envSection), _putSection(lines, "[2] \u5F00\u5173\u4E0E\u672C\u5730\u5B58\u50A8", function() {
-      return _prefSection().concat(_storageSnapshot());
-    }), _putSection(lines, "[3] \u5168\u5C40\u72B6\u6001", _stateSection), _putSection(lines, "[4] \u5B66\u5E74\u7F13\u5B58 / \u5B66\u5206 / \u6807\u8BB0", _cacheSection), _putSection(lines, "[5] \u63A5\u53E3\u73B0\u573A", function() {
-      return _apiSection(apiSnap);
-    }), _putSection(lines, "[6] \u8BFE\u7A0B\u660E\u7EC6", _coursesSection), _putSection(lines, "[7] \u6743\u91CD\u89C4\u5219\u4E0E\u547D\u4E2D", _weightsSection), _putSection(lines, "[8] \u6570\u636E\u5BF9\u8D26", function() {
-      return _reconcileSection(apiSnap);
-    }), _putSection(lines, "[9] /points \u5185\u8054\u73B0\u573A", _inlineSection), _putSection(lines, "[10] DDL \u73B0\u573A", _ddlSection), _putSection(lines, "[11] \u591A\u5E74\u7EA7\u603B\u89C8 / \u76EE\u6807GPA / \u7A97\u53E3", _multiYearSection), _putSection(lines, "[12] \u8FD0\u884C\u65E5\u5FD7\uFF08\u672C\u4F1A\u8BDD\uFF09", _logBufferSection), _putSection(lines, "[13] \u5F02\u5E38\u8BB0\u5F55", _errorsSection), _putSection(lines, "[14] \u6587\u4EF6\u8BF4\u660E", function() {
-      return [
-        "  \u751F\u6210\u8017\u65F6: " + ((Date.now() - startedAt) / 1e3).toFixed(2) + "s",
-        "  \u6765\u6E90: \u9875\u9762\u5185\u8FD0\u884C\u72B6\u6001 + \u73B0\u62C9\u63A5\u53E3 + \u672C\u5730\u7F13\u5B58\uFF1B\u516C\u5F00\u5165\u53E3\u53EA\u6709\u63A7\u5236\u53F0 __INTS_DIAG()\u3002",
-        "  \u9690\u79C1: token / schoolId \u53EA\u8BB0\u5F55\u6709|\u65E0\uFF1B\u4EFB\u52A1\u7EA7 entityId / taskStudentId \u4FDD\u7559\uFF08\u4EFB\u52A1 join \u6392\u67E5\u5FC5\u9700\uFF0C\u4E0D\u662F\u8EAB\u4EFD\u5B57\u6BB5\uFF09\uFF1B\u8BFE\u8868\u7F13\u5B58\u53EA\u8BB0\u5F62\u72B6\u4E0E\u6570\u91CF\uFF0C\u4E0D\u843D\u539F\u6587\u3002"
-      ];
-    });
-    let text = lines.join(`
-`);
-    text.length > LOG_CHAR_LIMIT && (text = text.slice(0, LOG_CHAR_LIMIT) + `
-
-[\u65E5\u5FD7\u8D85\u957F\uFF0C\u5DF2\u622A\u65AD\uFF1A\u539F\u59CB\u957F\u5EA6 ` + text.length + " \u5B57\u7B26]");
-    try {
-      log("[\u8BCA\u65AD] \u8BE6\u7EC6\u65E5\u5FD7\u5DF2\u751F\u6210: " + text.length + " \u5B57\u7B26 / " + text.split(`
-`).length + " \u884C");
-    } catch (e) {
-    }
-    return text;
-  }
-  function _dataSnapshot() {
-    let credits = [];
-    try {
-      for (let [k, v] of S.creditMap) credits.push(k + "=" + v);
-    } catch (e) {
-    }
-    let starred = (S.originalCourses || []).filter((c) => c && c.showStar && (c.showStar.s1 || c.showStar.s2)).map((c) => c.name), zeroCredit = (S.originalCourses || []).filter((c) => c && !(c.credit > 0)).length, marks = Object.keys(S._taskMarks || {}), dt = S._deadlineAllTasks || [];
-    return {
-      creditMapSize: S.creditMap ? S.creditMap.size : 0,
-      creditSample: credits.slice(0, 12).join(", ") + (credits.length > 12 ? " \u2026" : ""),
-      courses: (S.originalCourses || []).length,
-      zeroCredit,
-      starred: starred.length + (starred.length ? " [" + starred.join(" | ") + "]" : ""),
-      marks: marks.length,
-      markIds: marks.slice(0, 12).join(","),
-      ddlAll: dt.length,
-      ddlDetected: dt.filter((x) => x.detected).length,
-      ddlInferred: dt.filter((x) => x.inferred && !x.ignored).length,
-      ddlIgnored: dt.filter((x) => x.ignored).length,
-      ddlIgnoreStore: getTaskIgnoreCountSafe(),
-      ddlMarked: dt.filter((x) => x.marked).length,
-      ddlCacheAge: S._deadlineCache && S._deadlineCache.ts ? Math.round((Date.now() - S._deadlineCache.ts) / 1e3) + "s" : "\u65E0",
-      yearCache: S.yearDataCache ? S.yearDataCache.size : 0,
-      simCourses: (S.simCourses || []).length
-    };
-  }
-  function _inlineSnapshot() {
-    let absent = { colsExpanded: "\u672A\u68C0\u6D4B", synthCols: "-" };
-    try {
-      let fn = window.__INTS_DEBUG && window.__INTS_DEBUG.getInlineStats, st = typeof fn == "function" ? fn() : null;
-      return !st || typeof st != "object" ? absent : {
-        colsExpanded: typeof st.colsExpanded == "boolean" ? st.colsExpanded ? "\u5C55\u5F00" : "\u6536\u8D77" : absent.colsExpanded,
-        synthCols: typeof st.synthCols == "number" && isFinite(st.synthCols) ? st.synthCols : absent.synthCols
-      };
-    } catch (e) {
-      return absent;
-    }
-  }
-  function _weightsSnapshot() {
-    try {
-      let courses = (S.simCourses && S.simCourses.length ? S.simCourses : S.originalCourses) || [];
-      if (!courses.length) return ["  \uFF08\u8BFE\u7A0B\u6570\u636E\u8FD8\u6CA1\u52A0\u8F7D\uFF09"];
-      let bySubject = /* @__PURE__ */ new Map();
-      for (let c of courses) {
-        let raw = String(c.subject || c.name || ""), subject = c.subject || "(\u65E0\u5B66\u79D1\u540D\uFF0C\u6309\u8BFE\u7A0B\u540D\u5339\u914D)", rule = null;
-        try {
-          rule = getSubjectWeightRule(raw);
-        } catch (e) {
-          rule = null;
-        }
-        let entry = bySubject.get(subject);
-        entry || (entry = { subject, rule: rule ? rule.keywords.join("+") : "\u9ED8\u8BA4", w: getCourseWeights(raw), count: 0, starred: 0 }, bySubject.set(subject, entry)), entry.count++, c.showStar && (c.showStar.s1 || c.showStar.s2) && entry.starred++;
-      }
-      let out = [];
-      for (let e of [...bySubject.values()].sort((a, b) => a.subject.localeCompare(b.subject)))
-        out.push("  " + e.subject + " \u2192 " + e.rule + " [" + _pct(e.w) + "]  \u8BFE\u7A0B " + e.count + (e.starred ? "  \u661F\u6807 " + e.starred : ""));
-      return out.push("  \u89C4\u5219\u8868\u987A\u5E8F: " + SUBJECT_WEIGHT_RULES.map((r) => r.keywords.join("+")).join(" > ") + " > \u9ED8\u8BA4 [" + _pct(DEFAULT_WEIGHTS) + "]"), out;
-    } catch (e) {
-      return ["  \u6743\u91CD\u5FEB\u7167\u5931\u8D25: " + _errText(e)];
-    }
-  }
-  async function _apiSnapshot() {
-    let out = { gradeBook: "\u672A\u68C0\u6D4B", customColumns: "\u2014", columns: "\u2014", yearList: "\u672A\u68C0\u6D4B" }, snap = null;
-    try {
-      snap = await _apiSnapshotDetailed();
-    } catch (e) {
-      snap = null;
-    }
-    if (!snap)
-      return out.yearList = "\u83B7\u53D6\u5931\u8D25", out.gradeBook = "\u83B7\u53D6\u5931\u8D25", out;
-    if (snap.yearsError ? out.yearList = "\u83B7\u53D6\u5931\u8D25: " + snap.yearsError : out.yearList = _apiListText(snap.years), snap.gradeError)
-      return out.gradeBook = "\u83B7\u53D6\u5931\u8D25: " + snap.gradeError, out;
-    let gb = snap.grade || {}, items = gb && gb.gradeBookItems || [];
-    out.gradeBook = items.length + " \u6761\u8BFE\u7A0B";
-    let cols = gb && gb.customColumns || [];
-    return out.customColumns = cols.length + " \u5217", out.columns = cols.map((c) => c.customColumnName).join("/") || "\u2014", out.firstCourse = items[0] ? items[0].courseName + " (subject=" + (items[0].subject || "\u7A7A") + ", courseId=" + items[0].courseId + ")" : "\u2014", out;
-  }
-  function _apiListText(years) {
-    let arr = _arr(years);
-    return arr.length + " \u6761 [" + arr.map((y) => y.value).join(", ") + "]";
-  }
-  async function buildDiagnosticReport() {
-    let env = {
-      version: _versionText(),
-      locale: getLocale(),
-      url: location.pathname + location.search,
-      ua: navigator.userAgent,
-      viewport: window.innerWidth + "x" + window.innerHeight,
-      token: (function() {
-        try {
-          return getToken() ? "\u6709" : "\u65E0";
-        } catch (e) {
-          return "?";
-        }
-      })(),
-      schoolId: (function() {
-        try {
-          return getSchoolId() ? "\u6709" : "\u65E0";
-        } catch (e) {
-          return "?";
-        }
-      })(),
-      markIcon: (function() {
-        try {
-          return localStorage.getItem("ints_mark_icon") || "\u9ED8\u8BA4(tag)";
-        } catch (e) {
-          return "?";
-        }
-      })(),
-      autoCalibrate: (function() {
-        try {
-          return localStorage.getItem("ints_auto_calibrate") === "0" ? "\u5173\u95ED" : "\u5F00\u542F";
-        } catch (e) {
-          return "?";
-        }
-      })(),
-      diagLog: isLogOn() ? "\u5F00\u542F" : "\u5173\u95ED",
-      build: getBuildChannel() === "dev" ? "\u5F00\u53D1\u4EF6" : "\u53D1\u5E03\u4EF6"
-    }, data = _dataSnapshot(), inline = _inlineSnapshot(), api = await _apiSnapshot(), dt = S._deadlineAllTasks || [], errors = S._errors.slice(-5).map((e) => "  \xB7 [" + _fmtTs(e.ts) + "] " + e.label + ": " + e.msg), lines = [];
-    lines.push("===== Better Intschool \u81EA\u68C0\u62A5\u544A ====="), lines.push("\u751F\u6210\u65F6\u95F4: " + _fmtTs(Date.now())), lines.push(""), lines.push("[\u73AF\u5883]"), lines.push("  \u7248\u672C: " + env.version + "\uFF08" + env.build + "\uFF09    \u754C\u9762\u8BED\u8A00: " + env.locale + "    \u6807\u8BB0\u56FE\u6807: " + env.markIcon), lines.push("  \u9875\u9762: " + env.url + "    \u89C6\u53E3: " + env.viewport), lines.push("  \u767B\u5F55\u6001: token=" + env.token + "  schoolId=" + env.schoolId), lines.push("  \u81EA\u52A8\u6821\u51C6: " + env.autoCalibrate + "    \u8BCA\u65AD\u65E5\u5FD7: " + env.diagLog + "\uFF08__INTS_LOG(1) \u53EF\u5F00\uFF09"), lines.push("  \u6D4F\u89C8\u5668: " + env.ua), lines.push(""), lines.push("[\u63A5\u53E3]"), lines.push("  \u5B66\u5E74\u5217\u8868: " + api.yearList), lines.push("  \u5F53\u524D\u5B66\u5E74: key=" + S.currentYearKey + " value=" + S.currentYearValue + " isCurrentYear=" + S.isCurrentYear), lines.push("  grade-book: " + api.gradeBook + "    customColumns: " + api.customColumns + " [" + api.columns + "]"), api.firstCourse && lines.push("  \u9996\u95E8\u8BFE\u7A0B: " + api.firstCourse), lines.push(""), lines.push("[\u6570\u636E]"), lines.push("  \u5B66\u5206\u6620\u5C04: " + data.creditMapSize + " \u6761    " + (data.creditSample || "\uFF08\u7A7A\uFF09")), lines.push("  \u8BFE\u7A0B: " + data.courses + " \u95E8\uFF08\u96F6\u5B66\u5206 " + data.zeroCredit + "\uFF09    \u661F\u6807\u79D1\u76EE: " + data.starred), lines.push("  \u624B\u52A8\u6807\u8BB0: " + data.marks + (data.markIds ? " [" + data.markIds + "]" : "")), lines.push("  DDL: \u5168\u90E8 " + data.ddlAll + " / \u68C0\u6D4B\u5230 " + data.ddlDetected + " / \u7EBF\u4E0B " + data.ddlInferred + " / \u6807\u8BB0 " + data.ddlMarked + " / \u5DF2\u5FFD\u7565 " + data.ddlIgnoreStore + "    \u7F13\u5B58\u5E74\u9F84: " + data.ddlCacheAge), lines.push("    \u5224\u5B9A: type=" + DEADLINE_ASSIGNMENT_TYPE + " \u4E14\u672A\u63D0\u4EA4\uFF1B\u7EBF\u4E0A\u21D2\u68C0\u6D4B\u5230\uFF0C\u7EBF\u4E0B\u4E14\u672A\u8BB0\u5206\u21D2\u7EBF\u4E0B\u4EFB\u52A1\uFF1B\u8BB0\u5206\u578B\uFF08\u4E0D\u7B97\u5F85\u529E\uFF09: " + DEADLINE_RECORD_ONLY_TYPES.join("/"));
-    let typed = dt.filter((x) => x.inferred || x.detected).map((x) => x.typeName).filter(Boolean);
-    return lines.push("    \u53D6\u5230\u7C7B\u578B\u7684\u5F85\u529E: " + typed.length + " \u6761" + (typed.length ? "\uFF08" + Array.from(new Set(typed)).join(" / ") + "\uFF09" : "\uFF08\u4E00\u6761\u90FD\u6CA1\u6709 \u21D2 \u53EF\u80FD grade-book \u91CC\u6CA1\u6709\u8FD9\u4E9B\u4EFB\u52A1\uFF09")), lines.push("  \u7F13\u5B58: \u5B66\u5E74 " + data.yearCache + " \u6761    \u6A21\u62DF\u8BFE\u7A0B " + data.simCourses + " \u95E8"), lines.push("  /points \u5185\u8054: \u8BE6\u60C5\uFF1A" + inline.colsExpanded + "    \u5408\u6210\u5217\u6570\uFF1A" + inline.synthCols), lines.push(""), lines.push("[\u6743\u91CD] \u5B66\u79D1 \u2192 \u547D\u4E2D\u89C4\u5219 [Homework/In-Class/Projects/Tests/Quizzes]"), _weightsSnapshot().forEach((l) => lines.push(l)), lines.push(""), lines.push("[\u5F02\u5E38\u8BB0\u5F55] " + S._errors.length + " \u6761" + (errors.length ? `
-` + errors.join(`
-`) : "\uFF08\u65E0\uFF09")), lines.push(""), lines.push('\u63D0\u793A: \u62A5\u544A\u4E0D\u542B token/schoolId \u660E\u6587\uFF1B\u5982\u67D0\u9879\u663E\u793A"\u83B7\u53D6\u5931\u8D25"\uFF0C\u591A\u534A\u662F\u767B\u5F55\u6001\u8FC7\u671F\u6216\u7F51\u7EDC\u95EE\u9898\u3002'), lines.push("\u63D0\u793A: \u9700\u8981\u9010\u95E8\u8BFE\u7A0B / \u5168\u90E8\u4EFB\u52A1 / \u5B66\u5206\u6620\u5C04 / \u8FD0\u884C\u65E5\u5FD7\u7B49\u5B8C\u6574\u73B0\u573A\u65F6\uFF0C\u70B9\u300C\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7(.log)\u300D\u628A\u6587\u4EF6\u53D1\u56DE\uFF1B\u672C\u6458\u8981\u53EA\u5217\u8BA1\u6570\u4E0E\u6837\u672C\u3002"), lines.join(`
-`);
-  }
-  function _pad2(n) {
-    return (n < 10 ? "0" : "") + n;
-  }
-  function _logFileName() {
-    let d = /* @__PURE__ */ new Date(), stamp = "" + d.getFullYear() + _pad2(d.getMonth() + 1) + _pad2(d.getDate()) + "-" + _pad2(d.getHours()) + _pad2(d.getMinutes()) + _pad2(d.getSeconds());
-    return "better-intschool-diag-" + _versionText() + "-" + stamp + ".log";
-  }
-  function _downloadLogFile(text, filename) {
-    let blob = new Blob([text], { type: "text/plain;charset=utf-8" }), url = URL.createObjectURL(blob);
-    try {
-      let a = document.createElement("a");
-      a.href = url, a.download = filename, a.style.display = "none", document.body.appendChild(a), a.click(), setTimeout(function() {
-        try {
-          a.remove();
-        } catch (e) {
-        }
-        try {
-          URL.revokeObjectURL(url);
-        } catch (e) {
-        }
-      }, 1500);
-    } catch (e) {
-      try {
-        URL.revokeObjectURL(url);
-      } catch (e2) {
-      }
-      throw e;
-    }
-  }
-  async function showDiagnostics() {
-    let modalId = "ints-diag-modal", stale = document.getElementById(modalId);
-    stale && stale.remove();
-    let wrap = document.createElement("div");
-    wrap.id = modalId, wrap.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:20100;display:flex;align-items:center;justify-content:center;";
-    let panel = document.createElement("div");
-    panel.style.cssText = "width:min(760px,92vw);max-height:86vh;background:#fff;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden;", panel.innerHTML = '<div style="padding:12px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;"><strong>' + t("\u81EA\u68C0\u8BCA\u65AD", "Diagnostics") + '</strong><button id="ints-diag-close" style="background:none;border:none;font-size:22px;cursor:pointer;">&times;</button></div><div style="padding:14px 18px;overflow:auto;flex:1;"><div id="ints-diag-body" style="font-size:13px;color:#555;">' + t("\u6B63\u5728\u68C0\u6D4B\u2026", "Checking\u2026") + '</div></div><div style="padding:10px 18px;border-top:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><span id="ints-diag-status" style="font-size:12px;color:#999;"></span><span style="display:inline-flex;gap:10px;"><button id="ints-diag-copy" class="ant-btn" style="padding:5px 16px;">' + t("\u590D\u5236\u6458\u8981", "Copy summary") + '</button><button id="ints-diag-save" class="ant-btn ant-btn-primary" style="padding:5px 16px;">' + t("\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7(.log)", "Save detailed log (.log)") + "</button></span></div>", wrap.appendChild(panel), document.body.appendChild(wrap);
-    let close = () => wrap.remove();
-    panel.querySelector("#ints-diag-close").addEventListener("click", close), wrap.addEventListener("click", (e) => {
-      e.target === wrap && close();
-    });
-    let report = await safeAsync("\u8BCA\u65AD\u62A5\u544A\u751F\u6210", buildDiagnosticReport, "\u62A5\u544A\u751F\u6210\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u63A7\u5236\u53F0"), body = panel.querySelector("#ints-diag-body");
-    body.innerHTML = '<textarea id="ints-diag-text" readonly style="width:100%;height:46vh;font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.5;border:1px solid #e0e0e0;border-radius:6px;padding:10px;box-sizing:border-box;white-space:pre;overflow:auto;"></textarea>';
-    let textarea = body.querySelector("#ints-diag-text");
-    textarea.value = report;
-    let statusEl = panel.querySelector("#ints-diag-status");
-    statusEl.textContent = t("\u6458\u8981\u53EA\u542B\u8BA1\u6570\u4E0E\u6837\u672C\uFF1B\u70B9\u53F3\u4FA7\u6309\u94AE\u751F\u6210\u5B8C\u6574\u65E5\u5FD7\u6587\u4EF6\u3002", "The summary only has counts; save the detailed log file with the button.");
-    let copyBtn = panel.querySelector("#ints-diag-copy");
-    copyBtn.addEventListener("click", () => {
-      textarea.select();
-      let ok = !1;
-      try {
-        ok = document.execCommand("copy");
-      } catch (e) {
-        ok = !1;
-      }
-      !ok && navigator.clipboard && navigator.clipboard.writeText(textarea.value).catch(() => {
-      }), copyBtn.textContent = t("\u5DF2\u590D\u5236", "Copied"), setTimeout(() => {
-        copyBtn.textContent = t("\u590D\u5236\u6458\u8981", "Copy summary");
-      }, 1500);
-    });
-    let saveBtn = panel.querySelector("#ints-diag-save"), cachedLog = null;
-    saveBtn.addEventListener("click", () => {
-      let oldText = saveBtn.textContent;
-      return saveBtn.disabled = !0, saveBtn.textContent = t("\u751F\u6210\u4E2D\u2026", "Generating\u2026"), statusEl.textContent = t("\u6B63\u5728\u6536\u96C6\u8BE6\u7EC6\u73B0\u573A\u2026", "Collecting\u2026"), (async function() {
-        try {
-          cachedLog || (cachedLog = await buildDiagnosticLog());
-          let filename = _logFileName();
-          _downloadLogFile(cachedLog, filename);
-          let kb = Math.max(1, Math.round(cachedLog.length / 1024));
-          statusEl.textContent = t("\u5DF2\u4FDD\u5B58\uFF1A" + filename + "\uFF08" + kb + " KB\uFF09", "Saved: " + filename + " (" + kb + " KB)"), saveBtn.textContent = t("\u5DF2\u4FDD\u5B58", "Saved"), log("[\u8BCA\u65AD] \u5DF2\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7\u6587\u4EF6 " + filename + "\uFF08" + kb + " KB\uFF09"), setTimeout(() => {
-            saveBtn.textContent = t("\u4FDD\u5B58\u8BE6\u7EC6\u65E5\u5FD7(.log)", "Save detailed log (.log)"), saveBtn.disabled = !1;
-          }, 2e3);
-        } catch (e) {
-          let msg = _errText(e);
-          recordError("\u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58", e), cachedLog ? (statusEl.textContent = t(
-            "\u4FDD\u5B58\u5931\u8D25\uFF1A" + msg + "\uFF08\u5B8C\u6574\u65E5\u5FD7\u5DF2\u663E\u793A\u5728\u4E0A\u65B9\uFF0C\u53EF\u624B\u52A8\u590D\u5236\uFF09",
-            "Save failed: " + msg + " (the full log is shown above for manual copy)"
-          ), textarea.value = cachedLog, textarea.style.height = "46vh") : statusEl.textContent = t(
-            "\u751F\u6210\u5931\u8D25\uFF1A" + msg + "\uFF08\u9875\u9762\u72B6\u6001\u672A\u53D7\u5F71\u54CD\uFF0C\u53EF\u91CD\u8BD5\u6216\u5237\u65B0\u540E\u518D\u8BD5\uFF09",
-            "Generation failed: " + msg + " (page state is unaffected; retry or reload)"
-          ), saveBtn.textContent = t("\u91CD\u8BD5\u4FDD\u5B58", "Retry"), saveBtn.disabled = !1, console.error("[Better Intschool] \u8BCA\u65AD\u65E5\u5FD7\u4FDD\u5B58\u5931\u8D25:", e);
-        }
-      })(), oldText;
-    });
-  }
-  var MAX_ERRORS, LOG_FORMAT, LOG_CHAR_LIMIT, ENTRY_CHAR_LIMIT, API_TIMEOUT_MS, _apiSnapshotCache, API_SNAPSHOT_TTL, init_diagnose = __esm({
-    "v8.30/diagnose.js"() {
-      init_state();
-      init_utils();
-      init_log();
-      init_deadline();
-      init_api();
-      init_courses();
-      MAX_ERRORS = 20, LOG_FORMAT = "v1", LOG_CHAR_LIMIT = 3 * 1024 * 1024, ENTRY_CHAR_LIMIT = 300, API_TIMEOUT_MS = 1e4;
-      _apiSnapshotCache = null, API_SNAPSHOT_TTL = 12e4;
-    }
-  });
-
   // v8.30/win-shell.js
   function _isInteractive(node) {
     return !!(node && node.closest && node.closest('input,textarea,select,button,a,[contenteditable="true"]'));
@@ -3360,7 +3556,7 @@
     if (old)
       return raiseWindow(key), opts.anchorEl && setWindowAnchor(key, opts.anchorEl), old.handle;
     let el = document.createElement("div");
-    el.className = "ints-win" + (opts.className ? " " + opts.className : ""), el.setAttribute(WIN_ATTR, key), el.setAttribute("data-win-kind", opts.kind || "win"), opts.domId && (el.id = opts.domId), el.style.width = (opts.width || 340) + "px", el.style.zIndex = String(++_z > Z_WIN_MAX ? _z = Z_WIN_BASE + 1 : _z), el.innerHTML = '<div class="ints-win-head" title="' + escapeHtml(t("\u6309\u4F4F\u6807\u9898\u680F\u53EF\u76F4\u63A5\u62D6\u52A8\uFF1B\u6B63\u6587\u5904\u957F\u6309\u4E5F\u80FD\u62D6\uFF1B\u4E0D\u62D6\u65F6\u968F\u8868\u683C\u6EDA\u52A8", "Drag by the title bar, or long-press anywhere in the body")) + '"><div class="ints-win-title"></div><button type="button" class="ints-win-close" data-win-close="1" title="' + escapeHtml(t("\u5173\u95ED\uFF08Esc\uFF09", "Close (Esc)")) + '">&times;</button></div><div class="ints-win-body"></div>' + (opts.footerHTML ? '<div class="ints-win-foot"></div>' : "");
+    el.className = "ints-win" + (opts.className ? " " + opts.className : ""), el.setAttribute(WIN_ATTR, key), el.setAttribute("data-win-kind", opts.kind || "win"), opts.domId && (el.id = opts.domId), el.style.width = (opts.width || 340) + "px", el.style.zIndex = String(++_z > Z_WIN_MAX ? _z = Z_WIN_BASE + 1 : _z), el.innerHTML = '<div class="ints-win-head"><div class="ints-win-title"></div><button type="button" class="ints-win-close" data-win-close="1" aria-label="' + escapeHtml(t("\u5173\u95ED", "Close")) + '">&times;</button></div><div class="ints-win-body"></div>' + (opts.footerHTML ? '<div class="ints-win-foot"></div>' : "");
     let body = el.querySelector(".ints-win-body"), foot = el.querySelector(".ints-win-foot");
     el.querySelector(".ints-win-title").innerHTML = opts.titleHTML || "", body.innerHTML = opts.bodyHTML || "", foot && (foot.innerHTML = opts.footerHTML), opts.maxBodyHeight && (body.style.maxHeight = opts.maxBodyHeight);
     let win = {
@@ -3416,7 +3612,7 @@
     let i = _wins.findIndex((w) => w.key === String(key));
     if (i < 0) return !1;
     let win = _wins[i];
-    _wins.splice(i, 1), _drag && _drag.key === win.key && _endDrag(!0), win.el.remove();
+    _wins.splice(i, 1), _drag && _drag.key === win.key && _endDrag(!0), _armedKey === win.key && _armCancel && _armCancel(), win.el.remove();
     try {
       win.onClose && win.onClose();
     } catch (e) {
@@ -3427,7 +3623,10 @@
     return _wins.length ? closeWindow(_wins[_wins.length - 1].key) : !1;
   }
   function closeAllWindows() {
-    for (; _wins.length; ) closeWindow(_wins[_wins.length - 1].key);
+    for (cancelWindowGesture(); _wins.length; ) closeWindow(_wins[_wins.length - 1].key);
+  }
+  function cancelWindowGesture() {
+    _armCancel && _armCancel(), _drag && _endDrag(!0), _setGlobalDrag(!1);
   }
   function raiseWindow(key) {
     let i = _wins.findIndex((w) => w.key === String(key));
@@ -3467,11 +3666,20 @@
   function _winAlive(win) {
     return !!(win && win.el && win.el.isConnected && getWindow(win.key) === win);
   }
+  function _setGlobalDrag(on) {
+    try {
+      on ? document.documentElement.classList.add(GLOBAL_DRAG_CLASS) : document.documentElement.classList.remove(GLOBAL_DRAG_CLASS);
+    } catch (e) {
+    }
+  }
+  function _onSelectStart(e) {
+    _drag && e.cancelable && e.preventDefault();
+  }
   function _armDrag(win, e, tol, holdMs) {
     if (e.button !== 0) return;
     _armCancel && _armCancel();
-    let sx = e.clientX, sy = e.clientY, armed = holdMs === 0, finished = !1, timer = null;
-    holdMs > 0 && (timer = setTimeout(() => {
+    let sx = e.clientX, sy = e.clientY, armed = holdMs === 0, finished = !1, timer = null, headArm = holdMs === 0;
+    headArm && (_armedKey = win.key, _setGlobalDrag(!0)), holdMs > 0 && (timer = setTimeout(() => {
       armed = !0;
     }, holdMs));
     let onMove = (ev) => {
@@ -3493,14 +3701,19 @@
       }
     }, onUp = () => cleanup();
     function cleanup() {
-      finished || (finished = !0, clearTimeout(timer), document.removeEventListener("mousemove", onMove, !0), document.removeEventListener("mouseup", onUp, !0), _armCancel === cleanup && (_armCancel = null));
+      finished || (finished = !0, clearTimeout(timer), document.removeEventListener("mousemove", onMove, !0), document.removeEventListener("mouseup", onUp, !0), _armCancel === cleanup && (_armCancel = null), headArm && _armedKey === win.key && (_armedKey = null, _drag && _drag.key === win.key || _setGlobalDrag(!1)));
     }
     _armCancel = cleanup, document.addEventListener("mousemove", onMove, !0), document.addEventListener("mouseup", onUp, !0);
   }
   function _startDrag(win, sx, sy) {
     if (_drag || !_winAlive(win)) return;
     let el = win.el, r = el.getBoundingClientRect();
-    _drag = { key: win.key, win, el, offX: sx - r.left, offY: sy - r.top, moved: !1 }, el.classList.add("ints-win-dragging"), log("[\u7A97\u53E3] \u5F00\u59CB\u62D6\u52A8 " + win.key), document.addEventListener("mousemove", _onDragMove, !0), document.addEventListener("mouseup", _onDragUp, !0);
+    _drag = { key: win.key, win, el, offX: sx - r.left, offY: sy - r.top, moved: !1 }, _armedKey = null, _setGlobalDrag(!0), el.classList.add("ints-win-dragging");
+    try {
+      window.getSelection().removeAllRanges();
+    } catch (e) {
+    }
+    document.addEventListener("selectstart", _onSelectStart, !0), log("[\u7A97\u53E3] \u5F00\u59CB\u62D6\u52A8 " + win.key), document.addEventListener("mousemove", _onDragMove, !0), document.addEventListener("mouseup", _onDragUp, !0);
   }
   function _onDragMove(e) {
     if (!_drag) return;
@@ -3520,7 +3733,7 @@
   function _endDrag(silent) {
     if (!_drag) return;
     let { el, win, moved } = _drag;
-    if (document.removeEventListener("mousemove", _onDragMove, !0), document.removeEventListener("mouseup", _onDragUp, !0), el.classList.remove("ints-win-dragging"), _drag = null, !moved || silent) return;
+    if (document.removeEventListener("mousemove", _onDragMove, !0), document.removeEventListener("mouseup", _onDragUp, !0), document.removeEventListener("selectstart", _onSelectStart, !0), el.classList.remove("ints-win-dragging"), _setGlobalDrag(!1), _armedKey = null, _drag = null, !moved || silent) return;
     let p = _anchorBox(win);
     p && (win.dx = Math.round((parseFloat(el.style.left || "0") || 0) - p.left), win.dy = Math.round((parseFloat(el.style.top || "0") || 0) - p.top));
     let swallow = (ev) => {
@@ -3545,26 +3758,26 @@
       }
     }));
   }
-  var WIN_ATTR, CONTAINER_SEL, LONG_PRESS_MS, MOVE_TOL, HEAD_TOL, Z_WIN_BASE, Z_WIN_MAX, EDGE, _z, _installed, _syncCount, _moveCount, _lastMove, _drag, _wins, EXCLUDE_SEL, _armCancel, init_win_shell = __esm({
+  var WIN_ATTR, CONTAINER_SEL, LONG_PRESS_MS, MOVE_TOL, HEAD_TOL, Z_WIN_BASE, Z_WIN_MAX, EDGE, GLOBAL_DRAG_CLASS, _z, _installed, _syncCount, _moveCount, _lastMove, _drag, _wins, EXCLUDE_SEL, _armCancel, _armedKey, init_win_shell = __esm({
     "v8.30/win-shell.js"() {
       init_utils();
       init_diagnose();
       init_log();
-      WIN_ATTR = "data-ints-window", CONTAINER_SEL = ".ant-table-body", LONG_PRESS_MS = 250, MOVE_TOL = 10, HEAD_TOL = 3, Z_WIN_BASE = 30, Z_WIN_MAX = 39, EDGE = 6, _z = Z_WIN_BASE, _installed = !1, _syncCount = 0, _moveCount = 0, _lastMove = "", _drag = null, _wins = [], EXCLUDE_SEL = [
+      WIN_ATTR = "data-ints-window", CONTAINER_SEL = ".ant-table-body", LONG_PRESS_MS = 250, MOVE_TOL = 10, HEAD_TOL = 3, Z_WIN_BASE = 30, Z_WIN_MAX = 39, EDGE = 6, GLOBAL_DRAG_CLASS = "ints-global-dragging", _z = Z_WIN_BASE, _installed = !1, _syncCount = 0, _moveCount = 0, _lastMove = "", _drag = null, _wins = [], EXCLUDE_SEL = [
         "[data-ints-window]",
         "[data-ints-clickable]",
         "[data-ints-task]",
         "[data-ints-vtask-id]",
+        "[data-ints-open-editor]",
+        "[data-ints-task-tip-float]",
         '[id^="ints-inline-"]',
         ".virtual-task-modal",
         '[id^="ints-vt-"]',
         '[id^="intschool-deadline"]',
         ".intschool-deadline-tooltip-fixed",
-        "#ints-help-float",
-        ".ints-help-wrap",
         "#ints-overview-view"
       ].join(",");
-      _armCancel = null;
+      _armCancel = null, _armedKey = null;
     }
   });
 
@@ -3687,29 +3900,23 @@
       };
     });
   }
-  function cgpaTitle() {
-    return t(
-      "\u7D2F\u8BA1GPA\uFF1AG9 \u8D77\u6240\u6709\u8BA1\u5206\u8BFE\u7A0B\u6309\u5B66\u5206\u52A0\u6743\u6C47\u603B\uFF08\u542B AP/ECP \u52A0\u6743\uFF09\uFF1B\u53EA\u8BFB\u3001\u4E0D\u53C2\u4E0E\u300C\u5E73\u5747GPA\u300D\uFF1B\u624B\u6539\u8FC7\u67D0\u4E00\u5E74\u7684 UW/W \u65F6\u8BE5\u5E74\u6309\u8868\u683C\u91CC\u663E\u793A\u7684\u5E74\u5EA6\u503C\u8BA1\u5165",
-      "Cumulative GPA: credit-weighted over every graded course since G9 (AP/ECP weighting included). Read-only, not part of the average. A hand-edited year counts with the annual value shown in the table."
-    );
-  }
   function formatCumulativeGPA(cum) {
     let val = cum ? cum.display : null, base = cum ? cum.noSim : null, hasDiff = val !== null && base !== null && Math.abs(val - base) > 5e-3, diffStr = hasDiff ? " (" + formatDiff(val - base) + ")" : "";
-    return '<span style="' + (hasDiff ? "font-weight:bold;" : "") + '" title="' + cgpaTitle() + '">' + (val !== null ? val.toFixed(2) : "\u2014") + "</span>" + diffStr;
+    return '<span style="' + (hasDiff ? "font-weight:bold;" : "") + '">' + (val !== null ? val.toFixed(2) : "\u2014") + "</span>" + diffStr;
   }
   function buildMultiYearGradeTable() {
     if (!S.multiYearEntries.length) return `<div style="padding:20px;text-align:center;">${t("\u6682\u65E0\u591A\u5E74\u7EA7\u6570\u636E", "No multi-year data")}</div>`;
     function formatEditableGPA(effective, orig, grade, semester) {
       let key = grade + "_" + semester, override = S.multiYearGPAOverrides[key] || {};
       function fmtVal(val, origVal, type, color) {
-        let isOverride = override[type] !== null && override[type] !== void 0, diff = orig && origVal !== null && origVal !== void 0 && val !== null ? val - origVal : 0, diffStr = orig && origVal !== null && origVal !== void 0 && val !== null && Math.abs(diff) > 5e-3 ? " (" + formatDiff(diff) + ")" : "", style = isOverride ? "color:" + color + ";font-weight:bold;cursor:pointer;background:#fff3e0;padding:1px 4px;border-radius:3px;" : "cursor:pointer;", title = isOverride ? t("\u5DF2\u8986\u76D6(\u70B9\u51FB\u7F16\u8F91)", "Overridden (click to edit)") : val !== null ? t("\u70B9\u51FB\u7F16\u8F91GPA", "Click to edit GPA") : t("\u70B9\u51FB\u8BBE\u7F6EGPA", "Click to set GPA"), displayVal = val !== null ? val.toFixed(2) : "\u2014";
-        return '<span class="my-gpa-editable" data-grade="' + grade + '" data-sem="' + semester + '" data-type="' + type + '" style="' + style + '" title="' + title + '">' + displayVal + "</span>" + diffStr;
+        let isOverride = override[type] !== null && override[type] !== void 0, diff = orig && origVal !== null && origVal !== void 0 && val !== null ? val - origVal : 0, diffStr = orig && origVal !== null && origVal !== void 0 && val !== null && Math.abs(diff) > 5e-3 ? " (" + formatDiff(diff) + ")" : "", style = isOverride ? "color:" + color + ";font-weight:bold;cursor:pointer;background:#fff3e0;padding:1px 4px;border-radius:3px;" : "cursor:pointer;", displayVal = val !== null ? val.toFixed(2) : "\u2014";
+        return '<span class="my-gpa-editable" data-grade="' + grade + '" data-sem="' + semester + '" data-type="' + type + '" style="' + style + '">' + displayVal + "</span>" + diffStr;
       }
       let uw = effective ? effective.uw : override.uw !== null && override.uw !== void 0 ? override.uw : null, w = effective ? effective.w : override.w !== null && override.w !== void 0 ? override.w : null, origUW = orig ? orig.uw : null, origW = orig ? orig.w : null;
       return "UW: " + fmtVal(uw, origUW, "uw", "#1890ff") + " W: " + fmtVal(w, origW, "w", "#cf1322");
     }
     let html = '<div style="overflow-x:auto;max-width:100%;"><table style="border-collapse:collapse;font-size:13px;min-width:860px;">';
-    html += '<thead><tr style="background:#fafafa;">', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">${t("\u5E74\u7EA7", "Grade")}</th>`, html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S1F GPA</th>', html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S2F GPA</th>', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${t("\u5B66\u5E74GPA", "Annual GPA")}</th>`, html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:${CGPA_TINT};" title="${cgpaTitle()}">${CGPA_LABEL()}</th>`, html += "</tr></thead><tbody>";
+    html += '<thead><tr style="background:#fafafa;">', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">${t("\u5E74\u7EA7", "Grade")}</th>`, html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S1F GPA</th>', html += '<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;">S2F GPA</th>', html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${t("\u5B66\u5E74GPA", "Annual GPA")}</th>`, html += `<th style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:${CGPA_TINT};">${CGPA_LABEL()}</th>`, html += "</tr></thead><tbody>";
     for (let idx = 0; idx < S.multiYearEntries.length; idx++) {
       let entry = S.multiYearEntries[idx], grade = entry.grade, origS1F = computeColumnGPASummary(entry.originalCourses, (c) => c.originalGrades.s1f), origS2F = computeColumnGPASummary(entry.originalCourses, (c) => c.originalGrades.s2f), ann = multiYearAnnualOf(entry), origAnnual = ann.base, simS1F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s1f), simS2F = computeColumnGPASummary(entry.simCourses, (c) => c.simGrades.s2f), effS1F = getEffectiveMultiYearGPA(grade, "S1F", simS1F), effS2F = getEffectiveMultiYearGPA(grade, "S2F", simS2F);
       html += "<tr>", html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;font-weight:600;">${grade}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f0f8ff;">${formatEditableGPA(effS1F, origS1F, grade, "S1F")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f0f8ff;">${formatEditableGPA(effS2F, origS2F, grade, "S2F")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:#f9f9ff;">${formatEditableGPA(ann.value, origAnnual, grade, "Annual")}</td>`, html += `<td style="border:1px solid #e8e8e8;padding:8px 10px;text-align:center;background:${CGPA_TINT};" data-ints-cgpa-grade="${grade}">${formatCumulativeGPA(multiYearCumulativeOf(idx))}</td>`, html += "</tr>";
@@ -3931,7 +4138,7 @@
     if (!course || !course.tasks[taskIdx]) return;
     let task = course.tasks[taskIdx], taskTerm = getTermFromDate(task.endDate, task.termRaw);
     if (taskTerm === "S1" && course.showStar.s1 || taskTerm === "S2" && course.showStar.s2) {
-      showOverrideWarning(t("\u8BE5\u79D1\u76EE\u5DF2\u6807\u8BB0\u661F\u6807\uFF0C\u7981\u6B62\u7F16\u8F91\u4EFB\u52A1\u5F97\u5206\u3002\u8BF7\u76F4\u63A5\u4FEE\u6539P\u6216E\u6210\u7EE9\u3002", "Starred subject, task editing disabled. Edit P/E directly."));
+      showOverrideWarning(t("\u8BE5\u79D1\u6743\u91CD\u5F02\u5E38\uFF0C\u4EFB\u52A1\u5206\u7F16\u8F91\u5DF2\u505C\u7528\uFF1B\u8BF7\u76F4\u63A5\u6539 P \u6216 E\u3002", "Weight mismatch: task editing is disabled. Edit P/E directly."));
       return;
     }
     if (newScore === null || newScore === "") task.simulatedScore = null;
@@ -4021,15 +4228,7 @@
     }
   }
   function _detailTitleHTML(course, filterText) {
-    return "<div>" + t("\u79D1\u76EE\u660E\u7EC6\u6A21\u62DF", "Subject Detail Simulation") + helpIcon(
-      `\u7F16\u8F91\u5404\u7C7B\u578B\u7D2F\u8BA1\u5F97\u5206\u6A21\u62DF\u5E73\u65F6\u6210\u7EE9\u53D8\u5316\u3002
-\u70B9\u51FB"\u5173\u95ED\u5E76\u5E94\u7528"\u65F6\u5C06\u5DEE\u503C\u5199\u5165\u4E3B\u8868\u683C\u7684P\u5217\u8986\u76D6\u3002
-\u5B66\u671F\u7B5B\u9009\u4E0E\u6210\u7EE9\u518C\u9875\u9762\u4E00\u81F4\u3002`,
-      `Edit category totals to simulate P score changes. 
- Click "Close & Apply" to write differences to the main table P column. 
- The semester filter matches the one on the grade book page.`,
-      !0
-    ) + '</div><div style="color:rgba(0,0,0,0.55);font-size:11px;font-weight:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(course.name) + '<span style="margin-left:8px;">' + t("\u5B66\u671F\u7B5B\u9009: ", "Semester filter: ") + escapeHtml(filterText) + "</span></div>";
+    return "<div>" + t("\u79D1\u76EE\u660E\u7EC6\u6A21\u62DF", "Subject Detail Simulation") + ' <button type="button" class="ant-btn ant-btn-link" data-ints-help="sim" style="padding:0 4px;font-size:11px;">' + t("\u8BF4\u660E", "Help") + '</button></div><div style="color:rgba(0,0,0,0.55);font-size:11px;font-weight:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(course.name) + '<span style="margin-left:8px;">' + t("\u5B66\u671F\u7B5B\u9009: ", "Semester filter: ") + escapeHtml(filterText) + "</span></div>";
   }
   function showSubjectDetailModal(courseIdx, anchorEl) {
     if (!S.isCurrentYear) return;
@@ -4060,8 +4259,8 @@
         _detailRenders.delete(key);
       }
     });
-    handle.el.setAttribute("data-ie-ident", ident), handle.el.setAttribute("data-ie-ci", String(courseIdx)), safe("\u5E2E\u52A9\u6D6E\u5C42\u5B89\u88C5", () => setupHelpTooltip());
-    let st = { course: null, ci: courseIdx, termData: null, edits: { S1: {}, S2: {} } };
+    handle.el.setAttribute("data-ie-ident", ident), handle.el.setAttribute("data-ie-ci", String(courseIdx));
+    let st = { course: null, ci: courseIdx, termData: null, edits: { S1: {}, S2: {} }, edited: { S1: !1, S2: !1 } };
     function syncState() {
       let i = S.simCourses.findIndex((c) => courseIdent(c) === ident);
       if (i < 0) return !1;
@@ -4071,9 +4270,9 @@
         S2: { origScores: Array(5).fill(0), simScores: Array(5).fill(0), maxScores: Array(5).fill(0), origP: course.originalGrades.s2p, overridden: (course.overrideP || {}).s2 !== null && (course.overrideP || {}).s2 !== void 0 }
       };
       for (let term of ["S1", "S2"]) {
-        let origAgg = aggregateCategoriesFromTasks(course.tasks, term, !1), simAgg = aggregateCategoriesFromTasks(course.tasks, term, !0);
+        let origAgg = aggregateCategoriesFromTasks(course.tasks, term, !1);
         for (let i2 = 0; i2 < 5; i2++)
-          termData[term].origScores[i2] = origAgg[i2].score, termData[term].simScores[i2] = simAgg[i2].score, termData[term].maxScores[i2] = Math.max(origAgg[i2].max, simAgg[i2].max);
+          termData[term].origScores[i2] = origAgg[i2].score, termData[term].simScores[i2] = origAgg[i2].score, termData[term].maxScores[i2] = origAgg[i2].max;
         let mine = st.edits[term];
         for (let k in mine) {
           let idx = parseInt(k, 10);
@@ -4097,15 +4296,7 @@
         let tData = termData[term];
         if (!(tData.maxScores.some((s) => s > 0) || tData.origP !== null)) continue;
         let pStar = computePStar(term), origP = tData.origP, pDiff = pStar !== null && origP !== null ? pStar - origP : null, pGPA = getGPAForScore(pStar, course.weightBonus), origPGPA = getGPAForScore(origP, course.weightBonus), isOverridden = tData.overridden, isStarred = term === "S1" && showStar.s1 || term === "S2" && showStar.s2, canEdit = !isOverridden && !isStarred;
-        html += '<div class="iw-card"><div class="iw-card-head">' + term + " " + t("\u5B66\u671F", "Semester") + helpIcon(
-          `\u663E\u793A\u8BE5\u5B66\u671F\u5404\u4EFB\u52A1\u7C7B\u578B\u5F53\u524D\u7684\u7D2F\u8BA1\u5F97\u5206\u4E0E\u603B\u5206\u3002
-\u6709\u6A21\u62DF\u65F6\u6309\u65B9\u5411\u7740\u8272\u5E76\u5728\u62EC\u53F7\u91CC\u7ED9\u51FA\u53D8\u5316\u91CF\uFF0C\u9F20\u6807\u60AC\u505C\u53EF\u770B\u539F\u59CB\u503C\u3002
-\u70B9\u51FB\u6570\u503C\u53EF\u7F16\u8F91\u5BF9\u5E94\u7C7B\u578B\u7684\u7D2F\u8BA1\u5F97\u5206\uFF0C\u5173\u95ED\u672C\u7A97\u53E3\u65F6\u5C06\u5DEE\u503C\u5199\u5165\u4E3B\u8868\u683CP\u5217\u8986\u76D6\u3002`,
-          `Shows the current cumulative scores and totals for each task type in this semester. 
- Simulated values are colored by direction with the change in brackets; hover to see the original. 
- Click a value to edit that category total; closing this dialog writes the difference to the main table P column override.`,
-          !0
-        ) + (isStarred ? ' <span style="color:#d4380d;">\u26A0\uFE0F ' + t("\u661F\u6807\u79D1\u76EE\uFF0C\u660E\u7EC6\u6A21\u62DF\u5DF2\u7981\u7528", "Starred subject, detail simulation disabled") + "</span>" : "") + '</div><table class="iw-table"><thead><tr><th>' + t("\u4EFB\u52A1\u7C7B\u578B", "Task Type") + "</th><th>" + t("\u7D2F\u8BA1/\u603B\u5206 (\u767E\u5206\u6BD4)", "Total/Max (Percent)") + "</th></tr></thead><tbody>";
+        html += '<div class="iw-card"><div class="iw-card-head">' + term + " " + t("\u5B66\u671F", "Semester") + (isStarred ? ' <span style="color:#d4380d;">\u26A0\uFE0F ' + t("\u6743\u91CD\u5F02\u5E38\uFF0C\u660E\u7EC6\u6A21\u62DF\u5DF2\u505C\u7528", "Weight mismatch: detail simulation disabled") + "</span>" : "") + '</div><table class="iw-table"><thead><tr><th>' + t("\u4EFB\u52A1\u7C7B\u578B", "Task Type") + "</th><th>" + t("\u7D2F\u8BA1/\u603B\u5206 (\u767E\u5206\u6BD4)", "Total/Max (Percent)") + "</th></tr></thead><tbody>";
         for (let i = 0; i < TYPE_NAMES.length; i++) {
           if (weights[i] <= 0) continue;
           let maxScore = tData.maxScores[i], origScore = tData.origScores[i], simScore = tData.simScores[i], label = escapeHtml(TYPE_NAMES[i]);
@@ -4113,13 +4304,13 @@
             html += "<tr><td>" + label + '</td><td class="iw-num"><span class="iw-locked">' + t("\u65E0\u6570\u636E", "No data") + "</span></td></tr>";
             continue;
           }
-          let d = typeof simScore == "number" && typeof origScore == "number" ? simScore - origScore : 0, changed = Math.abs(d) >= DETAIL_DELTA_EPS, pct = (simScore / maxScore * 100).toFixed(2), origPct = (origScore / maxScore * 100).toFixed(2), valueHtml = escapeHtml(simScore + "/" + maxScore) + (changed ? ' <span style="font-size:11px;">(' + (d > 0 ? "+" : "") + d.toFixed(2) + ")</span>" : ""), styleAttr = changed ? ' style="color:' + (d > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "", titleAttr = ' title="' + escapeHtml(t("\u539F\u59CB ", "was ") + origScore + "/" + maxScore + " (" + origPct + "%)") + '"';
+          let d = typeof simScore == "number" && typeof origScore == "number" ? simScore - origScore : 0, changed = Math.abs(d) >= DETAIL_DELTA_EPS, pct = (simScore / maxScore * 100).toFixed(2), origPct = (origScore / maxScore * 100).toFixed(2), valueHtml = escapeHtml(simScore + "/" + maxScore) + (changed ? ' <span style="font-size:11px;">(' + (d > 0 ? "+" : "") + d.toFixed(2) + ")</span>" : ""), styleAttr = changed ? ' style="color:' + (d > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "", titleAttr = changed ? ' title="' + escapeHtml(t("\u539F\u59CB ", "was ") + origScore + "/" + maxScore + " (" + origPct + "%)") + '"' : "";
           html += "<tr><td>" + label + '</td><td class="iw-num">' + (canEdit ? '<span class="iw-sim-cell"' + styleAttr + titleAttr + ' data-detail-edit="' + i + '" data-detail-term="' + term + '" data-detail-max="' + maxScore + '">' + valueHtml + "</span>" : '<span class="iw-locked"' + titleAttr + ">" + valueHtml + "</span>") + ' <span class="iw-note">' + pct + "%</span></td></tr>";
         }
         let pStarGPAstr = pGPA ? formatGPA(pGPA) : "\u2014", origPGPAstr = origPGPA ? formatGPA(origPGPA) : "\u2014", deltaStr = "";
         pDiff !== null && pGPA && origPGPA && (deltaStr = "\u0394 UW: " + formatDiff(pGPA.uw - origPGPA.uw) + "  \u0394 W: " + formatDiff(pGPA.w - origPGPA.w));
-        let pShown = pStar !== null ? pStar : origP, pChanged = pDiff !== null && Math.abs(pDiff) >= DETAIL_DELTA_EPS, pValHtml = (pShown === null ? "\u2014" : pShown.toFixed(2)) + (pChanged ? ' <span style="font-size:11px;">(' + (pDiff > 0 ? "+" : "") + pDiff.toFixed(2) + ")</span>" : ""), pTitle = escapeHtml(t("\u539F\u59CB ", "was ") + (origP === null ? "\u2014" : origP.toFixed(2)) + " \xB7 " + origPGPAstr);
-        html += '<tr class="iw-prow"><td>' + t("\u5E73\u65F6\u6210\u7EE9 (P)", "Performance (P)") + '</td><td class="iw-num"><span' + (pChanged ? ' style="color:' + (pDiff > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "") + ' title="' + pTitle + '">' + pValHtml + '</span><br><span class="iw-note">' + escapeHtml(pStarGPAstr) + "</span>" + (deltaStr ? '<div class="iw-note" style="font-size:11px;">' + deltaStr + "</div>" : "") + "</td></tr>", html += "</tbody></table>", isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u5B66\u671F\u5DF2\u5728\u4E3B\u8868\u683C\u624B\u52A8\u8BBE\u7F6E\u5E73\u65F6\u6210\u7EE9\uFF0C\u672C\u5904\u7F16\u8F91\u5DF2\u7981\u7528\u3002", "\u26A0\uFE0F Manual override exists for this semester, editing disabled.") + "</div>"), isStarred && !isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u79D1\u76EE\u5DF2\u6807\u8BB0\u661F\u6807\uFF0C\u660E\u7EC6\u6A21\u62DF\u7F16\u8F91\u5DF2\u7981\u7528\u3002\u8BF7\u76F4\u63A5\u5728\u4E3B\u8868\u683C\u7F16\u8F91P/E\u3002", "\u26A0\uFE0F Starred subject, detail simulation disabled. Edit P/E in main table.") + "</div>"), html += "</div>";
+        let pShown = pStar !== null ? pStar : origP, pChanged = pDiff !== null && Math.abs(pDiff) >= DETAIL_DELTA_EPS, pValHtml = (pShown === null ? "\u2014" : pShown.toFixed(2)) + (pChanged ? ' <span style="font-size:11px;">(' + (pDiff > 0 ? "+" : "") + pDiff.toFixed(2) + ")</span>" : ""), pTitle = pChanged ? ' title="' + escapeHtml(t("\u539F\u59CB ", "was ") + (origP === null ? "\u2014" : origP.toFixed(2)) + " \xB7 " + origPGPAstr) + '"' : "";
+        html += '<tr class="iw-prow"><td>' + t("\u5E73\u65F6\u6210\u7EE9 (P)", "Performance (P)") + '</td><td class="iw-num"><span' + (pChanged ? ' style="color:' + (pDiff > 0 ? DETAIL_COLOR_UP : DETAIL_COLOR_DOWN) + ';"' : "") + pTitle + ">" + pValHtml + '</span><br><span class="iw-note">' + escapeHtml(pStarGPAstr) + "</span>" + (deltaStr ? '<div class="iw-note" style="font-size:11px;">' + deltaStr + "</div>" : "") + "</td></tr>", html += "</tbody></table>", isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u5B66\u671F\u5DF2\u5728\u4E3B\u8868\u683C\u624B\u52A8\u8BBE\u7F6E\u5E73\u65F6\u6210\u7EE9\uFF0C\u672C\u5904\u7F16\u8F91\u5DF2\u7981\u7528\u3002", "\u26A0\uFE0F Manual override exists for this semester, editing disabled.") + "</div>"), isStarred && !isOverridden && (html += '<div class="iw-warn">' + t("\u26A0\uFE0F \u8BE5\u79D1\u6743\u91CD\u5F02\u5E38\uFF0C\u660E\u7EC6\u6A21\u62DF\u7F16\u8F91\u5DF2\u505C\u7528\uFF1B\u8BF7\u76F4\u63A5\u5728\u4E3B\u8868\u683C\u6539 P \u6216 E\u3002", "\u26A0\uFE0F Weight mismatch: detail simulation is disabled. Edit P/E in the main table.") + "</div>"), html += "</div>";
       }
       html || (html = '<div class="iw-note">' + t("\u8BE5\u7B5B\u9009\u4E0B\u6CA1\u6709\u53EF\u663E\u793A\u7684\u6570\u636E\u3002", "No data to show for this filter.") + "</div>"), handle.setBody(html);
     }
@@ -4129,9 +4320,13 @@
         return;
       }
       let course = st.course, termData = st.termData, showStar = course.showStar || { s1: !1, s2: !1 };
+      if (!st.edited.S1 && !st.edited.S2) {
+        closeWindow(key);
+        return;
+      }
       for (let term of ["S1", "S2"]) {
         let tData = termData[term];
-        if (tData.overridden || term === "S1" && showStar.s1 || term === "S2" && showStar.s2) continue;
+        if (!st.edited[term] || tData.overridden || term === "S1" && showStar.s1 || term === "S2" && showStar.s2) continue;
         let newPStar = computePStar(term), origP = tData.origP, shouldSet = !1;
         newPStar !== null ? (origP === null || Math.abs(newPStar - origP) > 1e-3) && (shouldSet = !0) : origP !== null && (shouldSet = !0), shouldSet ? term === "S1" ? course.overrideP.s1 !== newPStar && (course.overrideP.s1 = newPStar) : course.overrideP.s2 !== newPStar && (course.overrideP.s2 = newPStar) : (term === "S1" && course.overrideP.s1 !== null && (course.overrideP.s1 = null), term === "S2" && course.overrideP.s2 !== null && (course.overrideP.s2 = null));
       }
@@ -4162,7 +4357,7 @@
         let num = parseFloat(input.value);
         if (!isNaN(num)) {
           let v = Math.min(Math.max(num, 0), maxScore);
-          tData.simScores[catIdx] = v, st.edits[term][catIdx] = v;
+          tData.simScores[catIdx] = v, st.edits[term][catIdx] = v, st.edited[term] = !0;
         }
         render();
       };
@@ -4286,7 +4481,7 @@
         for (let t4 of c.tasks || [])
           t4.isVirtual && t4.entityId < minId && (minId = t4.entityId);
       let saved = layer.vt === void 0 || layer.vt === null ? -1 : layer.vt;
-      S.virtualTaskIdCounter = Math.min(saved, minId - 1), markDirty(), log(`[\u6301\u4E45\u5316] \u5DF2\u628A\u7528\u6237\u5C42\u8D34\u56DE ${applied} \u95E8\u8BFE\u7A0B\uFF08\u865A\u62DF\u4EFB\u52A1 / \u6539\u5206 / \u624B\u52A8 P\xB7E / \u661F\u6807\uFF09`);
+      S.virtualTaskIdCounter = Math.min(saved, minId - 1), markDirty(), log(`[\u6301\u4E45\u5316] \u5DF2\u628A\u7528\u6237\u5C42\u8D34\u56DE ${applied} \u95E8\u8BFE\u7A0B\uFF08\u865A\u62DF\u4EFB\u52A1 / \u6539\u5206 / \u624B\u52A8 P\xB7E\uFF09`);
     }
     return applied;
   }
@@ -4397,7 +4592,7 @@
     }
     if (!candidates.length) return;
     let targets = candidates.slice(0, AUTO_CALIBRATE_MAX), deferred = candidates.length - targets.length;
-    if (log(`[\u81EA\u52A8\u6821\u51C6] \u661F\u6807\u8BFE\u7A0B ${candidates.length} \u95E8\uFF0C\u672C\u6B21\u6821\u51C6 ${targets.length} \u95E8` + (deferred ? `\uFF08${deferred} \u95E8\u7559\u5F85\u624B\u52A8\u6821\u51C6\uFF09` : "") + ": " + targets.map((i) => S.simCourses[i].name).join(" | ")), _autoCalibrateRunning = !0, await new Promise((r) => setTimeout(r, AUTO_CALIBRATE_DELAY_MS)), !_autoCalibrateEnabled()) {
+    if (log(`[\u81EA\u52A8\u6821\u51C6] \u6743\u91CD\u5F02\u5E38\u8BFE\u7A0B ${candidates.length} \u95E8\uFF0C\u672C\u6B21\u6821\u51C6 ${targets.length} \u95E8` + (deferred ? `\uFF08${deferred} \u95E8\u7559\u5F85\u624B\u52A8\u6821\u51C6\uFF09` : "") + ": " + targets.map((i) => S.simCourses[i].name).join(" | ")), _autoCalibrateRunning = !0, await new Promise((r) => setTimeout(r, AUTO_CALIBRATE_DELAY_MS)), !_autoCalibrateEnabled()) {
       _autoCalibrateRunning = !1, log("[\u81EA\u52A8\u6821\u51C6] \u5DF2\u6309\u8BBE\u7F6E\u5173\u95ED\uFF0C\u653E\u5F03\u672C\u8F6E");
       return;
     }
@@ -4435,7 +4630,7 @@
                 endDate: t4.endDate,
                 termRaw: t4.termRaw
               })), newP = calculateTermAverageByCategory(mapped, course.subject || course.name, term), apiP = orig.originalGrades[pKey];
-              newP !== null && apiP !== null && !differsFromSchool(newP, apiP) ? (course.showStar[starKey] = !1, orig.showStar[starKey] = !1, orig.originalGrades[pKey] = newP, starCleared++, log(`[\u81EA\u52A8\u6821\u51C6] ${course.name} ${term} \u661F\u6807\u89E3\u9664: \u8BA1\u7B97\u503C=${newP.toFixed(2)} \u7CFB\u7EDF\u503C=${apiP}`)) : (starKept++, log(`[\u81EA\u52A8\u6821\u51C6] ${course.name} ${term} \u661F\u6807\u4FDD\u7559: \u8BA1\u7B97\u503C=${newP === null ? "null" : newP.toFixed(2)} \u7CFB\u7EDF\u503C=${apiP}`));
+              newP !== null && apiP !== null && !differsFromSchool(newP, apiP) ? (course.showStar[starKey] = !1, orig.showStar[starKey] = !1, orig.originalGrades[pKey] = newP, starCleared++, log(`[\u81EA\u52A8\u6821\u51C6] ${course.name} ${term} \u6743\u91CD\u5F02\u5E38\u89E3\u9664: \u8BA1\u7B97\u503C=${newP.toFixed(2)} \u7CFB\u7EDF\u503C=${apiP}`)) : (starKept++, log(`[\u81EA\u52A8\u6821\u51C6] ${course.name} ${term} \u6743\u91CD\u5F02\u5E38\u4FDD\u7559: \u8BA1\u7B97\u503C=${newP === null ? "null" : newP.toFixed(2)} \u7CFB\u7EDF\u503C=${apiP}`));
             }
           }
           recalcCourseTerm(course, "s1"), recalcCourseTerm(course, "s2"), orig && syncOriginalToSim(course, orig);
@@ -4453,7 +4648,7 @@
     if (S._navGeneration !== navGen) return;
     refreshAllViews(), markDirty();
     let parts = [];
-    okCount && parts.push(t(`${okCount} \u95E8\u5DF2\u6821\u51C6`, `${okCount} calibrated`)), starCleared && parts.push(t(`${starCleared} \u5904\u661F\u6807\u5DF2\u89E3\u9664`, `${starCleared} star(s) cleared`)), starKept && parts.push(t(`${starKept} \u5904\u661F\u6807\u4FDD\u7559`, `${starKept} star(s) kept`)), failCount && parts.push(t(`${failCount} \u95E8\u5931\u8D25`, `${failCount} failed`)), deferred && parts.push(t(`\u53E6\u6709 ${deferred} \u95E8\u7559\u5F85\u4E0B\u6B21\uFF08\u672C\u6B21\u4F1A\u8BDD\u5DF2\u8FBE\u4E0A\u9650\uFF09`, `${deferred} more deferred to next session`)), parts.length && log("[\u81EA\u52A8\u6821\u51C6] " + parts.join("\uFF0C"));
+    okCount && parts.push(t(`${okCount} \u95E8\u5DF2\u6821\u51C6`, `${okCount} calibrated`)), starCleared && parts.push(t(`${starCleared} \u5904\u6743\u91CD\u5F02\u5E38\u5DF2\u89E3\u9664`, `${starCleared} weight mismatch(es) resolved`)), starKept && parts.push(t(`${starKept} \u5904\u6743\u91CD\u5F02\u5E38\u4FDD\u7559`, `${starKept} weight mismatch(es) kept`)), failCount && parts.push(t(`${failCount} \u95E8\u5931\u8D25`, `${failCount} failed`)), deferred && parts.push(t(`\u53E6\u6709 ${deferred} \u95E8\u7559\u5F85\u4E0B\u6B21\uFF08\u672C\u6B21\u4F1A\u8BDD\u5DF2\u8FBE\u4E0A\u9650\uFF09`, `${deferred} more deferred to next session`)), parts.length && log("[\u81EA\u52A8\u6821\u51C6] " + parts.join("\uFF0C"));
   }
   function showVirtualTaskModal2(preselectedCourseIdx, onAdded) {
     if (!S.isCurrentYear || S.activeSubModal) return;
@@ -4620,7 +4815,7 @@
         S.originalCourses = cached.originalCourses, isCurr ? (S.simCourses = cached.simCourses, S.currentYearAnnualGPA = null, S.currentYearCumulativeGPA = null, S.virtualTaskIdCounter = cached.virtualTaskIdCounter || cached.simCourses.reduce((min, c) => {
           for (let t4 of c.tasks || []) t4.isVirtual && t4.entityId < min && (min = t4.entityId);
           return min;
-        }, -1)) : (initReadOnlyCourses(), S.currentYearAnnualGPA = cached.annualGPA || null, S.currentYearCumulativeGPA = cached.cumulativeGPA || null), S.simYearKey = keyStr, refreshAllViews(), log(isCurr ? `[\u7F13\u5B58] \u4F7F\u7528\u7F13\u5B58\u7684\u5F53\u524D\u5B66\u5E74\u6A21\u62DF\u6570\u636E: ${yearValue}` : `[\u7F13\u5B58] \u4F7F\u7528\u7F13\u5B58\u7684\u5F80\u671F\u6570\u636E\uFF08\u53EA\u8BFB\uFF09: ${yearValue}`), isCurr && safeAsync("\u661F\u6807\u81EA\u52A8\u6821\u51C6", autoCalibrateStarredCourses);
+        }, -1)) : (initReadOnlyCourses(), S.currentYearAnnualGPA = cached.annualGPA || null, S.currentYearCumulativeGPA = cached.cumulativeGPA || null), S.simYearKey = keyStr, refreshAllViews(), log(isCurr ? `[\u7F13\u5B58] \u4F7F\u7528\u7F13\u5B58\u7684\u5F53\u524D\u5B66\u5E74\u6A21\u62DF\u6570\u636E: ${yearValue}` : `[\u7F13\u5B58] \u4F7F\u7528\u7F13\u5B58\u7684\u5F80\u671F\u6570\u636E\uFF08\u53EA\u8BFB\uFF09: ${yearValue}`), isCurr && safeAsync("\u6743\u91CD\u5F02\u5E38\u81EA\u52A8\u6821\u51C6", autoCalibrateStarredCourses);
         return;
       }
       isCurr ? log(`[\u7F13\u5B58] ${yearValue} \u7684\u6210\u7EE9\u518C\u7F13\u5B58\u5DF2\u8FC7\u671F\uFF08\u6216\u6CA1\u6709\u6A21\u62DF\u6570\u636E\uFF09` + (force ? "\uFF08\u672C\u6B21\u4E3A\u5BF9\u8D26\u5F3A\u5236\u91CD\u62C9\uFF09" : "") + "\uFF0C\u91CD\u65B0\u62C9\u53D6\uFF1B\u7528\u6237\u6570\u636E\u7A0D\u540E\u56DE\u8D34") : log(`[\u7F13\u5B58] ${yearValue} \u7684\u7F13\u5B58\u6761\u76EE\u662F${cached && cached.src === "report" ? "\u5E74\u5EA6\u62A5\u544A" : "\u65E7\u683C\u5F0F"}\u7248\uFF08\u6CA1\u6709\u4EFB\u52A1/\u5B66\u79D1\uFF09\uFF0C\u6309\u6210\u7EE9\u518C\u91CD\u5EFA\u4E00\u4EFD`);
@@ -4648,7 +4843,7 @@
         dataTs: Date.now(),
         src: "book"
       }), markDirty(), S._navGeneration !== navGen) return;
-      refreshAllViews(), S.expectedRequestCount = 0, log(`[\u52A0\u8F7D] \u5B8C\u6210\uFF0C\u5171 ${S.originalCourses.length} \u95E8\u8BFE\u7A0B`), isCurr && safeAsync("\u661F\u6807\u81EA\u52A8\u6821\u51C6", autoCalibrateStarredCourses);
+      refreshAllViews(), S.expectedRequestCount = 0, log(`[\u52A0\u8F7D] \u5B8C\u6210\uFF0C\u5171 ${S.originalCourses.length} \u95E8\u8BFE\u7A0B`), isCurr && safeAsync("\u6743\u91CD\u5F02\u5E38\u81EA\u52A8\u6821\u51C6", autoCalibrateStarredCourses);
     } catch (err) {
       if (S.expectedRequestCount = 0, err.name === "AbortError") {
         log("[\u52A0\u8F7D] \u8BF7\u6C42\u5DF2\u88AB\u4E2D\u65AD");
@@ -4853,6 +5048,481 @@
     }
   });
 
+  // v8.30/task-tip.js
+  function _visible(el) {
+    if (!el || !el.isConnected) return !1;
+    try {
+      let cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden") return !1;
+    } catch (e) {
+    }
+    return !0;
+  }
+  function _clearTarget() {
+    if (_target) {
+      try {
+        let inner = _target.inner;
+        inner && (inner.removeAttribute(TIP_ATTR), inner.style.marginTop = _target.marginTop || "");
+      } catch (e) {
+      }
+      _target = null;
+    }
+  }
+  function _removeFloat() {
+    _float && _float.parentNode && _float.parentNode.removeChild(_float), _float = null;
+  }
+  function _clearAll() {
+    _clearTarget(), _removeFloat(), _raf && (clearTimeout(_raf), _raf = null), _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null), _hover = null;
+  }
+  function _tooltipPlacement(tip) {
+    let cls = String(tip && tip.className || "");
+    return cls.indexOf("ant-tooltip-placement-top") >= 0 ? "top" : cls.indexOf("ant-tooltip-placement-bottom") >= 0 ? "bottom" : cls.indexOf("ant-tooltip-placement-left") >= 0 ? "left" : cls.indexOf("ant-tooltip-placement-right") >= 0 ? "right" : "top";
+  }
+  function _findSystemTip(name) {
+    let tips = document.querySelectorAll(".ant-tooltip");
+    for (let i = tips.length - 1; i >= 0; i--) {
+      let tip = tips[i];
+      if (!_visible(tip)) continue;
+      let inners = tip.querySelectorAll(".ant-tooltip-inner");
+      for (let j = inners.length - 1; j >= 0; j--) {
+        let inner = inners[j];
+        if (_visible(inner) && String(inner.textContent || "").indexOf(name) >= 0)
+          return { tip, inner };
+      }
+    }
+    return null;
+  }
+  function _patch(tip, inner, text) {
+    if (_target && (_target.inner !== inner || _target.tip !== tip) && _clearTarget(), _target || (_target = { tip, inner, marginTop: inner.style.marginTop || "" }), _target.text === text && inner.getAttribute(TIP_ATTR) === text) return;
+    let before = inner.getBoundingClientRect().height;
+    inner.setAttribute(TIP_ATTR, text);
+    let after = inner.getBoundingClientRect().height, delta = Math.max(0, after - before), placement = _tooltipPlacement(tip), mt = 0;
+    delta > 0.5 && (placement === "top" ? mt = -delta : (placement === "left" || placement === "right") && (mt = -delta / 2)), inner.style.marginTop = (mt || 0) + "px", _target.text = text;
+  }
+  function _floatText(lines) {
+    return String(lines || "").split(`
+`).map(function(line) {
+      return '<div class="ints-task-tip-line">' + escapeHtml(line) + "</div>";
+    }).join("");
+  }
+  function _showVirtual(titleEl, lines) {
+    _clearTarget(), _removeFloat();
+    let name = String(titleEl.textContent || "").trim(), float = document.createElement("div");
+    float.className = "ant-tooltip ant-tooltip-placement-topLeft ints-task-tip-float", float.setAttribute(FLOAT_ATTR, "1"), float.innerHTML = '<div class="ant-tooltip-content"><div class="ant-tooltip-arrow"></div><div class="ant-tooltip-inner"><div class="ints-task-tip-name">' + escapeHtml(name) + "</div>" + _floatText(lines) + "</div></div>", document.body.appendChild(float), float.style.display = "block";
+    let rect = titleEl.getBoundingClientRect(), w = float.offsetWidth, h = float.offsetHeight, left = rect.left + rect.width / 2 - w / 2, top = rect.top - h - 8, placement = "top";
+    top < 8 && (top = rect.bottom + 8, placement = "bottom"), left = Math.max(8, Math.min(left, window.innerWidth - w - 8)), top = Math.max(8, Math.min(top, window.innerHeight - h - 8)), float.style.left = Math.round(left) + "px", float.style.top = Math.round(top) + "px", float.className = "ant-tooltip ant-tooltip-placement-" + placement + "Left ints-task-tip-float", _float = float;
+  }
+  function _poll() {
+    let h = _hover;
+    if (!h) {
+      _raf = null;
+      return;
+    }
+    if (_seq !== h.seq || !h.titleEl.isConnected) {
+      _clearAll(), _raf = null;
+      return;
+    }
+    let found = _findSystemTip(h.name);
+    found && _patch(found.tip, found.inner, h.lines), performance.now() - h.start < POLL_MS ? _raf = setTimeout(_poll, 40) : _raf = null;
+  }
+  function _start(titleEl, td, tr) {
+    if (!titleEl || !_resolve || titleEl.closest("[data-ints-window]") || titleEl.closest(".ints-win") || _hover && _hover.titleEl === titleEl) return;
+    _clearAll();
+    let lines = _resolve(titleEl, td, tr);
+    if (!lines) return;
+    let seq = ++_seq, name = String(titleEl.textContent || "").replace(/\s+/g, " ").trim();
+    if (td && td.getAttribute("data-ints-vtask-id") !== null) {
+      _hover = { titleEl, td, tr, name, lines, seq, start: performance.now() }, _showVirtual(titleEl, lines);
+      return;
+    }
+    _hover = { titleEl, td, tr, name, lines, seq, start: performance.now() }, _raf = setTimeout(_poll, 40);
+  }
+  function _onOver(e) {
+    let titleEl = e.target && e.target.closest ? e.target.closest(".task-title") : null;
+    if (!titleEl) return;
+    _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null);
+    let td = titleEl.closest("td"), tr = titleEl.closest("tr");
+    _start(titleEl, td, tr);
+  }
+  function _onOut(e) {
+    let titleEl = e.target && e.target.closest ? e.target.closest(".task-title") : null;
+    if (!titleEl) return;
+    let related = e.relatedTarget;
+    related && titleEl.contains(related) || related && related.closest && related.closest(".ant-tooltip") && _target && related.closest(".ant-tooltip") === _target.tip || (_leaveTimer && clearTimeout(_leaveTimer), _leaveTimer = setTimeout(function() {
+      _leaveTimer = null, _clearAll();
+    }, LEAVE_GRACE_MS));
+  }
+  function _onDocOver(e) {
+    let tip = e.target && e.target.closest ? e.target.closest(".ant-tooltip") : null;
+    tip && _target && tip === _target.tip && _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null);
+  }
+  function installTaskTip(opts) {
+    _resolve = opts && typeof opts.resolve == "function" ? opts.resolve : null, !_installed2 && (_installed2 = !0, document.addEventListener("mouseover", _onOver, !0), document.addEventListener("mouseout", _onOut, !0), document.addEventListener("mouseover", _onDocOver, !0));
+  }
+  function stopTaskTip() {
+    _installed2 && (document.removeEventListener("mouseover", _onOver, !0), document.removeEventListener("mouseout", _onOut, !0), document.removeEventListener("mouseover", _onDocOver, !0), _installed2 = !1), _resolve = null, _clearAll();
+  }
+  var TIP_ATTR, FLOAT_ATTR, POLL_MS, LEAVE_GRACE_MS, _installed2, _resolve, _hover, _seq, _raf, _leaveTimer, _target, _float, init_task_tip = __esm({
+    "v8.30/task-tip.js"() {
+      init_utils();
+      TIP_ATTR = "data-ints-task-tip", FLOAT_ATTR = "data-ints-task-tip-float", POLL_MS = 600, LEAVE_GRACE_MS = 80, _installed2 = !1, _resolve = null, _hover = null, _seq = 0, _raf = null, _leaveTimer = null, _target = null, _float = null;
+    }
+  });
+
+  // v8.30/calc-help.js
+  function _catLabel(i) {
+    return t(CAT_ZH[i] + " " + CAT_EN[i], CAT_EN[i]);
+  }
+  function _catNote(i) {
+    return t(CAT_NOTE_ZH[i], CAT_NOTE_EN[i]);
+  }
+  function _pctLabels(weights) {
+    let raw = weights.map((w) => w * 100), floors = raw.map(Math.floor), left = 100 - floors.reduce((a, b) => a + b, 0), order = raw.map((v, i) => ({ i, frac: v - Math.floor(v) })).sort((a, b) => b.frac - a.frac);
+    for (let k = 0; left > 0; k++, left--) floors[order[k % 5].i]++;
+    return floors;
+  }
+  function _pTableHtml() {
+    let weights = getCourseWeights("SS Chinese"), pct = _pctLabels(weights), rows = "";
+    for (let i = 0; i < TYPE_NAMES.length; i++)
+      rows += '<tr><td><i class="ints-type-dot" style="background:' + ["#A1887F", "#FFA39E", "#91D5FF", "#FFD591", "#FFFB8F"][i] + ';"></i>' + escapeHtml(_catLabel(i)) + '</td><td class="iw-num">' + pct[i] + "%</td><td>" + escapeHtml(_catNote(i)) + "</td></tr>";
+    return '<table class="iw-table"><thead><tr><th>' + t("\u7C7B\u522B", "Category") + "</th><th>" + t("\u793A\u4F8B\u6743\u91CD", "Example weight") + "</th><th>" + t("\u8BF4\u660E", "Note") + "</th></tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+  function _bandRange(i) {
+    let band = GRADE_BANDS[i];
+    if (band.min <= 0) return "< 60";
+    let max = i === 0 ? 100 : GRADE_BANDS[i - 1].min - 1;
+    return band.min + "-" + max;
+  }
+  function _bandGpa(band) {
+    let g = LETTER_TO_GPA.get(band.letter);
+    return g == null ? "-" : Number(g).toFixed(1);
+  }
+  function _gpaTableHtml() {
+    let bands = GRADE_BANDS.slice(), left = bands.slice(0, 7), right = bands.slice(7), rows = "";
+    for (let i = 0; i < left.length; i++) {
+      let l = left[i], r = right[i];
+      if (rows += '<tr><td class="iw-num">' + _bandRange(i) + "</td><td>" + l.letter + '</td><td class="iw-num">' + _bandGpa(l) + "</td>", r) {
+        let ri = bands.indexOf(r);
+        rows += '<td class="iw-num">' + _bandRange(ri) + "</td><td>" + r.letter + '</td><td class="iw-num">' + _bandGpa(r) + "</td>";
+      } else
+        rows += "<td></td><td></td><td></td>";
+      rows += "</tr>";
+    }
+    return '<table class="iw-table"><thead><tr><th>' + t("\u5206\u6570", "Score") + "</th><th>" + t("\u7B49\u7EA7", "Letter") + "</th><th>GPA</th><th>" + t("\u5206\u6570", "Score") + "</th><th>" + t("\u7B49\u7EA7", "Letter") + "</th><th>GPA</th></tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+  function _sectionHtml(id, num, title, body) {
+    return '<section class="iw-card" id="ints-help-' + id + '"><div class="iw-card-head"><span class="ints-help-num">' + num + "</span>" + escapeHtml(title) + '</div><div class="ints-help-body">' + body + "</div></section>";
+  }
+  function _callout(title, body, danger) {
+    return '<div class="ints-help-callout' + (danger ? " is-danger" : "") + '"><div class="ints-help-callout-title">' + escapeHtml(title) + "</div><div>" + body + "</div></div>";
+  }
+  function _helpHTML() {
+    let f = calcF(90, 80), fLetter = scoreToLetter(f), fGPA = getGPAForScore(f, 0), p1 = _sectionHtml(
+      "p",
+      "01",
+      t("\u5E73\u65F6\u6210\u7EE9 P \u600E\u4E48\u4F30", "How coursework P is estimated"),
+      "<p>" + t(
+        "\u6BD4\u5982\u4E00\u95E8\u8BFE\u53EA\u6709\u4E24\u4E2A\u4F5C\u4E1A\u4EFB\u52A1\uFF1A\u4E00\u4E2A 18/20\uFF0C\u4E00\u4E2A 27/30\u3002\u5F97\u5206\u76F8\u52A0\u662F 45\uFF0C\u603B\u5206\u76F8\u52A0\u662F 50\uFF0C\u5E73\u65F6\u6210\u7EE9\u5C31\u662F 90\u3002",
+        "Example: a course has two homework tasks, 18/20 and 27/30. Scores add up to 45, totals to 50, so P is 90."
+      ) + "</p><p>" + t(
+        "\u4EFB\u52A1\u7C7B\u578B\u591A\u4E86\u4EE5\u540E\uFF0C\u5148\u628A\u540C\u7C7B\u4EFB\u52A1\u5408\u5728\u4E00\u8D77\uFF0C\u518D\u6309\u8FD9\u95E8\u5B66\u79D1\u7684\u6743\u91CD\u5408\u6210\u3002\u4E0D\u540C\u5B66\u79D1\u7684\u4E94\u7C7B\u6743\u91CD\u4E0D\u4E00\u6837\u3002",
+        "When there are several task types, group the same type together first, then combine them by this subject's weights. The five category weights differ by subject."
+      ) + "</p>" + _pTableHtml() + '<p class="iw-note">' + t(
+        "\u6743\u91CD\u662F SS Chinese \u7684\u793A\u4F8B\u3002\u6BCF\u4E2A\u5B66\u79D1\u4F1A\u547D\u4E2D\u4E0D\u540C\u89C4\u5219\uFF1B\u60F3\u770B\u5177\u4F53\u4E00\u79D1\uFF0C\u4ECE\u5355\u79D1\u7A97\u53E3\u70B9\u300C\u6743\u91CD\u300D\u3002",
+        "The table uses SS Chinese as an example. Each subject resolves to a different rule; open Weights in a subject window for one course."
+      ) + "</p>" + _callout(
+        t("\u7F3A\u7684\u7C7B\u522B\u4E0D\u7528\u8865 0", "Missing categories are not zero-filled"),
+        t(
+          "\u6709\u5206\u7684\u7C7B\u522B\u4F1A\u91CD\u65B0\u5206\u644A\u6743\u91CD\u3002\u5DF2\u6392\u9664\uFF08-1\uFF09\u7684\u4EFB\u52A1\u4E0D\u8BA1\u5165\uFF1B\u6CA1\u51FA\u5206\u7684\u4EFB\u52A1\u4E0D\u5F53\u6210 0 \u5206\uFF1B\u865A\u62DF\u4EFB\u52A1\u8BA1\u5165\u3002",
+          "Categories with scores share the weight again. Excluded (-1) tasks are skipped; ungraded tasks are not treated as zero; virtual tasks count."
+        )
+      )
+    ), p2 = _sectionHtml(
+      "gpa",
+      "02",
+      t("\u603B\u8BC4 F \u4E0E GPA", "Final grade F and GPA"),
+      "<p>" + t(
+        "\u603B\u8BC4\u4EE5\u5E73\u65F6\u6210\u7EE9\u4E3A\u4E3B\uFF0C\u671F\u672B\u5360\u5C0F\u90E8\u5206\u3002\u4E24\u8FB9\u7684\u5206\u5408\u8D77\u6765\uFF0C\u5C31\u662F\u5B66\u671F\u603B\u8BC4 F\u3002",
+        "The final grade is mostly coursework, with a smaller final-exam share. Together they form the semester final F."
+      ) + "</p><p>" + t(
+        "\u6BD4\u5982\u5E73\u65F6 90\uFF0C\u671F\u672B 80\uFF0C\u5408\u8D77\u6765\u603B\u8BC4\u662F " + f + "\u3002" + f + " \u843D\u5728 87-89\uFF0C\u7B49\u7EA7 " + fLetter + "\uFF0CGPA " + (fGPA ? fGPA.uw.toFixed(1) : "3.3") + "\u3002",
+        "Example: coursework 90 and final exam 80 give a final grade of " + f + ". It falls in 87-89, letter " + fLetter + ", GPA " + (fGPA ? fGPA.uw.toFixed(1) : "3.3") + "."
+      ) + "</p><p>" + t(
+        "\u5206\u6570\u5148\u6362\u6210\u7B49\u7EA7\uFF0C\u518D\u6362\u7B97\u6210\u7EE9\u70B9\u3002AP\u3001ECP \u8BFE\u7A0B\u5728 W \u4E0A\u518D\u52A0\u4E00\u6863\u3002",
+        "Scores map to letters, then to grade points. AP and ECP courses add a step to W."
+      ) + "</p>" + _gpaTableHtml() + '<p class="iw-note">' + t(
+        "\u5B66\u5E74 GPA \u662F\u4E24\u4E2A\u5B66\u671F\u603B\u8BC4\u6309\u5B66\u5206\u52A0\u6743\uFF1B\u5217 GPA \u770B\u4E00\u5217\uFF1B\u7D2F\u8BA1 GPA \u4ECE G9 \u8D77\u7B97\uFF0C\u6BCF\u95E8\u8BFE\u53D6\u4E00\u4E2A\u5B66\u5E74\u503C\uFF0CEOY \u4F18\u5148\u3002",
+        "Annual GPA weights the two semesters by credit; column GPA looks at one column; cumulative GPA starts from G9, one annual value per course, EOY first."
+      ) + "</p>"
+    ), p3 = _sectionHtml(
+      "sim",
+      "03",
+      t("\u6A21\u62DF\u3001\u6392\u9664\u3001\u6821\u51C6\u4E0E\u300C\u6743\u91CD\u5F02\u5E38\u300D", "Simulation, exclusion, calibration and weight mismatch"),
+      '<ul class="ints-help-list"><li>' + t("\u4EFB\u52A1\u5206\u6A21\u62DF\u53EA\u6539\u672C\u673A\uFF0C\u4E0D\u4F1A\u63D0\u4EA4\u5230\u5B66\u6821\u3002\u8F93\u5165 -1 \u8868\u793A\u8FD9\u9879\u4E0D\u8BA1\u5165\u3002", "Task simulation is local and is not sent to school. Enter -1 to exclude a task.") + "</li><li>" + t("\u865A\u62DF\u4EFB\u52A1\u4E5F\u53EA\u5728\u672C\u673A\uFF0C\u4ECD\u7136\u7B97\u8FDB\u5E73\u65F6\u6210\u7EE9\u548C\u4EFB\u52A1\u91CD\u8981\u6027\u3002", "Virtual tasks are also local, and still count in P and task importance.") + "</li><li>" + t("\u624B\u52A8\u6539\u8FC7 P \u4E4B\u540E\uFF0C\u8FD9\u4E2A\u5B66\u671F\u4E0D\u518D\u6309\u4EFB\u52A1\u660E\u7EC6\u7B97\u3002", "After P is set manually, that semester no longer uses the task breakdown.") + "</li><li>" + t("\u5B66\u6821\u5DF2\u7ECF\u53D1\u5E03\u6B63\u5F0F\u671F\u672B\u5206\u65F6\uFF0CE \u4E0D\u80FD\u518D\u6A21\u62DF\u3002", "Once the school publishes the final exam score, E cannot be simulated.") + "</li><li>" + t(
+        "\u7CFB\u7EDF\u4F1A\u81EA\u52A8\u8BD5\u7740\u6309\u4EFB\u52A1\u91CD\u7B97\u3002\u5B66\u6821\u7ED9\u7684\u5E73\u65F6\u5206\u548C\u4EFB\u52A1\u4F30\u7B97\u7684\u5DEE\u7F29\u5C0F\u5230 0.1 \u4EE5\u5185\uFF0C\u6743\u91CD\u5F02\u5E38\u5C31\u89E3\u9664\uFF1B\u5426\u5219\u4FDD\u7559\u3002",
+        "The script retries the task-based estimate. When the school P and the estimate get within 0.1, the weight mismatch clears; otherwise it stays."
+      ) + "</li></ul>" + _callout(
+        t("\u770B\u5230 * \u5C31\u662F\u6743\u91CD\u5F02\u5E38", "A * means weight mismatch"),
+        t(
+          "\u5B66\u6821\u7ED9\u7684\u5E73\u65F6\u5206\u548C\u6309\u4EFB\u52A1\u7B97\u51FA\u7684\u5E73\u65F6\u5206\u76F8\u5DEE\u8D85\u8FC7 0.1\uFF0C\u5C31\u4F1A\u6807\u6210\u6743\u91CD\u5F02\u5E38\u3002\u8FD9\u65F6\u4EFB\u52A1\u7F16\u8F91\u505C\u7528\uFF0C\u6A21\u62DF\u7ED3\u679C\u53EA\u80FD\u53C2\u8003\u3002",
+          "When the school P and the task-based P differ by more than 0.1, the course is marked as a weight mismatch. Task editing is disabled and the simulation is only a reference."
+        ),
+        !0
+      )
+    ), p4 = _sectionHtml(
+      "importance",
+      "04",
+      t("\u4EFB\u52A1\u91CD\u8981\u6027", "Task importance"),
+      "<p>" + t(
+        "\u91CD\u8981\u6027\u770B\u7684\u662F\u8FD9\u9879\u4EFB\u52A1\u5BF9\u6700\u7EC8\u603B\u8BC4\u7684\u62C9\u52A8\uFF0C\u548C\u8FD9\u9879\u4EFB\u52A1\u672C\u8EAB\u62FF\u4E86\u51E0\u5206\u5173\u7CFB\u4E0D\u5927\u3002",
+        "Importance reflects how much a task moves the final grade, not how many points it scored."
+      ) + "</p><p>" + t(
+        "\u540C\u6837\u662F 10 \u5206\u7684\u4F5C\u4E1A\uFF0C\u5982\u679C\u6240\u5728\u7C7B\u578B\u6743\u91CD\u5927\u3001\u540C\u7C7B\u4EFB\u52A1\u5C11\uFF0C\u6216\u8005\u5DF2\u7ECF\u4E34\u8FD1\u5B66\u671F\u672B\uFF0C\u91CD\u8981\u6027\u5C31\u66F4\u9AD8\u3002\u5F00\u5B66\u521D\u540C\u7C7B\u4EFB\u52A1\u591A\uFF0C\u5355\u9879\u4F1A\u88AB\u644A\u8584\u3002",
+        "Two 10-point homework tasks can differ: a heavier category, fewer peers, or a later point in the semester makes one more important. Early in the term, many peers dilute a single task."
+      ) + '</p><div class="ints-help-ramp"><span>' + t("\u4F4E", "Low") + "</span><i></i><span>" + t("\u9AD8", "High") + '</span></div><p class="iw-note">' + t(
+        "\u989C\u8272\u8D8A\u7EA2\u8D8A\u91CD\u8981\u3002\u7070\u8272\u8868\u793A\u4EFB\u52A1\u5DF2\u6392\u9664\uFF1B\u9898\u578B\u8BA4\u4E0D\u51FA\u6216\u7F3A\u6EE1\u5206\u65F6\u4E0D\u4E0A\u8272\u3002",
+        "Redder means more important. Grey means the task is excluded; an unknown type or a missing total leaves the cell uncolored."
+      ) + '</p><p class="iw-note">' + t(
+        "\u9ED8\u8BA4\u4E0D\u663E\u793A\u989C\u8272\u3002\u6253\u5F00\u300C\u663E\u793A \u2192 \u4EFB\u52A1\u91CD\u8981\u6027\u300D\u624D\u7ED9\u4EFB\u52A1\u683C\u4E0A\u8272\uFF1B\u9F20\u6807\u505C\u5728\u4EFB\u52A1\u540D\u4E0A\uFF0C\u59CB\u7EC8\u80FD\u770B\u5230\u6570\u503C\u3002",
+        "Colors are off by default. Turn on View \u2192 Task Importance to color task cells; hovering a task name always shows the value."
+      ) + "</p>"
+    ), p5 = _sectionHtml(
+      "privacy",
+      "05",
+      t("\u6570\u636E\u6765\u6E90\u4E0E\u9690\u79C1", "Data sources and privacy"),
+      "<p>" + t(
+        "\u6210\u7EE9\u6765\u81EA\u5B66\u6821\u63A5\u53E3\uFF0C\u6A21\u62DF\u53EA\u5B58\u5728\u672C\u673A\uFF0C\u4E0D\u4F1A\u5199\u56DE\u5B66\u6821\u3002",
+        "Grades come from the school API. Simulation stays on this computer and is never written back."
+      ) + '</p><p class="iw-note">' + t(
+        "\u5B66\u6821\u6570\u636E\u6709\u7F13\u5B58\u3002\u6E05\u7F13\u5B58\u53EA\u6E05\u5B66\u6821\u6570\u636E\u548C\u6821\u51C6\u8BB0\u5F55\uFF1B\u6A21\u62DF\u3001\u4EFB\u52A1\u6807\u8BB0\u3001\u76EE\u6807 GPA \u4F1A\u4FDD\u7559\u3002",
+        "School data is cached. Clearing the cache removes school data and calibration records only; simulations, task marks and target GPA are kept."
+      ) + "</p>"
+    ), nav = "";
+    for (let i = 0; i < SECTIONS.length; i++)
+      nav += '<button type="button" class="ints-help-nav-item" data-ints-help-target="' + SECTIONS[i].id + '">' + (i + 1) + "\u3000" + escapeHtml(t(SECTIONS[i].label, ["Coursework P", "Final F and GPA", "Simulation and weight mismatch", "Task importance", "Data sources"][i])) + "</button>";
+    let footer = '<button type="button" class="ant-btn ant-btn-link" data-ints-help-close="1">' + t("\u5173\u95ED", "Close") + "</button>" + (_ctx.onOpenWeights ? '<button type="button" class="ant-btn ant-btn-link" data-ints-help-weights="1">' + t("\u6253\u5F00\u6743\u91CD\u9875", "Open Weights") + "</button>" : "");
+    return '<div class="ints-help-layout"><nav class="ints-help-nav" aria-label="' + escapeHtml(t("\u5E2E\u52A9\u76EE\u5F55", "Help contents")) + '">' + nav + '</nav><div class="ints-help-content">' + p1 + p2 + p3 + p4 + p5 + '</div></div><div class="ints-help-foot">' + footer + "</div>";
+  }
+  function _scrollToSection(body, section) {
+    if (!body) return;
+    let id = "ints-help-" + (section || "p"), target = null;
+    if (SECTIONS.forEach(function(s) {
+      s.id === (section || "p") && (target = body.querySelector("#ints-help-" + s.id));
+    }), !target) return;
+    let bodyRect = body.getBoundingClientRect(), targetRect = target.getBoundingClientRect();
+    body.scrollTop = Math.max(0, body.scrollTop + targetRect.top - bodyRect.top - 8), body.querySelectorAll("[data-ints-help-target]").forEach(function(b) {
+      b.classList.toggle("is-active", b.getAttribute("data-ints-help-target") === (section || "p"));
+    });
+  }
+  function _bindBody(handle) {
+    let body = handle.body;
+    body._intsHelpBound || (body._intsHelpBound = !0, body.addEventListener("click", guardListener("\u5E2E\u52A9\u9875\u64CD\u4F5C", function(e) {
+      let nav = e.target && e.target.closest ? e.target.closest("[data-ints-help-target]") : null;
+      if (nav) {
+        e.preventDefault(), _scrollToSection(body, nav.getAttribute("data-ints-help-target"));
+        return;
+      }
+      if (e.target && e.target.closest ? e.target.closest("[data-ints-help-close]") : null) {
+        e.preventDefault(), closeWindow(HELP_KEY);
+        return;
+      }
+      if ((e.target && e.target.closest ? e.target.closest("[data-ints-help-weights]") : null) && (e.preventDefault(), _ctx.onOpenWeights))
+        try {
+          _ctx.onOpenWeights();
+        } catch (err) {
+        }
+    })));
+  }
+  function _fill(handle) {
+    handle.body.innerHTML = _helpHTML(), _bindBody(handle);
+  }
+  function openCalcHelpWindow(opts) {
+    let o = opts || {};
+    o.onOpenWeights ? _ctx = { weightsCourseIdx: o.weightsCourseIdx === void 0 ? null : o.weightsCourseIdx, onOpenWeights: o.onOpenWeights } : (o.weightsCourseIdx === void 0 || o.weightsCourseIdx === null) && (_ctx = { weightsCourseIdx: null, onOpenWeights: null });
+    let existing = getWindow(HELP_KEY);
+    if (existing)
+      return raiseWindow(HELP_KEY), _fill(existing), _scrollToSection(existing.body, o.section || "p"), existing.handle || existing;
+    let width = Math.min(720, Math.max(320, (getShellBounds().width || 720) - 16)), handle = openWindow({
+      key: HELP_KEY,
+      kind: HELP_KIND,
+      domId: "ints-help-window",
+      className: "subject-detail-modal ints-help-window",
+      anchorEl: o.anchorEl || null,
+      width,
+      maxBodyHeight: Math.max(180, Math.round((getShellBounds().height || 600) - 72)) + "px",
+      titleHTML: "<div>" + t("\u5E2E\u52A9", "Help") + '</div><div style="color:rgba(0,0,0,0.55);font-size:11px;font-weight:normal;">' + t("\u6210\u7EE9\u8BA1\u7B97 \xB7 \u6743\u91CD \xB7 \u4EFB\u52A1\u91CD\u8981\u6027 \xB7 \u6570\u636E\u6765\u6E90", "Grades \xB7 weights \xB7 task importance \xB7 data sources") + "</div>",
+      bodyHTML: '<div class="iw-note">' + t("\u6B63\u5728\u51C6\u5907\u8BF4\u660E\u2026", "Preparing help\u2026") + "</div>"
+    });
+    return _fill(handle), _scrollToSection(handle.body, o.section || "p"), handle;
+  }
+  function installCalcHelpLinks() {
+    _linksInstalled || (_linksInstalled = !0, document.addEventListener("click", guardListener("\u5E2E\u52A9\u94FE\u63A5", function(e) {
+      let link = e.target && e.target.closest ? e.target.closest("[data-ints-help]") : null;
+      link && (e.preventDefault(), openCalcHelpWindow({ section: link.getAttribute("data-ints-help") || "p", anchorEl: link }));
+    })));
+  }
+  var HELP_KEY, HELP_KIND, SECTIONS, _ctx, _linksInstalled, CAT_ZH, CAT_EN, CAT_NOTE_ZH, CAT_NOTE_EN, init_calc_help = __esm({
+    "v8.30/calc-help.js"() {
+      init_utils();
+      init_win_shell();
+      init_diagnose();
+      HELP_KEY = "help", HELP_KIND = "help", SECTIONS = [
+        { id: "p", label: "\u5E73\u65F6\u6210\u7EE9 P" },
+        { id: "gpa", label: "\u603B\u8BC4 F \u4E0E GPA" },
+        { id: "sim", label: "\u6A21\u62DF\u4E0E\u6743\u91CD\u5F02\u5E38" },
+        { id: "importance", label: "\u4EFB\u52A1\u91CD\u8981\u6027" },
+        { id: "privacy", label: "\u6570\u636E\u6765\u6E90" }
+      ], _ctx = { weightsCourseIdx: null, onOpenWeights: null }, _linksInstalled = !1, CAT_ZH = ["\u4F5C\u4E1A", "\u8BFE\u5802", "\u9879\u76EE", "\u6D4B\u9A8C", "\u5C0F\u6D4B"], CAT_EN = ["Homework", "In-Class", "Projects", "Tests", "Quizzes"], CAT_NOTE_ZH = ["\u72EC\u7ACB\u7EC3\u4E60\u3001\u4F5C\u4E1A\u672C", "\u8BFE\u5802\u4EFB\u52A1\u3001\u53C2\u4E0E\u5EA6", "Project\u3001Lab\u3001\u957F\u4F5C\u4E1A", "\u5355\u5143\u6D4B\u3001\u9636\u6BB5\u6D4B", "Quiz\u3001\u968F\u5802\u5C0F\u6D4B"], CAT_NOTE_EN = ["practice, workbook", "classwork, participation", "project, lab, long assignment", "unit test, midterm", "quiz, short test"];
+    }
+  });
+
+  // v8.30/weight-view.js
+  function _courseSubject(course) {
+    return String(course && course.subject || "").trim();
+  }
+  function _courseName(course) {
+    return String(course && course.name || "").trim();
+  }
+  function _courseLabel(course) {
+    let sub = _courseSubject(course);
+    return sub ? sub + " \xB7 " + _courseName(course) : _courseName(course) + "\uFF08" + t("\u672A\u5206\u5B66\u79D1", "no subject") + "\uFF09";
+  }
+  function _term() {
+    return S.currentFilter === "s1" ? "S1" : S.currentFilter === "s2" ? "S2" : getTermFromDate(Date.now()) || "S1";
+  }
+  function _pctLabels2(weights) {
+    let raw = weights.map((w) => w * 100), floors = raw.map(Math.floor), left = 100 - floors.reduce((a, b) => a + b, 0), order = raw.map((v, i) => ({ i, frac: v - Math.floor(v) })).sort((a, b) => b.frac - a.frac);
+    for (let k = 0; left > 0; k++, left--) floors[order[k % 5].i]++;
+    return floors;
+  }
+  function _total(v) {
+    return typeof v != "number" || isNaN(v) ? "0" : String(Math.round(v * 10) / 10);
+  }
+  function _catLabel2(i) {
+    return t(CAT_ZH2[i] + " " + TYPE_NAMES[i], TYPE_NAMES[i]);
+  }
+  function _catNote2(i) {
+    return t(CAT_NOTE_ZH2[i], CAT_NOTE_EN2[i]);
+  }
+  function _ruleText2(course) {
+    let rule = getSubjectWeightRule(_courseSubject(course) || _courseName(course));
+    return rule ? {
+      hit: !0,
+      tag: t("\u547D\u4E2D\u89C4\u5219\uFF1A", "Matched rule: ") + rule.keywords.map(function(k) {
+        return k.charAt(0).toUpperCase() + k.slice(1);
+      }).join(" + "),
+      text: t("\u8BE5\u5B66\u79D1\u6309\u8FD9\u6761\u6743\u91CD\u89C4\u5219\u8BA1\u7B97", "This subject follows this weight rule")
+    } : { hit: !1, tag: t("\u9ED8\u8BA4\u6743\u91CD", "Default weights"), text: t("\u672A\u547D\u4E2D\u5B66\u79D1\u89C4\u5219\uFF0C\u4F7F\u7528\u9ED8\u8BA4\u6743\u91CD", "No subject rule matched; using default weights") };
+  }
+  function _titleHtml(course) {
+    let sub = _courseSubject(course);
+    return "<div>" + t("\u4EFB\u52A1\u6743\u91CD", "Task Weights") + '</div><div style="color:rgba(0,0,0,0.55);font-size:11px;font-weight:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(sub ? sub + " \xB7 " + _courseName(course) : _courseName(course) + "\uFF08" + t("\u672A\u5206\u5B66\u79D1", "no subject") + "\uFF09") + "</div>";
+  }
+  function _optionsHtml() {
+    let html = "";
+    for (let i = 0; i < (S.simCourses || []).length; i++)
+      html += '<option value="' + i + '">' + escapeHtml(_courseLabel(S.simCourses[i])) + "</option>";
+    return html;
+  }
+  function _barsHtml(course) {
+    let term = _term(), agg = aggregateCategoriesFromTasks(course && course.tasks || [], term, !0), html = "";
+    for (let i = 0; i < TYPE_NAMES.length; i++) {
+      let score = agg[i] ? agg[i].score : 0, max = agg[i] ? agg[i].max : 0, has = max > 0, rate = has ? Math.max(0, Math.min(100, score / max * 100)) : null;
+      html += '<div class="ints-weight-bar' + (has ? "" : " is-empty") + '" data-ints-weight-bar="' + i + '" data-has-data="' + (has ? "1" : "0") + '"><div class="ints-weight-bar-label"><i style="background:' + CATEGORY_COLORS[i] + ';"></i>' + escapeHtml(_catLabel2(i)) + '</div><div class="ints-weight-track' + (has ? "" : " is-empty") + '">' + (has ? '<div class="ints-weight-fill" style="width:' + rate.toFixed(1) + "%;background:" + CATEGORY_COLORS[i] + ';"></div>' : "") + '</div><div class="ints-weight-bar-value">' + (has ? rate.toFixed(1) + "%" : t("\u6682\u65E0", "No data")) + (has ? "<small>" + escapeHtml(_total(score) + "/" + _total(max)) + "</small>" : "") + "</div></div>";
+    }
+    return '<div class="ints-weight-rate-head"><span>' + t("\u672C\u5B66\u671F\u5404\u7C7B\u5F97\u5206\u7387\uFF08", "Score rates this term (") + term + '\uFF09</span><span class="iw-note">' + t("\u5F69\u8272\u4E3A\u5F97\u5206\uFF0C\u7070\u8272\u4E3A\u672A\u62FF\u5230", "Color is earned, grey is not") + '</span></div><div class="ints-weight-bars">' + html + "</div>";
+  }
+  function _donutHtml(weights, pct) {
+    let circumference = 2 * Math.PI * 84, nonzero = [];
+    for (let i = 0; i < weights.length; i++) weights[i] > 0 && nonzero.push(i);
+    let svg = '<svg viewBox="0 0 200 200" class="ints-weight-donut" aria-label="' + escapeHtml(t("\u6743\u91CD\u6247\u5F62\u56FE", "Weight donut")) + '">';
+    if (svg += '<circle cx="100" cy="100" r="84" fill="none" stroke="#f0f2f5" stroke-width="28"></circle>', nonzero.length === 1) {
+      let i = nonzero[0];
+      svg += '<circle cx="100" cy="100" r="84" fill="none" stroke="' + CATEGORY_COLORS[i] + '" stroke-width="28" data-ints-weight-arc="' + i + '" data-ints-color="' + CATEGORY_COLORS[i] + '"></circle>';
+    } else {
+      let offset = 0;
+      for (let k = 0; k < nonzero.length; k++) {
+        let i = nonzero[k], len = pct[i] / 100 * circumference;
+        svg += '<circle cx="100" cy="100" r="84" fill="none" stroke="' + CATEGORY_COLORS[i] + '" stroke-width="28" stroke-dasharray="' + len.toFixed(2) + " " + (circumference - len).toFixed(2) + '" stroke-dashoffset="' + (-offset).toFixed(2) + '" transform="rotate(-90 100 100)" data-ints-weight-arc="' + i + '" data-ints-color="' + CATEGORY_COLORS[i] + '"></circle>', offset += len;
+      }
+    }
+    return svg += "</svg>", '<div class="ints-weight-donut-wrap">' + svg + '<div class="ints-weight-donut-center"><strong>100%</strong><span>' + t("\u6743\u91CD\u5408\u8BA1", "Total weight") + "</span></div></div>";
+  }
+  function _tableHtml(weights, pct, course) {
+    let rows = "";
+    for (let i = 0; i < TYPE_NAMES.length; i++) {
+      let zero = !(weights[i] > 0);
+      rows += '<tr data-ints-weight-row="' + i + '"' + (zero ? ' class="is-zero"' : "") + '><td><span class="ints-weight-swatch" style="background:' + CATEGORY_COLORS[i] + ';"></span>' + escapeHtml(_catLabel2(i)) + '</td><td class="iw-num">' + pct[i] + "%</td><td>" + (zero ? t("\u8BE5\u7C7B\u522B\u4E0D\u8BA1\u5165", "Not counted") : escapeHtml(_catNote2(i))) + "</td></tr>";
+    }
+    return rows += '<tr class="ints-weight-total"><td>' + t("\u5408\u8BA1", "Total") + '</td><td class="iw-num">100%</td><td>' + t("\u6309\u8BBE\u5B9A\u6743\u91CD", "By configured weights") + "</td></tr>", '<div class="ints-weight-table-head">' + t("\u6743\u91CD\u8868", "Weight table") + '</div><table class="iw-table ints-weight-table"><thead><tr><th>' + t("\u7C7B\u522B", "Category") + "</th><th>" + t("\u6743\u91CD", "Weight") + "</th><th>" + t("\u8BF4\u660E", "Note") + "</th></tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+  function _filterHtml() {
+    return '<div class="ints-weight-filter"><label for="ints-weight-course">' + t("\u8BFE\u7A0B", "Course") + '</label><select id="ints-weight-course" class="ant-input ints-weight-select">' + _optionsHtml() + "</select></div>";
+  }
+  function _contentHtml(course) {
+    let subject = _courseSubject(course) || _courseName(course), weights = getCourseWeights(subject), pct = _pctLabels2(weights), rule = _ruleText2(course);
+    return '<div class="ints-weight-source" data-ints-weight-source="' + (rule.hit ? "rule" : "default") + '"><span class="ints-weight-source-tag' + (rule.hit ? "" : " is-default") + '">' + escapeHtml(rule.tag) + '</span><span class="iw-note">' + escapeHtml(rule.text) + '</span></div><div class="ints-weight-card">' + _barsHtml(course) + '</div><div class="ints-weight-charts"><div class="ints-weight-donut-card"><div class="ints-weight-card-title">' + t("\u6743\u91CD\u6247\u5F62\u56FE", "Weight donut") + "</div>" + _donutHtml(weights, pct) + '</div><div class="ints-weight-table-card">' + _tableHtml(weights, pct, course) + "</div></div>";
+  }
+  function _footerHtml() {
+    return '<span class="iw-note ints-weight-foot-note">' + t(
+      "P \u8BA1\u7B97\u65F6\u53EA\u5BF9\u201C\u672C\u5B66\u671F\u6709\u5DF2\u8BC4\u5206\u4EFB\u52A1\u201D\u7684\u7C7B\u522B\u91CD\u65B0\u5F52\u4E00\u5316\uFF1B\u5B9E\u9645\u5360\u6BD4\u53EF\u80FD\u9AD8\u4E8E\u8BBE\u5B9A\u6743\u91CD\u3002",
+      "P re-normalizes over categories with graded tasks this term; the effective share can be higher than the configured weight."
+    ) + '</span><button type="button" class="ant-btn ant-btn-link" data-ints-help="p">' + t("\u8FD9\u4E9B\u6743\u91CD\u600E\u4E48\u7B97\uFF1F", "How are these weights calculated?") + '</button><button type="button" class="ant-btn ant-btn-link" data-ints-weight-close="1">' + t("\u5173\u95ED", "Close") + "</button>";
+  }
+  function _courseAt(ci) {
+    return S.simCourses && S.simCourses[ci] ? S.simCourses[ci] : null;
+  }
+  function _setCourse(handle, ci) {
+    let course = _courseAt(ci);
+    if (!course) return !1;
+    handle.el.setAttribute("data-ints-weight-ci", String(ci));
+    let title = handle.el.querySelector(".ints-win-title");
+    title && (title.innerHTML = _titleHtml(course));
+    let select = handle.body.querySelector("#ints-weight-course");
+    select && select.value !== String(ci) && (select.value = String(ci));
+    let main = handle.body.querySelector("#ints-weight-content");
+    return main && (main.innerHTML = _contentHtml(course)), !0;
+  }
+  function _build(handle, ci) {
+    handle.el.setAttribute("data-ints-weight-ci", String(ci)), handle.body.innerHTML = _filterHtml() + '<div id="ints-weight-content">' + _contentHtml(_courseAt(ci)) + "</div>", handle.body.addEventListener("change", guardListener("\u6743\u91CD\u9875\u8BFE\u7A0B\u5207\u6362", function(e) {
+      let sel = e.target && e.target.closest ? e.target.closest("#ints-weight-course") : null;
+      if (!sel) return;
+      let idx = parseInt(sel.value, 10);
+      isNaN(idx) || _setCourse(getWindow(WEIGHT_KEY) || handle, idx);
+    })), handle.el.addEventListener("click", guardListener("\u6743\u91CD\u9875\u5173\u95ED", function(e) {
+      e.target && e.target.closest && e.target.closest("[data-ints-weight-close]") && (e.preventDefault(), closeWindow(WEIGHT_KEY));
+    })), _setCourse(handle, ci);
+  }
+  function openWeightWindow(courseIdx, anchorEl) {
+    let course = _courseAt(courseIdx);
+    if (!course) return null;
+    let existing = getWindow(WEIGHT_KEY);
+    if (existing)
+      return raiseWindow(WEIGHT_KEY), anchorEl && setWindowAnchor(WEIGHT_KEY, anchorEl), _setCourse(existing.handle || existing, courseIdx), existing.handle || existing;
+    let width = Math.min(680, Math.max(320, (getShellBounds().width || 680) - 16)), handle = openWindow({
+      key: WEIGHT_KEY,
+      kind: WEIGHT_KIND,
+      domId: "ints-weight-window",
+      className: "subject-detail-modal ints-weight-window",
+      anchorEl: anchorEl || null,
+      width,
+      maxBodyHeight: Math.max(180, Math.round((getShellBounds().height || 600) - 80)) + "px",
+      titleHTML: _titleHtml(course),
+      bodyHTML: '<div class="iw-note">' + t("\u6B63\u5728\u51C6\u5907\u6743\u91CD\u2026", "Preparing weights\u2026") + "</div>",
+      footerHTML: _footerHtml()
+    });
+    return _build(handle, courseIdx), handle;
+  }
+  var WEIGHT_KEY, WEIGHT_KIND, CAT_ZH2, CAT_NOTE_ZH2, CAT_NOTE_EN2, init_weight_view = __esm({
+    "v8.30/weight-view.js"() {
+      init_state();
+      init_utils();
+      init_win_shell();
+      init_diagnose();
+      WEIGHT_KEY = "weights", WEIGHT_KIND = "weights", CAT_ZH2 = ["\u4F5C\u4E1A", "\u8BFE\u5802", "\u9879\u76EE", "\u6D4B\u9A8C", "\u5C0F\u6D4B"], CAT_NOTE_ZH2 = ["\u72EC\u7ACB\u7EC3\u4E60\u3001\u4F5C\u4E1A\u672C", "\u8BFE\u5802\u4EFB\u52A1\u3001\u53C2\u4E0E\u5EA6", "Project\u3001Lab\u3001\u957F\u4F5C\u4E1A", "\u5355\u5143\u6D4B\u3001\u9636\u6BB5\u6D4B", "Quiz\u3001\u968F\u5802\u5C0F\u6D4B"], CAT_NOTE_EN2 = ["practice, workbook", "classwork, participation", "project, lab, long assignment", "unit test, midterm", "quiz, short test"];
+    }
+  });
+
   // v8.30/inline-points.js
   function _inlineEnabled() {
     try {
@@ -4937,19 +5607,16 @@
     let sum = _gpaSummary();
     if (!S.isCurrentYear) {
       let src = _schoolAnnual() || sum && sum.orig || null;
-      return src ? (el.innerHTML = '<span style="color:rgba(0,0,0,0.45);">' + t("\u5B66\u5E74GPA", "Annual GPA") + "</span> UW " + _num(src.uw) + " / W " + _num(src.w), el.title = t(
-        "\u5F80\u671F\u5B66\u5E74\uFF1A\u53EA\u8BFB\u5C55\u793A\uFF0C\u53D6\u5B66\u6821\u5E74\u5EA6\u62A5\u544A\u7684\u516C\u5E03\u503C\uFF08\u4E0D\u53C2\u4E0E\u6A21\u62DF\u4E0E \u0394\uFF09",
-        "Past school year: read-only, values as published in the school annual report (no simulation, no delta)"
-      ), !0) : (el.textContent = "", el.removeAttribute("title"), !0);
+      return src ? (el.innerHTML = '<span style="color:rgba(0,0,0,0.45);">' + t("\u5B66\u5E74GPA", "Annual GPA") + "</span> UW " + _gpaNum(src.uw) + " / W " + _gpaNum(src.w), el.removeAttribute("title"), !0) : (el.textContent = "", el.removeAttribute("title"), !0);
     }
     if (!sum || !sum.orig)
       return el.textContent = "", el.removeAttribute("title"), !0;
     let o = sum.orig, sim = sum.sim, html = '<span style="color:rgba(0,0,0,0.45);">' + t("\u5B66\u5E74GPA", "Annual GPA") + "</span> ";
-    if (sim && (Math.abs(sim.uw - o.uw) > 1e-3 || Math.abs(sim.w - o.w) > 1e-3)) {
-      let du = sim.uw - o.uw, dw = sim.w - o.w, gColor = (Math.abs(du) > 1e-3 ? du : dw) > 0 ? COLOR_UP : COLOR_DOWN;
-      html += '<span>UW <b style="color:' + gColor + ';">' + _num(sim.uw) + " / W " + _num(sim.w) + '</b> <span style="font-size:11px;">(\u0394 UW: ' + _delta(du) + " \u0394 W: " + _delta(dw) + ")</span></span>";
+    if (sim && (Math.abs(sim.uw - o.uw) >= GPA_DELTA_EPS || Math.abs(sim.w - o.w) >= GPA_DELTA_EPS)) {
+      let du = sim.uw - o.uw, dw = sim.w - o.w, gColor = (Math.abs(du) >= GPA_DELTA_EPS ? du : dw) > 0 ? COLOR_UP : COLOR_DOWN;
+      html += '<span>UW <b style="color:' + gColor + ';">' + _gpaNum(sim.uw) + " / W " + _gpaNum(sim.w) + '</b> <span style="font-size:11px;">(\u0394 UW: ' + _gpaDelta(du) + " \u0394 W: " + _gpaDelta(dw) + ")</span></span>";
     } else
-      html += "<span>UW " + _num(o.uw) + " / W " + _num(o.w) + "</span>";
+      html += "<span>UW " + _gpaNum(o.uw) + " / W " + _gpaNum(o.w) + "</span>";
     let school = _schoolAnnual();
     return school && (Math.abs(school.uw - o.uw) > 1e-3 || Math.abs(school.w - o.w) > 1e-3) ? el.title = t(
       "\u5B66\u6821\u516C\u5E03\uFF1AUW " + school.uw.toFixed(2) + " / W " + school.w.toFixed(2),
@@ -5006,6 +5673,26 @@
   function _markRowDone(tr) {
     tr.setAttribute(ROW_ATTR, "1");
   }
+  function _markEditorCell(td) {
+    !td || !S.isCurrentYear || td.querySelector && td.querySelector(".task-title") || (td.getAttribute(OPEN_EDITOR_ATTR) !== "1" && td.setAttribute(OPEN_EDITOR_ATTR, "1"), td.style && td.style.cursor !== "pointer" && (td.style.cursor = "pointer"));
+  }
+  function _clearEditorCell(td) {
+    !td || !td.getAttribute || td.getAttribute(OPEN_EDITOR_ATTR) !== null && (td.removeAttribute(OPEN_EDITOR_ATTR), td.style && td.style.cursor === "pointer" && (td.style.cursor = ""));
+  }
+  function _clearEditorCells(tr) {
+    tr && Array.prototype.forEach.call(tr.children || [], _clearEditorCell);
+  }
+  function _ensureRowEditorClick(tr) {
+    !tr || tr._intsRowEditorClickBound || (tr._intsRowEditorClickBound = !0, tr.addEventListener("click", guardListener("\u5185\u8054\u5B57\u6BB5\u70B9\u51FB", (e) => {
+      if (!S.isCurrentYear || !S.simCourses) return;
+      let td = e.target && e.target.closest ? e.target.closest("td") : null;
+      if (!td || td.getAttribute(OPEN_EDITOR_ATTR) !== "1" || td.querySelector && td.querySelector(".task-title")) return;
+      let hit = e.target;
+      if (hit && hit.closest && hit.closest('input,textarea,select,button,a,[contenteditable="true"]')) return;
+      let ci = _matchCourseIndex(_rowInfo(tr), /* @__PURE__ */ new Set());
+      ci < 0 || (e.preventDefault(), e.stopPropagation(), _openEditor(tr, ci, td));
+    })));
+  }
   function _siteScoreTextNode(inner) {
     let wrap = inner.querySelector("[" + SCORE_WRAP_ATTR + "]");
     if (wrap) return wrap.firstChild;
@@ -5051,7 +5738,7 @@
     let course = S.simCourses[courseIdx];
     if (!course) return;
     if (!S.isCurrentYear) {
-      _clearTaskCells(tr);
+      _clearTaskCells(tr), _clearEditorCells(tr);
       let scoreTdPast = _scoreTdOf(tr);
       if (scoreTdPast) {
         if (_restoreScoreCell(scoreTdPast), !_scoreColumnIsField()) {
@@ -5063,12 +5750,13 @@
       _markRowDone(tr), safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx));
       return;
     }
-    _renderTaskCells(tr, courseIdx, course), _renderVirtualCells(tr, courseIdx, course);
+    _renderTaskCells(tr, courseIdx, course), _renderVirtualCells(tr, courseIdx, course), _ensureRowEditorClick(tr);
     let scoreTd = _scoreTdOf(tr);
     if (!scoreTd) {
       _markRowDone(tr), safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx));
       return;
     }
+    _markEditorCell(scoreTd);
     let scoreField = _schoolScoreField(), fieldScore = (g, f) => {
       let v = g ? g[f] : null;
       return typeof v == "number" && !isNaN(v) ? v : null;
@@ -5084,7 +5772,7 @@
       let simEl = inner.querySelector("[" + SCORE_SIM_ATTR + "]");
       simEl || (simEl = document.createElement("div"), simEl.setAttribute(SCORE_SIM_ATTR, "1"), wrap ? wrap.insertAdjacentElement("afterend", simEl) : inner.insertBefore(simEl, inner.firstChild)), simEl.style.color = "";
       let parts = _siteScoreParts(siteText), html2 = simmed ? _pairLinesHtml(parts.raw, parts.level, shown, delta, showDelta, SCORE_DELTA_ATTR) : escapeHtml(_scoreNum(shown) + _levelSuffix(shown, siteText));
-      simEl.innerHTML !== html2 && (simEl.innerHTML = html2), simEl.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + siteText + (showDelta ? " \xB7 " + t("\u0394 ", "delta ") + _delta2(delta) : "");
+      simEl.innerHTML !== html2 && (simEl.innerHTML = html2), simmed ? simEl.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + siteText + (showDelta ? " \xB7 " + t("\u0394 ", "delta ") + _delta2(delta) : "") : simEl.removeAttribute("title");
     } else (wrap0 || inner.querySelector("[" + SCORE_SIM_ATTR + "]")) && _restoreScoreCell(scoreTd);
     if (safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx)), !showGpa && !starred) {
       box && box.remove(), scoreTd.setAttribute(INLINE_ATTR, "1"), _markRowDone(tr);
@@ -5093,19 +5781,19 @@
     box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:10px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), simmed ? box.classList.add("ints-gpa-strong") : box.classList.remove("ints-gpa-strong");
     let html = "";
     if (showGpa) {
-      let g = gpaSim || gpaOrig, changed = gpaSim && (Math.abs(gpaSim.uw - gpaOrig.uw) > 1e-3 || Math.abs(gpaSim.w - gpaOrig.w) > 1e-3), gu = changed ? gpaSim.uw - gpaOrig.uw : 0, gw = changed ? gpaSim.w - gpaOrig.w : 0, gDir = Math.abs(gu) > 1e-3 ? gu : gw, gColor = changed ? gDir > 0 ? COLOR_UP : COLOR_DOWN : "", tip = changed ? t(
-        "\u6A21\u62DF\u540E GPA\uFF08\u539F UW: " + _num(gpaOrig.uw) + ", W: " + _num(gpaOrig.w) + "\uFF09",
-        "Simulated GPA (was UW: " + _num(gpaOrig.uw) + ", W: " + _num(gpaOrig.w) + ")"
-      ) : t("\u672C\u5217 GPA", "Column GPA");
-      html += '<span style="' + (gColor ? "color:" + gColor + ";" : "") + '" title="' + escapeHtml(tip) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
+      let g = gpaSim || gpaOrig, changed = !!(gpaSim && (Math.abs(gpaSim.uw - gpaOrig.uw) >= GPA_DELTA_EPS || Math.abs(gpaSim.w - gpaOrig.w) >= GPA_DELTA_EPS)), gu = changed ? gpaSim.uw - gpaOrig.uw : 0, gw = changed ? gpaSim.w - gpaOrig.w : 0, gDir = Math.abs(gu) >= GPA_DELTA_EPS ? gu : gw, gColor = changed ? gDir > 0 ? COLOR_UP : COLOR_DOWN : "", tip = changed ? t(
+        "\u6A21\u62DF\u540E GPA\uFF08\u539F UW: " + _gpaNum(gpaOrig.uw) + ", W: " + _gpaNum(gpaOrig.w) + "\uFF09",
+        "Simulated GPA (was UW: " + _gpaNum(gpaOrig.uw) + ", W: " + _gpaNum(gpaOrig.w) + ")"
+      ) : "";
+      html += '<span style="' + (gColor ? "color:" + gColor + ";" : "") + '"' + (tip ? ' title="' + escapeHtml(tip) + '"' : "") + ">(UW: " + _gpaNum(g.uw) + ", W: " + _gpaNum(g.w) + ")</span>";
     }
     starred && (html += '<span style="color:#f5222d;margin-left:4px;cursor:help;" title="' + escapeHtml(t(
-      "\u5B66\u6821\u7ED9\u7684\u5206\u4E0E\u6309\u4EFB\u52A1\u660E\u7EC6\u7B97\u51FA\u7684\u5206\u4E0D\u4E00\u81F4\uFF08\u5DEE > 0.1\uFF09\uFF0C\u8BE5\u79D1\u76EE\u7684\u6A21\u62DF\u4EC5\u4F9B\u53C2\u8003\u3002",
-      "School value differs from the task-based estimate by >0.1; this course is an estimate only."
-    )) + '">*</span>'), box.innerHTML = html, scoreTd.setAttribute(INLINE_ATTR, "1"), _markRowDone(tr), scoreTd.getAttribute("data-ints-clickable") !== "1" && scoreTd.setAttribute("data-ints-clickable", "1"), scoreTd._intsClickBound || (scoreTd._intsClickBound = !0, scoreTd.style.cursor = "pointer", scoreTd.title = t("\u70B9\u51FB\u7F16\u8F91\u8BE5\u79D1\u76EE\u7684\u6A21\u62DF\u6210\u7EE9", "Click to edit this course simulation"), scoreTd.addEventListener("click", guardListener("\u5185\u8054\u7F16\u8F91\u7A97\u53E3", (e) => {
+      "\u6743\u91CD\u5F02\u5E38\uFF1A\u6309\u4EFB\u52A1\u660E\u7EC6\u91CD\u7B97\u7684\u5206\u6570\u4E0E\u5B66\u6821\u516C\u5E03\u5206\u4E0D\u4E00\u81F4\uFF0C\u672C\u8BFE\u6A21\u62DF\u4EC5\u4F9B\u53C2\u8003\u3002",
+      "Weight mismatch: the task-based estimate differs from the school value; this course is an estimate only."
+    )) + '">*</span>'), box.innerHTML = html, scoreTd.setAttribute(INLINE_ATTR, "1"), _markRowDone(tr), scoreTd.getAttribute("data-ints-clickable") !== "1" && scoreTd.setAttribute("data-ints-clickable", "1"), scoreTd._intsClickBound || (scoreTd._intsClickBound = !0, scoreTd.style.cursor = "pointer", scoreTd.addEventListener("click", guardListener("\u5185\u8054\u7F16\u8F91\u7A97\u53E3", (e) => {
       e.stopPropagation();
       let now = _matchCourseIndex(_rowInfo(tr), /* @__PURE__ */ new Set());
-      _openEditor(tr, now >= 0 ? now : courseIdx);
+      _openEditor(tr, now >= 0 ? now : courseIdx, scoreTd);
     })));
   }
   function _fieldCellWant(ci, f) {
@@ -5171,7 +5859,7 @@
       return;
     }
     box || (box = document.createElement("div"), box.setAttribute("data-ints-sim", "1"), box.style.cssText = "font-size:10px;line-height:1.35;margin-top:2px;white-space:nowrap;color:rgba(0,0,0,0.5);", inner.appendChild(box)), strong ? box.classList.add("ints-gpa-strong") : box.classList.remove("ints-gpa-strong"), box.previousElementSibling !== null && inner.appendChild(box);
-    let html = '<span title="' + escapeHtml(t("\u672C\u5217 GPA", "Column GPA")) + '">(UW: ' + _num(g.uw) + ", W: " + _num(g.w) + ")</span>";
+    let html = "<span>(UW: " + _gpaNum(g.uw) + ", W: " + _gpaNum(g.w) + ")</span>";
     box.innerHTML !== html && (box.innerHTML = html);
   }
   function _renderFieldCell(cell, course, f, isSynth) {
@@ -5198,7 +5886,7 @@
         old ? inner.insertBefore(block, old) : inner.appendChild(block);
       }
       let html = _pairLinesHtml(oldScore, oldLevel, shown, delta, showDelta, COL_DELTA_ATTR);
-      block.innerHTML !== html && (block.innerHTML = html), block.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + (isSynth ? oldScore : siteText || oldScore) + (showDelta ? " \xB7 " + t("\u0394 ", "delta ") + _delta2(delta) : "");
+      block.innerHTML !== html && (block.innerHTML = html);
     } else
       _restoreFieldCell(cell);
     _renderFieldGpa(cell, inner, course, gpaFrom, simmed);
@@ -5278,23 +5966,27 @@
       if (!td) continue;
       if (!isSynth) {
         if (i === scoreIdx && S.isCurrentYear) {
-          _tr.items.push(i + ":skip-score");
+          _markEditorCell(td), _tr.items.push(i + ":skip-score");
           continue;
         }
         if (f === "eoy") {
-          _decorateEoyCell(td, course), _tr.items.push(i + ":eoy");
+          _markEditorCell(td), _decorateEoyCell(td, course), _tr.items.push(i + ":eoy");
           continue;
         }
-        _renderFieldCell(td, course, f, !1), _tr.items.push(i + ":school:" + td0Text(td).slice(0, 12));
+        _markEditorCell(td), _renderFieldCell(td, course, f, !1), _tr.items.push(i + ":school:" + td0Text(td).slice(0, 12));
         continue;
       }
       let want = _fieldCellWant(courseIdx, f), cell = want ? _findFieldCell(tr, i, want) : null;
       if (!cell) {
         let stale = td.querySelector("[data-ints-sim]");
-        stale && stale.remove(), _restoreFieldCell(td), _tr.items.push(i + ":" + f + (want ? ":nocell" : ":nowant"));
+        stale && stale.remove(), _restoreFieldCell(td), _markEditorCell(td), _tr.items.push(i + ":" + f + (want ? ":nocell" : ":nowant"));
         continue;
       }
-      cell !== td && cell.querySelector("[data-ints-sim]") || (_renderFieldCell(cell, course, f, !0), _tr.items.push(i + ":" + f + ":field" + (cell.isConnected ? "" : "!disc")));
+      if (cell !== td && _clearEditorCell(td), cell !== td && cell.querySelector("[data-ints-sim]")) {
+        _markEditorCell(cell);
+        continue;
+      }
+      _markEditorCell(cell), _renderFieldCell(cell, course, f, !0), _tr.items.push(i + ":" + f + ":field" + (cell.isConnected ? "" : "!disc"));
     }
   }
   function _columnGpaOf(field) {
@@ -5314,11 +6006,8 @@
         th.getAttribute(COLGPA_ATTR) !== null && th.removeAttribute(COLGPA_ATTR);
         return;
       }
-      let text = "(UW: " + _num(g.uw) + ", W: " + _num(g.w) + ")";
-      th.getAttribute(COLGPA_ATTR) !== text && (th.setAttribute(COLGPA_ATTR, text), th.getAttribute("title") || th.setAttribute("title", t(
-        "\u672C\u5217 GPA\uFF1A\u8FD9\u4E00\u5217\u6709\u5206\u6570\u7684\u8BFE\u7A0B\u6309\u5B66\u5206\u52A0\u6743\uFF08\u4E0E\u5B66\u5E74 GPA \u540C\u4E00\u5957\u7B97\u6CD5\uFF09",
-        "Column GPA: credit-weighted over the graded courses in this column"
-      )));
+      let text = "(UW: " + _gpaNum(g.uw) + ", W: " + _gpaNum(g.w) + ")";
+      th.getAttribute(COLGPA_ATTR) !== text && th.setAttribute(COLGPA_ATTR, text), th.getAttribute("title") && th.removeAttribute("title");
     });
   }
   function _taskKey(s) {
@@ -5392,9 +6081,9 @@
         let el = mine;
         el || (el = document.createElement("span"), el.setAttribute(TASK_SCORE_ATTR, "1"), siteSpan.insertAdjacentElement("afterend", el));
         let color = sim === -1 || orig !== null && sim < orig ? COLOR_DOWN : COLOR_UP;
-        el.style.cssText = "min-height:21px;display:block;color:" + color + ";", el.textContent = _taskScoreDisplay(sim, task.topScore), el.title = t("\u6A21\u62DF\u503C", "Simulated") + " \xB7 " + t("\u539F\u59CB ", "was ") + _taskScoreDisplay(orig, task.topScore) + (typeof task.topScore == "number" ? " \xB7 " + t("\u6EE1\u5206 ", "max ") + task.topScore : "");
+        el.style.cssText = "min-height:21px;display:block;color:" + color + ";", el.textContent = _taskScoreDisplay(sim, task.topScore), el.removeAttribute("title");
       }
-      td.setAttribute("data-ints-task", String(ti)), td.getAttribute("data-ints-taskbound") !== "1" && td.setAttribute("data-ints-taskbound", "1"), td._intsTaskClickBound || (td._intsTaskClickBound = !0, td.style.cursor = "pointer", td.title = t("\u70B9\u51FB\u7F16\u8F91\u8BE5\u4EFB\u52A1\u7684\u6A21\u62DF\u5F97\u5206\uFF08-1 = \u4E0D\u8BA1\u5165\uFF09", "Click to edit this task score (-1 = excluded)"), td.addEventListener("click", guardListener("\u5185\u8054\u4EFB\u52A1\u7F16\u8F91", (e) => {
+      td.setAttribute("data-ints-task", String(ti)), td.getAttribute("data-ints-taskbound") !== "1" && td.setAttribute("data-ints-taskbound", "1"), td._intsTaskClickBound || (td._intsTaskClickBound = !0, td.style.cursor = "pointer", td.addEventListener("click", guardListener("\u5185\u8054\u4EFB\u52A1\u7F16\u8F91", (e) => {
         let idx = td.getAttribute("data-ints-task");
         idx !== null && (e.stopPropagation(), _beginTaskEdit(td, courseIdx, parseInt(idx, 10)));
       })));
@@ -5422,6 +6111,37 @@
         _clearTaskDecorAttrs(td);
       }
     });
+  }
+  function _importanceTipText(rec) {
+    if (!rec) return null;
+    if (rec.status === "excluded") return t("\u91CD\u8981\u6027 \u2014\uFF08\u5DF2\u6392\u9664\uFF09", "Importance \u2014 (excluded)");
+    if (rec.status === "na")
+      return rec.reason === "star" ? t("\u91CD\u8981\u6027 \u2014\uFF08\u6743\u91CD\u5F02\u5E38\uFF09", "Importance \u2014 (weight mismatch)") : rec.reason === "override" ? t("\u91CD\u8981\u6027 \u2014\uFF08\u5E73\u65F6\u5206\u5DF2\u624B\u52A8\u8BBE\u7F6E\uFF09", "Importance \u2014 (P set manually)") : t("\u91CD\u8981\u6027 \u2014", "Importance \u2014");
+    let I = Number(rec.importance);
+    if (!isFinite(I)) return null;
+    let text = I > 0 && I < 1 ? I.toFixed(2) : I.toFixed(1);
+    return t("\u91CD\u8981\u6027 ", "Importance ") + text;
+  }
+  function _taskTipResolve(titleEl, td, tr) {
+    if (!S.isCurrentYear || !S.simCourses) return null;
+    let info = _rowInfo(tr), ci = _matchCourseIndex(info, /* @__PURE__ */ new Set());
+    if (ci < 0) return null;
+    let course = S.simCourses[ci];
+    if (!course) return null;
+    let vtId = td ? td.getAttribute(VTASK_ATTR) : null, ti = _taskIndexOf(course, titleEl ? titleEl.textContent : "", vtId);
+    if (ti < 0 || !course.tasks || !course.tasks[ti]) return null;
+    let task = course.tasks[ti], lines = [], rec = computeTaskImportance(course, { yearValue: S.currentYearValue, now: Date.now() }).get(task.entityId), impLine = _importanceTipText(rec);
+    impLine && lines.push(impLine);
+    let sim = _taskSimOf(task), orig = typeof task.originalScore == "number" ? task.originalScore : null, top = typeof task.topScore == "number" ? task.topScore : null;
+    if (task.isVirtual) {
+      let val = sim !== null ? sim : orig;
+      val !== null && lines.push(t("\u6A21\u62DF ", "Simulated ") + _taskScoreDisplay(val, top) + t("\uFF08\u865A\u62DF\u4EFB\u52A1\uFF09", " (virtual task)"));
+    } else if (sim !== null && (sim === -1 || orig === null || Math.abs(sim - orig) > 1e-3)) {
+      let line = t("\u6A21\u62DF ", "Simulated ") + _taskScoreDisplay(sim, top) + " \xB7 " + t("\u539F ", "was ");
+      line += orig === null ? t("\u672A\u8BC4\u5206", "not graded") : _taskScoreDisplay(orig, top), lines.push(line);
+    }
+    return lines.length ? lines.join(`
+`) : null;
   }
   function _vtaskList(course) {
     let out = [], tasks = course && Array.isArray(course.tasks) ? course.tasks : [];
@@ -5565,7 +6285,7 @@
   function _fieldHtml(ci, field, label) {
     let v = _scoreVal(ci, field);
     if (!_eFieldEditable(ci, field))
-      return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;" title="' + escapeHtml(t("\u5DF2\u6709\u8BE5\u8003\u8BD5\u6210\u7EE9", "Exam score already published")) + '"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><span data-ie-locked="' + field + '" style="min-width:56px;padding:2px 4px;text-align:center;font-size:12px;border:1px solid #f0f0f0;border-radius:4px;background:#fafafa;color:rgba(0,0,0,0.75);">' + (v.sim === null ? "\u2014" : _num(v.sim)) + "</span>" + _deltaSpanHtml(field, ci) + "</span>";
+      return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><span data-ie-locked="' + field + '" style="min-width:56px;padding:2px 4px;text-align:center;font-size:12px;border:1px solid #f0f0f0;border-radius:4px;background:#fafafa;color:rgba(0,0,0,0.75);">' + (v.sim === null ? "\u2014" : _num(v.sim)) + '</span><span class="iw-note" style="font-size:10px;">' + t("\u5DF2\u53D1\u5E03", "Published") + "</span>" + _deltaSpanHtml(field, ci) + "</span>";
     let shown = v.sim === null ? "" : _num(v.sim);
     return '<label style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;"><span style="color:rgba(0,0,0,0.55);font-size:11px;">' + label + '</span><input data-ie-field="' + field + '" type="text" inputmode="decimal" value="' + escapeHtml(shown) + '" placeholder="\u2014" style="width:56px;padding:2px 4px;text-align:center;border:1px solid ' + (v.overridden ? "#1890ff" : "#d9d9d9") + ";border-radius:4px;font-size:12px;" + (v.overridden ? "background:#e6f7ff;" : "") + '">' + _deltaSpanHtml(field, ci) + "</label>";
   }
@@ -5622,15 +6342,18 @@
   }
   function _ieTitleHTML(course) {
     let starred = !!(course.showStar && (course.showStar.s1 || course.showStar.s2));
-    return '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(course.subject || "") + '</div><div style="color:rgba(0,0,0,0.55);font-size:11px;font-weight:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(course.name || "") + '<span data-ie-star style="color:#f5222d;cursor:help;' + (starred ? "" : "display:none;") + '" title="' + escapeHtml(t("\u5B66\u6821\u7ED9\u7684\u5206\u4E0E\u4EFB\u52A1\u660E\u7EC6\u7B97\u51FA\u7684\u5206\u4E0D\u4E00\u81F4\uFF08\u5DEE > 0.1\uFF09\uFF0C\u8BE5\u79D1\u6A21\u62DF\u4EC5\u4F9B\u53C2\u8003", "School value differs from the task-based estimate by more than 0.1")) + '"> *</span></div>';
+    return '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(course.subject || "") + '</div><div style="color:rgba(0,0,0,0.55);font-size:11px;font-weight:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(course.name || "") + '<span data-ie-star style="color:#f5222d;cursor:help;' + (starred ? "" : "display:none;") + '" title="' + escapeHtml(t(
+      "\u6743\u91CD\u5F02\u5E38\uFF1A\u6309\u4EFB\u52A1\u660E\u7EC6\u91CD\u7B97\u7684\u5206\u6570\u4E0E\u5B66\u6821\u516C\u5E03\u5206\u4E0D\u4E00\u81F4\uFF0C\u672C\u8BFE\u6A21\u62DF\u4EC5\u4F9B\u53C2\u8003\u3002",
+      "Weight mismatch: the task-based estimate differs from the school value; this course is an estimate only."
+    )) + '"> *</span></div>';
   }
   function _ieBodyHTML(ci) {
-    return '<div style="margin-bottom:6px;">' + _fieldHtml(ci, "s1p", "S1P") + _fieldHtml(ci, "s1e", "S1E") + _readonlyHtml(ci, "s1f", "S1F", "s1") + '</div><div style="margin-bottom:8px;">' + _fieldHtml(ci, "s2p", "S2P") + _fieldHtml(ci, "s2e", "S2E") + _readonlyHtml(ci, "s2f", "S2F", "s2") + '</div><div style="display:flex;gap:8px;align-items:center;border-top:1px solid #f0f0f0;padding-top:8px;"><button type="button" data-ie-act="detail" class="ant-btn ant-btn-link" style="padding:0;font-size:12px;">' + t("\u79D1\u76EE\u660E\u7EC6", "Breakdown") + '</button><span class="iw-note" style="margin-left:auto;font-size:11px;">' + t("P=\u5E73\u65F6\u5206 E=\u671F\u672B F=\u603B\u8BC4", "P=coursework E=exam F=final") + "</span></div>";
+    return '<div style="margin-bottom:6px;">' + _fieldHtml(ci, "s1p", "S1P") + _fieldHtml(ci, "s1e", "S1E") + _readonlyHtml(ci, "s1f", "S1F", "s1") + '</div><div style="margin-bottom:8px;">' + _fieldHtml(ci, "s2p", "S2P") + _fieldHtml(ci, "s2e", "S2E") + _readonlyHtml(ci, "s2f", "S2F", "s2") + '</div><div style="display:flex;gap:8px;align-items:center;border-top:1px solid #f0f0f0;padding-top:8px;"><button type="button" data-ie-act="detail" class="ant-btn ant-btn-link" style="padding:0;font-size:12px;">' + t("\u79D1\u76EE\u660E\u7EC6", "Breakdown") + '</button><button type="button" data-ie-act="weights" class="ant-btn ant-btn-link" style="padding:0;font-size:12px;">' + t("\u6743\u91CD", "Weights") + '</button><button type="button" data-ie-act="help" class="ant-btn ant-btn-link" style="padding:0;font-size:12px;">' + t("\u8BF4\u660E", "Help") + '</button><span class="iw-note" style="margin-left:auto;font-size:11px;">' + t("P=\u5E73\u65F6\u5206 E=\u671F\u672B F=\u603B\u8BC4", "P=coursework E=exam F=final") + "</span></div>";
   }
-  function _openEditor(tr, ci) {
+  function _openEditor(tr, ci, anchorEl) {
     let course = S.simCourses[ci];
     if (!course || !S.isCurrentYear) return;
-    let td = _scoreTdOf(tr);
+    let td = anchorEl || _scoreTdOf(tr);
     if (!td) return;
     let key = IE_KIND + ":" + courseIdent(course);
     if (getWindow(key)) {
@@ -5659,10 +6382,24 @@
       let inp = e.target && e.target.closest ? e.target.closest("input[data-ie-field]") : null;
       inp && (e.preventDefault(), inp.blur());
     })), handle.body.addEventListener("click", guardListener("\u5185\u8054\u7A97\u53E3\u6309\u94AE", (e) => {
-      if (!(e.target && e.target.closest ? e.target.closest('[data-ie-act="detail"]') : null)) return;
+      let btn = e.target && e.target.closest ? e.target.closest("[data-ie-act]") : null;
+      if (!btn) return;
       let idx = _ciOfWindow(getWindow(key) || { el: handle.el });
-      idx < 0 || safe("points \u5185\u8054\u79D1\u76EE\u660E\u7EC6", () => {
+      if (idx < 0) return;
+      let act = btn.getAttribute("data-ie-act");
+      act === "detail" ? safe("points \u5185\u8054\u79D1\u76EE\u660E\u7EC6", () => {
         showSubjectDetailModal(idx, td);
+      }) : act === "weights" ? safe("points \u4EFB\u52A1\u6743\u91CD", () => {
+        openWeightWindow(idx, td);
+      }) : act === "help" && safe("points \u5E2E\u52A9\u9875", () => {
+        openCalcHelpWindow({
+          section: "p",
+          anchorEl: td,
+          weightsCourseIdx: idx,
+          onOpenWeights: function() {
+            openWeightWindow(idx, td);
+          }
+        });
       });
     }));
   }
@@ -5681,7 +6418,7 @@
   }
   function _closeInlineWindows() {
     for (let win of listWindows())
-      (win.kind === IE_KIND || win.kind === "detail") && closeWindow(win.key);
+      (win.kind === IE_KIND || win.kind === "detail" || win.kind === "help" || win.kind === "weights") && closeWindow(win.key);
   }
   function _headerFieldOf(h) {
     return FIELD_BY_LABEL[String(h && h.customColumnName || "").trim().toUpperCase()] || null;
@@ -5706,8 +6443,11 @@
   function _num(v) {
     return typeof v == "number" && !isNaN(v) ? v.toFixed(_dec()) : "\u2014";
   }
-  function _delta(v) {
-    return (v > 0 ? "+" : "") + v.toFixed(_dec());
+  function _gpaNum(v) {
+    return typeof v == "number" && !isNaN(v) ? v.toFixed(2) : "\u2014";
+  }
+  function _gpaDelta(v) {
+    return (v > 0 ? "+" : "") + v.toFixed(2);
   }
   function _findGradeVm() {
     if (_vm && _vm.$el && document.contains(_vm.$el)) return _vm;
@@ -5868,7 +6608,7 @@
   }
   function _renderMenuTriggers() {
     let pairs = [
-      ["calc", MENU_CALC_TRIGGER_ID, t("\u8BA1\u7B97", "Calculate"), !!_calcOpen],
+      ["calc", MENU_CALC_TRIGGER_ID, S.isCurrentYear ? t("\u8BA1\u7B97", "Calculate") : t("\u8BA1\u7B97\uFF08\u53EA\u8BFB\uFF09", "Calculate (read-only)"), !!_calcOpen],
       ["show", MENU_SHOW_TRIGGER_ID, t("\u663E\u793A", "View"), !!(_colsExpanded || _overviewOpen || S.isCurrentYear && S.importanceMode)]
     ];
     for (let [kind, id, label, active] of pairs) {
@@ -5877,16 +6617,20 @@
       let disabled = kind === "calc" && !S.isCurrentYear, html = iconChevron(_openMenu === kind) + "<span>" + escapeHtml(label) + "</span>";
       btn.innerHTML !== html && (btn.innerHTML = html);
       let color = disabled ? "rgba(0,0,0,0.25)" : active ? COLOR_ACTIVE : COLOR_IDLE;
-      if (btn.style.color !== color && (btn.style.color = color), disabled) {
-        btn.style.cursor !== "not-allowed" && (btn.style.cursor = "not-allowed");
-        let tip = t("\u5F80\u671F\u5B66\u5E74\u53EA\u8BFB\uFF1A\u4E0D\u80FD\u6A21\u62DF", "Past school year is read-only");
-        btn.getAttribute("title") !== tip && btn.setAttribute("title", tip);
-      } else
-        btn.style.cursor && (btn.style.cursor = ""), btn.getAttribute("title") && btn.removeAttribute("title");
+      btn.style.color !== color && (btn.style.color = color), disabled ? btn.style.cursor !== "not-allowed" && (btn.style.cursor = "not-allowed") : btn.style.cursor && (btn.style.cursor = ""), btn.getAttribute("title") && btn.removeAttribute("title");
     }
   }
   function _renderMenus(bar) {
     document.getElementById(MENU_CALC_ID) || _buildMenu(bar, "calc", t("\u8BA1\u7B97", "Calculate")), document.getElementById(MENU_SHOW_ID) || _buildMenu(bar, "show", t("\u663E\u793A", "View")), _orderToolbarNodes(bar);
+  }
+  function _renderHelpButton(bar) {
+    if (!bar) return null;
+    let btn = document.getElementById(HELP_BTN_ID);
+    btn || (btn = document.createElement("button"), btn.type = "button", btn.id = HELP_BTN_ID, btn.className = "ant-btn ant-btn-link", btn.style.cssText = "margin-left:16px;color:#8c8c8c;", btn.addEventListener("click", guardListener("\u5185\u8054\u5E2E\u52A9\u5165\u53E3", (e) => {
+      e.preventDefault(), safe("\u5185\u8054\u5E2E\u52A9\u9875", () => openCalcHelpWindow({ section: "p", anchorEl: btn }));
+    })), bar.appendChild(btn));
+    let label = t("\u5E2E\u52A9", "Help");
+    return btn.textContent !== label && (btn.textContent = label), btn.getAttribute("title") && btn.removeAttribute("title"), btn;
   }
   function _orderToolbarNodes(bar) {
     let yearItem = bar.querySelector(".filter-item"), termSel = document.getElementById(TERM_ID), termItem = termSel && termSel.closest("[data-ints-term]") || bar.querySelector("[data-ints-term]");
@@ -5903,10 +6647,12 @@
       }
     };
     placeAfter(termItem, yearItem), placeAfter(ddlWrap, termItem || yearItem), placeAfter(calc, ddlWrap || termItem || yearItem), placeAfter(show, calc || ddlWrap || termItem || yearItem);
+    let help = document.getElementById(HELP_BTN_ID);
+    placeAfter(help, show || calc || ddlWrap || termItem || yearItem);
   }
   function _renderToolbar() {
     let bar = document.querySelector(".grade .filter-container");
-    return bar ? (!S.isCurrentYear && _openMenu === "calc" && _closeMenus(), _renderMenus(bar), _renderDetailButton(), _renderImportanceButton(), _renderCalcOverview(), _renderCalcToggle(), _renderVirtualTaskButton(), _renderResetButton(), _renderClearCacheButton(), _renderTermSelect(bar), _renderCalcCard(), _renderMenuTriggers(), _orderToolbarNodes(bar), !0) : !1;
+    return bar ? (!S.isCurrentYear && _openMenu === "calc" && _closeMenus(), _renderMenus(bar), _renderDetailButton(), _renderImportanceButton(), _renderCalcOverview(), _renderCalcToggle(), _renderVirtualTaskButton(), _renderResetButton(), _renderClearCacheButton(), _renderTermSelect(bar), _renderHelpButton(bar), _renderCalcCard(), _renderMenuTriggers(), _orderToolbarNodes(bar), !0) : !1;
   }
   function _renderDetailButton() {
     let host = _menuHostFor("show");
@@ -5934,17 +6680,15 @@
         S.importanceMode = !S.importanceMode, flushSave(!0), _renderToolbar(), decoratePointsRows();
       });
     })));
-    let html = iconImportance() + "<span>" + t("\u4EFB\u52A1\u91CD\u8981\u6027", "Task Importance") + "</span>";
+    let label = S.isCurrentYear ? t("\u4EFB\u52A1\u91CD\u8981\u6027", "Task Importance") : t("\u4EFB\u52A1\u91CD\u8981\u6027\uFF08\u4EC5\u5F53\u524D\u5B66\u5E74\uFF09", "Task Importance (current year only)"), html = iconImportance() + "<span>" + label + "</span>";
     if (btn.innerHTML !== html && (btn.innerHTML = html), S.isCurrentYear) {
       let color = S.importanceMode ? COLOR_ACTIVE : COLOR_IDLE;
-      btn.style.color !== color && (btn.style.color = color), btn.style.cursor && (btn.style.cursor = ""), btn.getAttribute("title") && btn.removeAttribute("title");
+      btn.style.color !== color && (btn.style.color = color), btn.style.cursor && (btn.style.cursor = "");
     } else {
       let disabledColor = "rgba(0,0,0,0.25)";
       btn.style.color !== disabledColor && (btn.style.color = disabledColor), btn.style.cursor !== "not-allowed" && (btn.style.cursor = "not-allowed");
-      let tip = t("\u5F80\u671F\u5B66\u5E74\u4E0D\u663E\u793A\u4EFB\u52A1\u91CD\u8981\u6027", "Task importance is only shown for the current school year");
-      btn.getAttribute("title") !== tip && btn.setAttribute("title", tip);
     }
-    return btn;
+    return btn.getAttribute("title") && btn.removeAttribute("title"), btn;
   }
   function _renderVirtualTaskButton() {
     let host = _menuHostFor("calc");
@@ -6120,7 +6864,6 @@
     if (!usable)
       return card && card.remove(), null;
     if (card = _calcCard(), !card) return null;
-    safe("\u5E2E\u52A9\u6D6E\u5C42\u5B89\u88C5", () => setupHelpTooltip());
     let target = card.querySelector("#ints-calc-target");
     return target && safe("\u5185\u8054\u76EE\u6807GPA", () => _renderCalcTarget(target)), card;
   }
@@ -6129,7 +6872,7 @@
     if (!host) return null;
     let btn = document.getElementById(RESET_ID);
     return btn || (btn = _menuItem(host, RESET_ID), btn.innerHTML = iconSync() + "<span>" + t("\u6E05\u7A7A\u6A21\u62DF", "Reset Simulations") + "</span>", btn.style.color = "#f5222d", btn.addEventListener("click", guardListener("\u5185\u8054\u6E05\u7A7A\u6A21\u62DF", (e) => {
-      e.preventDefault(), safe("\u5185\u8054\u6E05\u7A7A\u6A21\u62DF", () => resetSimulations()), log("[\u5185\u8054] \u5DF2\u6E05\u7A7A\u6A21\u62DF\u6570\u636E\uFF08\u6821\u51C6\u4FE1\u606F\u4E0E\u661F\u6807\u4FDD\u7559\uFF09"), decoratePointsRows();
+      e.preventDefault(), safe("\u5185\u8054\u6E05\u7A7A\u6A21\u62DF", () => resetSimulations()), log("[\u5185\u8054] \u5DF2\u6E05\u7A7A\u6A21\u62DF\u6570\u636E\uFF08\u6821\u51C6\u4FE1\u606F\u4E0E\u6743\u91CD\u5F02\u5E38\u6807\u8BB0\u4FDD\u7559\uFF09"), decoratePointsRows();
     }))), btn;
   }
   function _renderClearCacheButton() {
@@ -6137,8 +6880,8 @@
     if (!host) return null;
     let btn = document.getElementById(CLEAR_CACHE_ID);
     return btn || (btn = _menuItem(host, CLEAR_CACHE_ID), btn.innerHTML = iconDelete() + "<span>" + t("\u6E05\u9664\u7F13\u5B58\uFF08\u4FDD\u7559\u6A21\u62DF\uFF09", "Clear cache (keep simulation)") + "</span>", btn.style.color = "#8c8c8c", btn.title = t(
-      "\u6E05\u9664\u672C\u673A\u4FDD\u5B58\u7684\u6210\u7EE9\u6570\u636E\u7F13\u5B58\uFF08\u5B66\u6821\u6570\u636E\u4E0E\u6821\u51C6\u8BB0\u5F55\uFF09\uFF1B\u6A21\u62DF\u3001\u6807\u8BB0\u4E0E\u76EE\u6807 GPA \u4F1A\u4FDD\u7559\u3002\u516C\u7528\u7535\u8111\u4E0A\u8BF7\u53CA\u65F6\u6E05\u9664\u3002",
-      "Clears the cached school data and calibration records stored on this computer. Simulations, marks and target GPA are kept. Please clear it regularly on a shared computer."
+      "\u6E05\u9664\u672C\u673A\u6210\u7EE9\u7F13\u5B58\uFF08\u4E0D\u5F71\u54CD\u6A21\u62DF\u3001\u6807\u8BB0\u4E0E\u76EE\u6807 GPA\uFF09",
+      "Clear local grade cache (simulations, marks and target GPA are kept)"
     ), btn.addEventListener("click", guardListener("\u5185\u8054\u6E05\u9664\u7F13\u5B58", (e) => {
       e.preventDefault(), safe("\u5185\u8054\u6E05\u9664\u7F13\u5B58", () => {
         clearServerCache() && (log("[\u5185\u8054] \u5DF2\u6E05\u9664\u672C\u5730\u7F13\u5B58\uFF08\u6210\u7EE9\u518C\u6570\u636E + \u6821\u51C6\u6392\u9664\u8868 + \u8BFE\u8868\u7F13\u5B58\uFF09\uFF0C\u5373\u5C06\u5237\u65B0\u9875\u9762"), location.reload());
@@ -6232,7 +6975,7 @@
   }
   function _decorate() {
     if (!_isPointsPage() || !_inlineEnabled() || !S.simCourses || !S.simCourses.length) return;
-    _renderGpa(), _renderToolbar(), _synthThCache = null, _structDirty = !1;
+    _renderGpa(), _renderToolbar(), safe("\u4EFB\u52A1\u63D0\u793A\u5B89\u88C5", () => installTaskTip({ resolve: _taskTipResolve })), safe("\u5E2E\u52A9\u94FE\u63A5\u5B89\u88C5", () => installCalcHelpLinks()), _synthThCache = null, _structDirty = !1;
     let vm = _findGradeVm();
     vm && (_captureSiteColumns(vm), _colsExpanded && (_captureOriginalIfNeeded(vm), _applyColumns(vm)));
     let rows = _rows(), used = /* @__PURE__ */ new Set(), matched = 0, unmatched = 0;
@@ -6241,7 +6984,7 @@
       if (idx < 0) {
         unmatched++;
         let box = tr.querySelector("[data-ints-sim]");
-        box && box.remove(), _restoreScoreCell(_scoreTdOf(tr)), _clearTaskCells(tr), _markRowDone(tr);
+        box && box.remove(), _restoreScoreCell(_scoreTdOf(tr)), _clearTaskCells(tr), _clearEditorCells(tr), _markRowDone(tr);
         return;
       }
       used.add(idx), matched++, _renderRow(tr, idx);
@@ -6319,7 +7062,7 @@
     }), !0);
   }
   function _startAutoCalibrate() {
-    S.isCurrentYear && safeAsync("\u5185\u8054\u661F\u6807\u81EA\u52A8\u6821\u51C6", async () => {
+    S.isCurrentYear && safeAsync("\u5185\u8054\u6743\u91CD\u5F02\u5E38\u81EA\u52A8\u6821\u51C6", async () => {
       await autoCalibrateStarredCourses(), _decorate();
     });
   }
@@ -6423,7 +7166,7 @@
       });
     });
   }
-  function _start() {
+  function _start2() {
     _started || (_started = !0, log("[\u5185\u8054] /points \u5185\u8054\u6A21\u62DF\u542F\u52A8"), ensureStorageLoaded(), (S.lastSelectedFilter === "all" || S.lastSelectedFilter === "s1" || S.lastSelectedFilter === "s2") && (S.currentFilter = S.lastSelectedFilter), _colsExpanded = !!S.colsExpanded, _savedHeaders = null, _savedColSig = "", setCourseChangeListener((courseIdx) => {
       if (!(!_isPointsPage() || !_inlineEnabled())) {
         if (courseIdx === -1) decoratePointsRows();
@@ -6449,7 +7192,7 @@
   }
   function stopPointsInline() {
     if (!_started) return;
-    _observer && (_observer.disconnect(), _observer = null), _timer && (clearTimeout(_timer), _timer = null), _bootTimer && (clearTimeout(_bootTimer), _bootTimer = null), _popHandler && (window.removeEventListener("popstate", _popHandler), _popHandler = null), _closeInlineWindows(), _closeTaskEditor(), safe("\u5185\u8054\u5217\u8FD8\u539F", () => {
+    _observer && (_observer.disconnect(), _observer = null), _timer && (clearTimeout(_timer), _timer = null), _bootTimer && (clearTimeout(_bootTimer), _bootTimer = null), _popHandler && (window.removeEventListener("popstate", _popHandler), _popHandler = null), _closeInlineWindows(), _closeTaskEditor(), safe("\u4EFB\u52A1\u63D0\u793A\u6E05\u7406", () => stopTaskTip()), safe("\u7A97\u53E3\u62D6\u52A8\u6E05\u7406", () => cancelWindowGesture()), safe("\u5185\u8054\u5217\u8FD8\u539F", () => {
       let vm = _findGradeVm();
       vm && (_colsExpanded && (_clearSyntheticColumns(vm), _savedHeaders !== null && (vm.dynamicHeaders = _savedHeaders.slice())), _savedHeaders = null, _savedColSig = "", _colsSig = null, _structDirty = !1, _siteHeaderIds = [], _siteColSig = "", _synthThCache = null, _driftCheckedAt = 0, _driftRefreshing = !1);
     });
@@ -6459,6 +7202,7 @@
     [
       TERM_ID,
       TARGET_TOGGLE_ID,
+      HELP_BTN_ID,
       CALC_TOGGLE_ID,
       CALC_CARD_ID,
       OVERVIEW_TOGGLE_ID,
@@ -6475,6 +7219,10 @@
       el.removeAttribute(INLINE_ATTR), el.removeAttribute("data-ints-clickable"), el.style.cursor = "", el.removeAttribute("title"), _restoreScoreCell(el);
       let box = el.querySelector("[data-ints-sim]");
       box && box.remove();
+    }), document.querySelectorAll("[data-ints-task-tip]").forEach((inner) => {
+      inner.removeAttribute("data-ints-task-tip"), inner.style && (inner.style.marginTop = "");
+    }), document.querySelectorAll("[data-ints-task-tip-float]").forEach((el) => el.remove()), document.querySelectorAll("[" + OPEN_EDITOR_ATTR + "]").forEach((td) => {
+      td.removeAttribute(OPEN_EDITOR_ATTR), td.style && td.style.cursor === "pointer" && (td.style.cursor = "");
     }), document.querySelectorAll("[" + ROW_ATTR + "]").forEach((tr) => tr.removeAttribute(ROW_ATTR)), document.querySelectorAll(".ant-table-tbody [data-ints-sim], .ant-table-tbody [data-ints-coldelta]").forEach((el) => el.remove()), document.querySelectorAll("[data-ints-task]").forEach((td) => {
       td.removeAttribute("data-ints-task"), td.removeAttribute("data-ints-taskbound"), td.style.cursor = "", td.removeAttribute("title");
       let b = td.querySelector("[" + TASK_SCORE_ATTR + "]");
@@ -6499,9 +7247,9 @@
       stopPointsInline();
       return;
     }
-    _isPointsPage() ? _start() : stopPointsInline();
+    _isPointsPage() ? _start2() : stopPointsInline();
   }
-  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, COLGPA_ATTR, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, IMPORTANCE_ATTR, IMPORTANCE_COLOR_VAR, IMPORTANCE_BTN_ID, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, ANTD_FIRE_PATH, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
+  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, OPEN_EDITOR_ATTR, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, COLGPA_ATTR, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, IMPORTANCE_ATTR, IMPORTANCE_COLOR_VAR, IMPORTANCE_BTN_ID, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, HELP_BTN_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, GPA_DELTA_EPS, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, ANTD_FIRE_PATH, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
     "v8.30/inline-points.js"() {
       init_state();
       init_utils();
@@ -6511,10 +7259,14 @@
       init_gpa_target();
       init_diagnose();
       init_win_shell();
+      init_task_tip();
+      init_calc_help();
+      init_weight_view();
       init_log();
       INLINE_ATTR = "data-ints-inline", ROW_ATTR = "data-ints-row", GPA_ID = "ints-inline-gpa", DECORATE_DEBOUNCE_MS = 300;
       _siteHeaderIds = [], _siteColSig = "", _colTrace = null;
       _ownHeadersSig = "";
+      OPEN_EDITOR_ATTR = "data-ints-open-editor";
       SCORE_SIM_ATTR = "data-ints-simscore", SCORE_WRAP_ATTR = "data-ints-origwrap", SCORE_DELTA_ATTR = "data-ints-scoredelta", SCORE_DELTA_EPS = 5e-3;
       FIELD_CELL_SEARCH = [0, -1, 1];
       SIM_BLUE = "#1890ff", COL_DELTA_ATTR = "data-ints-coldelta", FIELD_WRAP_ATTR = "data-ints-fwrap", FIELD_BLOCK_ATTR = "data-ints-fsim";
@@ -6530,8 +7282,8 @@
       };
       IE_KIND = "editor", IE_F_IDS = { s1: "s1", s2: "s2" };
       ALL_FIELDS = ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"], FIELD_LABEL = { s1p: "S1P", s1e: "S1E", s1f: "S1F", s2p: "S2P", s2e: "S2E", s2f: "S2F" }, FIELD_BY_LABEL = { S1P: "s1p", S1E: "s1e", S1F: "s1f", S2P: "s2p", S2E: "s2e", S2F: "s2f", EOY: "eoy" }, FIELD_ORDER = { S1P: 0, S1E: 1, S1F: 2, S2P: 3, S2E: 4, S2F: 5, EOY: 6 };
-      SYNTH_PREFIX = "ints_", TOGGLE_ID = "ints-inline-cols-btn", TERM_ID = "ints-inline-term", TARGET_TOGGLE_ID = "ints-inline-target-btn", _targetStripOpen = !1, COLOR_IDLE = "#1890ff", COLOR_ACTIVE = "#26b889";
-      _vm = null, _savedHeaders = null, _colsExpanded = !1, _colsSig = null;
+      SYNTH_PREFIX = "ints_", TOGGLE_ID = "ints-inline-cols-btn", TERM_ID = "ints-inline-term", TARGET_TOGGLE_ID = "ints-inline-target-btn", HELP_BTN_ID = "ints-inline-help-btn", _targetStripOpen = !1, COLOR_IDLE = "#1890ff", COLOR_ACTIVE = "#26b889";
+      GPA_DELTA_EPS = 5e-3, _vm = null, _savedHeaders = null, _colsExpanded = !1, _colsSig = null;
       _savedColSig = "";
       MENU_CALC_ID = "ints-inline-menu-calc", MENU_SHOW_ID = "ints-inline-menu-show", MENU_CALC_TRIGGER_ID = "ints-inline-calc-menu-btn", MENU_SHOW_TRIGGER_ID = "ints-inline-show-menu-btn", MENU_PANEL_ATTR = "data-ints-menupanel", VTASK_BTN_ID = "ints-inline-vtask-btn", MENU_Z = 50, _openMenu = null, _menuOutside = null, _menuEsc = null;
       ANTD_FIRE_PATH = "M834.1 469.2A347.49 347.49 0 0 0 751.2 354l-29.1-26.7a8.09 8.09 0 0 0-13 3.3l-13 37.3c-8.1 23.4-23 47.3-44.1 70.8-1.4 1.5-3 1.9-4.1 2-1.1.1-2.8-.1-4.3-1.5-1.4-1.2-2.1-3-2-4.8 3.7-60.2-14.3-128.1-53.7-202C555.3 171 510 123.1 453.4 89.7l-41.3-24.3c-5.4-3.2-12.3 1-12 7.3l2.2 48c1.5 32.8-2.3 61.8-11.3 85.9-11 29.5-26.8 56.9-47 81.5a295.64 295.64 0 0 1-47.5 46.1 352.6 352.6 0 0 0-100.3 121.5A347.75 347.75 0 0 0 160 610c0 47.2 9.3 92.9 27.7 136a349.4 349.4 0 0 0 75.5 110.9c32.4 32 70 57.2 111.9 74.7C418.5 949.8 464.5 959 512 959s93.5-9.2 136.9-27.3A348.6 348.6 0 0 0 760.8 857c32.4-32 57.8-69.4 75.5-110.9a344.2 344.2 0 0 0 27.7-136c0-48.8-10-96.2-29.9-140.9z";
@@ -6631,7 +7383,7 @@
     let existing = _flagOf(holder);
     if (marked && !existing) {
       let flag = document.createElement("span");
-      flag.className = FLAG_CLASS, flag.style.cssText = "position:relative;top:-1px;margin-left:6px;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;cursor:pointer;", flag.title = t("\u5DF2\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210\uFF08\u70B9\u51FB\u6216\u53F3\u952E\u53D6\u6D88\u6807\u8BB0\uFF09", "Marked as pending (click or right-click to unmark)"), flag.innerHTML = iconMark(MARK_COLOR_ON, "13px"), flag.addEventListener("click", guardListener("\u5217\u8868\u65D7\u5E1C\u5DE6\u952E\u53D6\u6D88\u6807\u8BB0", (e) => {
+      flag.className = FLAG_CLASS, flag.style.cssText = "position:relative;top:-1px;margin-left:6px;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;cursor:pointer;", flag.setAttribute("role", "button"), flag.setAttribute("aria-label", t("\u5DF2\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210\uFF08\u70B9\u51FB\u6216\u53F3\u952E\u53D6\u6D88\u6807\u8BB0\uFF09", "Marked as pending (click or right-click to unmark)")), flag.innerHTML = iconMark(MARK_COLOR_ON, "13px"), flag.addEventListener("click", guardListener("\u5217\u8868\u65D7\u5E1C\u5DE6\u952E\u53D6\u6D88\u6807\u8BB0", (e) => {
         e.preventDefault(), e.stopPropagation(), e.stopImmediatePropagation(), _unmarkRow(flag.closest("tr"), "\u65D7\u5E1C\u5DE6\u952E");
       })), flag.addEventListener("contextmenu", guardListener("\u5217\u8868\u65D7\u5E1C\u53F3\u952E\u53D6\u6D88\u6807\u8BB0", (e) => {
         e.preventDefault(), e.stopPropagation(), e.stopImmediatePropagation(), _unmarkRow(flag.closest("tr"), "\u65D7\u5E1C\u53F3\u952E");
@@ -6844,7 +7596,7 @@
     let wrap = document.getElementById("intschool-deadline-wrap");
     wrap && wrap.remove();
     let floatTip = document.querySelector(".intschool-deadline-tooltip-fixed");
-    floatTip && floatTip.remove(), stopDeadlinePolling();
+    floatTip && floatTip.remove(), safe("DDL \u5361\u7247\u590D\u4F4D", () => resetDeadlineCard()), stopDeadlinePolling();
   }
   function _needsInjection() {
     return _isSupportedPage() ? !document.getElementById("intschool-deadline-wrap") : !1;
