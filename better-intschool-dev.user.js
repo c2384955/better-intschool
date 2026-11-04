@@ -690,10 +690,7 @@
     .grade .ant-table-tbody .task-title { transition: background-color .35s ease; }
     .grade .ant-table-tbody .task-title[data-ints-importance] { background-color: var(--ints-importance-color, #fffbe6) !important; }
     @media (prefers-reduced-motion: reduce) { .grade .ant-table-tbody .task-title { transition: none; } }
-    .ant-tooltip-inner[data-ints-task-tip] { max-width: 320px; }
-    .ant-tooltip-inner[data-ints-task-tip]::after {
-        content: attr(data-ints-task-tip);
-        display: block;
+    .ints-task-tip-extra {
         margin-top: 4px;
         padding-top: 4px;
         border-top: 1px solid rgba(255,255,255,.18);
@@ -701,7 +698,8 @@
         line-height: 1.5;
         font-weight: normal;
         color: rgba(255,255,255,.85);
-        white-space: pre-line;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
     .ints-task-tip-float { position: fixed; z-index: 1060; pointer-events: none; display: block; max-width: 320px; }
     .ints-task-tip-float .ant-tooltip-inner { max-width: 320px; }
@@ -5061,8 +5059,8 @@
   function _clearTarget() {
     if (_target) {
       try {
-        let inner = _target.inner;
-        inner && (inner.removeAttribute(TIP_ATTR), inner.style.marginTop = _target.marginTop || "");
+        let inner = _target.inner, tip = _target.tip;
+        _target.extra && _target.extra.parentNode && _target.extra.parentNode.removeChild(_target.extra), inner && (inner.removeAttribute(TIP_ATTR), inner.style.marginTop = ""), tip && (_target.topStyle ? tip.style.top = _target.topStyle : tip.style.removeProperty("top"), _target.marginTopStyle ? tip.style.marginTop = _target.marginTopStyle : tip.style.removeProperty("margin-top"));
       } catch (e) {
       }
       _target = null;
@@ -5093,11 +5091,28 @@
     return null;
   }
   function _patch(tip, inner, text) {
-    if (_target && (_target.inner !== inner || _target.tip !== tip) && _clearTarget(), _target || (_target = { tip, inner, marginTop: inner.style.marginTop || "" }), _target.text === text && inner.getAttribute(TIP_ATTR) === text) return;
-    let before = inner.getBoundingClientRect().height;
-    inner.setAttribute(TIP_ATTR, text);
-    let after = inner.getBoundingClientRect().height, delta = Math.max(0, after - before), placement = _tooltipPlacement(tip), mt = 0;
-    delta > 0.5 && (placement === "top" ? mt = -delta : (placement === "left" || placement === "right") && (mt = -delta / 2)), inner.style.marginTop = (mt || 0) + "px", _target.text = text;
+    if (_target && (_target.inner !== inner || _target.tip !== tip) && _clearTarget(), _target || (_target = {
+      tip,
+      inner,
+      extra: null,
+      text: "",
+      topStyle: tip.style.top || "",
+      marginTopStyle: tip.style.marginTop || ""
+    }), _target.extra && _target.extra.parentNode !== inner && (_target.extra = null, _target.text = ""), _target.extra && _target.text === text) return;
+    let before = tip.getBoundingClientRect().height;
+    if (!_target.extra && before <= 1) return;
+    _target.extra || (_target.extra = document.createElement("div"), _target.extra.className = "ints-task-tip-extra", inner.appendChild(_target.extra)), _target.extra.innerHTML = _floatText(text), inner.setAttribute(TIP_ATTR, "1");
+    let delta = tip.getBoundingClientRect().height - before;
+    if (delta > 0.5 && _tooltipPlacement(tip) !== "bottom") {
+      let topVal = parseFloat(tip.style.top);
+      if (!isNaN(topVal))
+        _target.topStyle || (_target.topStyle = topVal + "px"), tip.style.top = topVal - delta + "px";
+      else {
+        let mtVal = parseFloat(tip.style.marginTop) || 0;
+        _target.marginTopStyle || (_target.marginTopStyle = tip.style.marginTop || ""), tip.style.marginTop = mtVal - delta + "px";
+      }
+    }
+    _target.text = text;
   }
   function _floatText(lines) {
     return String(lines || "").split(`
@@ -6348,7 +6363,7 @@
     )) + '"> *</span></div>';
   }
   function _ieBodyHTML(ci) {
-    return '<div style="margin-bottom:6px;">' + _fieldHtml(ci, "s1p", "S1P") + _fieldHtml(ci, "s1e", "S1E") + _readonlyHtml(ci, "s1f", "S1F", "s1") + '</div><div style="margin-bottom:8px;">' + _fieldHtml(ci, "s2p", "S2P") + _fieldHtml(ci, "s2e", "S2E") + _readonlyHtml(ci, "s2f", "S2F", "s2") + '</div><div style="display:flex;gap:8px;align-items:center;border-top:1px solid #f0f0f0;padding-top:8px;"><button type="button" data-ie-act="detail" class="ant-btn ant-btn-link" style="padding:0;font-size:12px;">' + t("\u79D1\u76EE\u660E\u7EC6", "Breakdown") + '</button><button type="button" data-ie-act="weights" class="ant-btn ant-btn-link" style="padding:0;font-size:12px;">' + t("\u6743\u91CD", "Weights") + '</button><button type="button" data-ie-act="help" class="ant-btn ant-btn-link" style="padding:0;font-size:12px;">' + t("\u8BF4\u660E", "Help") + '</button><span class="iw-note" style="margin-left:auto;font-size:11px;">' + t("P=\u5E73\u65F6\u5206 E=\u671F\u672B F=\u603B\u8BC4", "P=coursework E=exam F=final") + "</span></div>";
+    return '<div style="margin-bottom:6px;">' + _fieldHtml(ci, "s1p", "S1P") + _fieldHtml(ci, "s1e", "S1E") + _readonlyHtml(ci, "s1f", "S1F", "s1") + '</div><div style="margin-bottom:8px;">' + _fieldHtml(ci, "s2p", "S2P") + _fieldHtml(ci, "s2e", "S2E") + _readonlyHtml(ci, "s2f", "S2F", "s2") + '</div><div style="display:flex;gap:16px;align-items:center;border-top:1px solid #f0f0f0;padding-top:8px;"><button type="button" data-ie-act="detail" class="ant-btn ant-btn-link" style="padding:0 2px;font-size:12px;white-space:nowrap;">' + t("\u79D1\u76EE\u660E\u7EC6", "Breakdown") + '</button><button type="button" data-ie-act="weights" class="ant-btn ant-btn-link" style="padding:0 2px;font-size:12px;white-space:nowrap;">' + t("\u6743\u91CD", "Weights") + '</button><button type="button" data-ie-act="help" class="ant-btn ant-btn-link" style="padding:0 2px;font-size:12px;white-space:nowrap;">' + t("\u8BF4\u660E", "Help") + '</button><span class="iw-note" style="margin-left:auto;padding-left:6px;font-size:11px;white-space:nowrap;">' + t("P=\u5E73\u65F6\u5206 E=\u671F\u672B F=\u603B\u8BC4", "P=coursework E=exam F=final") + "</span></div>";
   }
   function _openEditor(tr, ci, anchorEl) {
     let course = S.simCourses[ci];
