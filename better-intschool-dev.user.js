@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.16
+// @version      1.02.17
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -5070,23 +5070,19 @@
     _float && _float.parentNode && _float.parentNode.removeChild(_float), _float = null;
   }
   function _clearAll() {
-    _clearTarget(), _removeFloat(), _raf && (clearTimeout(_raf), _raf = null), _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null), _hover = null;
+    _clearTarget(), _removeFloat(), _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null), _hover = null;
   }
   function _tooltipPlacement(tip) {
     let cls = String(tip && tip.className || "");
     return cls.indexOf("ant-tooltip-placement-top") >= 0 ? "top" : cls.indexOf("ant-tooltip-placement-bottom") >= 0 ? "bottom" : cls.indexOf("ant-tooltip-placement-left") >= 0 ? "left" : cls.indexOf("ant-tooltip-placement-right") >= 0 ? "right" : "top";
   }
-  function _findSystemTip(name) {
-    let tips = document.querySelectorAll(".ant-tooltip");
-    for (let i = tips.length - 1; i >= 0; i--) {
-      let tip = tips[i];
-      if (!_visible(tip)) continue;
-      let inners = tip.querySelectorAll(".ant-tooltip-inner");
-      for (let j = inners.length - 1; j >= 0; j--) {
-        let inner = inners[j];
-        if (_visible(inner) && String(inner.textContent || "").indexOf(name) >= 0)
-          return { tip, inner };
-      }
+  function _findVisibleInner(tip, name) {
+    if (!_visible(tip)) return null;
+    let inners = tip.querySelectorAll(".ant-tooltip-inner");
+    for (let j = inners.length - 1; j >= 0; j--) {
+      let inner = inners[j];
+      if (_visible(inner) && String(inner.textContent || "").indexOf(name) >= 0)
+        return inner;
     }
     return null;
   }
@@ -5127,18 +5123,47 @@
     let rect = titleEl.getBoundingClientRect(), w = float.offsetWidth, h = float.offsetHeight, left = rect.left + rect.width / 2 - w / 2, top = rect.top - h - 8, placement = "top";
     top < 8 && (top = rect.bottom + 8, placement = "bottom"), left = Math.max(8, Math.min(left, window.innerWidth - w - 8)), top = Math.max(8, Math.min(top, window.innerHeight - h - 8)), float.style.left = Math.round(left) + "px", float.style.top = Math.round(top) + "px", float.className = "ant-tooltip ant-tooltip-placement-" + placement + "Left ints-task-tip-float", _float = float;
   }
-  function _poll() {
-    let h = _hover;
-    if (!h) {
-      _raf = null;
-      return;
+  function _scan() {
+    if (_scanQueued = !1, !_resolve || (_target && !_visible(_target.tip) && _clearTarget(), !_hover)) return;
+    let tips = document.querySelectorAll(".ant-tooltip");
+    for (let i = tips.length - 1; i >= 0; i--) {
+      let tip = tips[i];
+      if (tip.classList && tip.classList.contains("ints-task-tip-float")) continue;
+      let inner = _findVisibleInner(tip, _hover.name);
+      if (inner) {
+        _patch(tip, inner, _hover.lines);
+        return;
+      }
     }
-    if (_seq !== h.seq || !h.titleEl.isConnected) {
-      _clearAll(), _raf = null;
-      return;
+  }
+  function _scheduleScan() {
+    _scanQueued || (_scanQueued = !0, Promise.resolve().then(function() {
+      if (!_installed2) {
+        _scanQueued = !1;
+        return;
+      }
+      _scan();
+    }));
+  }
+  function _mutationRelevant(m) {
+    let target = m.target;
+    if (target && target.nodeType === 1 && target.closest && target.closest(".ant-tooltip"))
+      return !0;
+    if (m.type !== "childList") return !1;
+    let nodes = m.addedNodes || [];
+    for (let i = 0; i < nodes.length; i++) {
+      let n = nodes[i];
+      if (!(!n || n.nodeType !== 1) && (n.classList && n.classList.contains("ant-tooltip") || n.querySelector && n.querySelector(".ant-tooltip")))
+        return !0;
     }
-    let found = _findSystemTip(h.name);
-    found && _patch(found.tip, found.inner, h.lines), performance.now() - h.start < POLL_MS ? _raf = setTimeout(_poll, 40) : _raf = null;
+    return !1;
+  }
+  function _onMutations(muts) {
+    for (let i = 0; i < muts.length; i++)
+      if (_mutationRelevant(muts[i])) {
+        _scheduleScan();
+        return;
+      }
   }
   function _start(titleEl, td, tr) {
     if (!titleEl || !_resolve || titleEl.closest("[data-ints-window]") || titleEl.closest(".ints-win") || _hover && _hover.titleEl === titleEl) return;
@@ -5147,10 +5172,10 @@
     if (!lines) return;
     let seq = ++_seq, name = String(titleEl.textContent || "").replace(/\s+/g, " ").trim();
     if (td && td.getAttribute("data-ints-vtask-id") !== null) {
-      _hover = { titleEl, td, tr, name, lines, seq, start: performance.now() }, _showVirtual(titleEl, lines);
+      _hover = { titleEl, td, tr, name, lines, seq }, _showVirtual(titleEl, lines);
       return;
     }
-    _hover = { titleEl, td, tr, name, lines, seq, start: performance.now() }, _raf = setTimeout(_poll, 40);
+    _hover = { titleEl, td, tr, name, lines, seq }, _scan();
   }
   function _onOver(e) {
     let titleEl = e.target && e.target.closest ? e.target.closest(".task-title") : null;
@@ -5172,15 +5197,21 @@
     tip && _target && tip === _target.tip && _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null);
   }
   function installTaskTip(opts) {
-    _resolve = opts && typeof opts.resolve == "function" ? opts.resolve : null, !_installed2 && (_installed2 = !0, document.addEventListener("mouseover", _onOver, !0), document.addEventListener("mouseout", _onOut, !0), document.addEventListener("mouseover", _onDocOver, !0));
+    _resolve = opts && typeof opts.resolve == "function" ? opts.resolve : null, !_installed2 && (_installed2 = !0, document.addEventListener("mouseover", _onOver, !0), document.addEventListener("mouseout", _onOut, !0), document.addEventListener("mouseover", _onDocOver, !0), typeof MutationObserver == "function" && document.body && (_observer = new MutationObserver(_onMutations), _observer.observe(document.body, {
+      subtree: !0,
+      childList: !0,
+      attributes: !0,
+      attributeFilter: ["style", "class"],
+      characterData: !0
+    })));
   }
   function stopTaskTip() {
-    _installed2 && (document.removeEventListener("mouseover", _onOver, !0), document.removeEventListener("mouseout", _onOut, !0), document.removeEventListener("mouseover", _onDocOver, !0), _installed2 = !1), _resolve = null, _clearAll();
+    _installed2 && (document.removeEventListener("mouseover", _onOver, !0), document.removeEventListener("mouseout", _onOut, !0), document.removeEventListener("mouseover", _onDocOver, !0), _installed2 = !1), _observer && (_observer.disconnect(), _observer = null), _scanQueued = !1, _resolve = null, _clearAll();
   }
-  var TIP_ATTR, FLOAT_ATTR, POLL_MS, LEAVE_GRACE_MS, _installed2, _resolve, _hover, _seq, _raf, _leaveTimer, _target, _float, init_task_tip = __esm({
+  var TIP_ATTR, FLOAT_ATTR, LEAVE_GRACE_MS, _installed2, _resolve, _hover, _seq, _leaveTimer, _target, _float, _observer, _scanQueued, init_task_tip = __esm({
     "v8.30/task-tip.js"() {
       init_utils();
-      TIP_ATTR = "data-ints-task-tip", FLOAT_ATTR = "data-ints-task-tip-float", POLL_MS = 600, LEAVE_GRACE_MS = 80, _installed2 = !1, _resolve = null, _hover = null, _seq = 0, _raf = null, _leaveTimer = null, _target = null, _float = null;
+      TIP_ATTR = "data-ints-task-tip", FLOAT_ATTR = "data-ints-task-tip-float", LEAVE_GRACE_MS = 80, _installed2 = !1, _resolve = null, _hover = null, _seq = 0, _leaveTimer = null, _target = null, _float = null, _observer = null, _scanQueued = !1;
     }
   });
 
@@ -7192,9 +7223,9 @@
         }
         _refreshEditorWindows(), safe("\u660E\u7EC6\u7A97\u53E3\u5237\u65B0", refreshSubjectDetailWindows);
       }
-    }), _lastPageYearText = _pageYearText(), _bootGateStats = null, _armBootGate(), _observer = new MutationObserver(guardListener("points \u5185\u8054\u89C2\u5BDF", (muts) => {
+    }), _lastPageYearText = _pageYearText(), _bootGateStats = null, _armBootGate(), _observer2 = new MutationObserver(guardListener("points \u5185\u8054\u89C2\u5BDF", (muts) => {
       _shouldSchedule(muts) && _schedule(DECORATE_DEBOUNCE_MS);
-    })), _observer.observe(document.documentElement, { childList: !0, subtree: !0 }), _popHandler = guardListener("points \u5185\u8054\u8FD4\u56DE", () => _schedule(400)), window.addEventListener("popstate", _popHandler));
+    })), _observer2.observe(document.documentElement, { childList: !0, subtree: !0 }), _popHandler = guardListener("points \u5185\u8054\u8FD4\u56DE", () => _schedule(400)), window.addEventListener("popstate", _popHandler));
   }
   function _rowForCourse(courseIdx) {
     let rows = _rows(), used = /* @__PURE__ */ new Set();
@@ -7207,7 +7238,7 @@
   }
   function stopPointsInline() {
     if (!_started) return;
-    _observer && (_observer.disconnect(), _observer = null), _timer && (clearTimeout(_timer), _timer = null), _bootTimer && (clearTimeout(_bootTimer), _bootTimer = null), _popHandler && (window.removeEventListener("popstate", _popHandler), _popHandler = null), _closeInlineWindows(), _closeTaskEditor(), safe("\u4EFB\u52A1\u63D0\u793A\u6E05\u7406", () => stopTaskTip()), safe("\u7A97\u53E3\u62D6\u52A8\u6E05\u7406", () => cancelWindowGesture()), safe("\u5185\u8054\u5217\u8FD8\u539F", () => {
+    _observer2 && (_observer2.disconnect(), _observer2 = null), _timer && (clearTimeout(_timer), _timer = null), _bootTimer && (clearTimeout(_bootTimer), _bootTimer = null), _popHandler && (window.removeEventListener("popstate", _popHandler), _popHandler = null), _closeInlineWindows(), _closeTaskEditor(), safe("\u4EFB\u52A1\u63D0\u793A\u6E05\u7406", () => stopTaskTip()), safe("\u7A97\u53E3\u62D6\u52A8\u6E05\u7406", () => cancelWindowGesture()), safe("\u5185\u8054\u5217\u8FD8\u539F", () => {
       let vm = _findGradeVm();
       vm && (_colsExpanded && (_clearSyntheticColumns(vm), _savedHeaders !== null && (vm.dynamicHeaders = _savedHeaders.slice())), _savedHeaders = null, _savedColSig = "", _colsSig = null, _structDirty = !1, _siteHeaderIds = [], _siteColSig = "", _synthThCache = null, _driftCheckedAt = 0, _driftRefreshing = !1);
     });
@@ -7264,7 +7295,7 @@
     }
     _isPointsPage() ? _start2() : stopPointsInline();
   }
-  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, OPEN_EDITOR_ATTR, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, COLGPA_ATTR, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, IMPORTANCE_ATTR, IMPORTANCE_COLOR_VAR, IMPORTANCE_BTN_ID, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, HELP_BTN_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, GPA_DELTA_EPS, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, ANTD_FIRE_PATH, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
+  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, OPEN_EDITOR_ATTR, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, COLGPA_ATTR, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, IMPORTANCE_ATTR, IMPORTANCE_COLOR_VAR, IMPORTANCE_BTN_ID, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, HELP_BTN_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, GPA_DELTA_EPS, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, ANTD_FIRE_PATH, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer2, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
     "v8.30/inline-points.js"() {
       init_state();
       init_utils();
@@ -7307,7 +7338,7 @@
       OVERVIEW_COUNT_ID = "ints-overview-loading-text";
       _stats = { rows: 0, matched: 0, unmatched: 0, ts: 0 };
       _loading = !1, DRIFT_CHECK_MS = 60 * 1e3, DRIFT_MAX_REFRESH = 2, _driftCheckedAt = 0, _driftRefreshing = !1, _driftRefreshes = 0;
-      _started = !1, _observer = null, _timer = null, _bootTimer = null, _popHandler = null, _lastPageYearText = null, _bootGateStats = null, BOOT_GATE_POLL_MS = 120, BOOT_GATE_MAX_MS = 5e3, BOOT_IDLE_FALLBACK_MS = 200, BOOT_IDLE_TIMEOUT_MS = 1200;
+      _started = !1, _observer2 = null, _timer = null, _bootTimer = null, _popHandler = null, _lastPageYearText = null, _bootGateStats = null, BOOT_GATE_POLL_MS = 120, BOOT_GATE_MAX_MS = 5e3, BOOT_IDLE_FALLBACK_MS = 200, BOOT_IDLE_TIMEOUT_MS = 1200;
       _structDirty = !1;
     }
   });
