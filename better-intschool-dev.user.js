@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.17
+// @version      1.02.19
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -518,14 +518,9 @@
     }
 `);
       GM_addStyle(`
-    /* \u8FD9\u91CC\u53EA\u5217\u9875\u9762\u5185\u8054\u89C6\u56FE\u7528\u5F97\u5230\u7684\u89C4\u5219\uFF1B\u5355\u79D1\u7A97\u53E3\u4E0E\u79D1\u76EE\u660E\u7EC6\u7684\u5916\u89C2\u7EDF\u4E00\u8D70 .ints-win* \u8FD9\u4E00\u5957\u7C7B\u540D */
+    /* \u9875\u9762\u5185\u8054\u89C6\u56FE\u53EA\u5217\u5F53\u524D\u89C4\u5219\uFF1B\u5355\u79D1\u7A97\u53E3\u4E0E\u79D1\u76EE\u660E\u7EC6\u7EDF\u4E00\u8D70 .ints-win* \u5916\u89C2 */
     .subject-detail-modal .editable-star-cat:hover { background: #ffe7ba; }
-    /* ====================== \u901A\u7528\u7A97\u53E3\u58F3 ======================
-       \u70B9\u6210\u7EE9\u683C\u6253\u5F00\u7684\u5355\u79D1\u7A97\u53E3\u3001\u4EE5\u53CA\u5B83\u7684\u300C\u79D1\u76EE\u660E\u7EC6\u300D\uFF0C\u5171\u7528\u8FD9\u4E00\u5957\u5916\u89C2\u3002
-       \u89C2\u611F\u5BF9\u9F50\u7AD9\u70B9\u81EA\u5DF1\u7684 antd\uFF1A\u540C\u6837\u7684\u5706\u89D2/\u8FB9\u6846/\u9634\u5F71\u8272\uFF0C\u5B57\u53F7 12\u201313px\uFF0C\u4E3B\u8272 #1890ff\u3002
-       **\u5B9A\u4F4D**\uFF1A\u7A97\u53E3\u662F .ant-table-body\uFF08\u6210\u7EE9\u518C\u81EA\u5DF1\u7684\u6EDA\u52A8\u5BB9\u5668\uFF09\u7684\u7EDD\u5BF9\u5B9A\u4F4D\u5B50\u8282\u70B9 \u2014\u2014
-       \u8DDF\u968F\u6EDA\u52A8\u56E0\u6B64\u662F\u539F\u751F\u7684\uFF0C\u5E76\u4E14\u88AB\u8868\u5934/\u7B5B\u9009\u680F/\u5DE6\u4FA7\u5BFC\u822A\u680F\u5929\u7136\u6321\u4F4F\u3002
-       **\u5C42\u7EA7**\uFF1A\u7A97\u53E3\u5C42 30\u201339\uFF08\u884C\u5185\u9010\u7A97\u53E3\u9012\u589E\uFF09\uFF0C\u6C38\u8FDC\u4F4E\u4E8E\u7AD9\u70B9\u81EA\u5DF1\u7684\u6D6E\u5C42 \u2014\u2014 \u5B8C\u6574\u5C42\u6B21\u89C1\u4E0B\u65B9 z-index \u5951\u7EA6\u3002 */
+    /* \u901A\u7528\u7A97\u53E3\u58F3\uFF1A\u5355\u79D1\u7A97\u53E3\u4E0E\u79D1\u76EE\u660E\u7EC6\u5171\u7528\uFF0C\u5916\u89C2\u5BF9\u9F50\u7AD9\u70B9 antd */
     .ints-win { background: #fff; border: 1px solid #e8e8e8; border-radius: 8px;
         box-shadow: 0 6px 22px rgba(0,0,0,0.18); font-size: 12px; color: rgba(0,0,0,0.85); }
     .ints-win-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
@@ -575,11 +570,9 @@
     .anticon-spin-once { animation: anticon-spin-once-anim 0.6s ease; }
     @keyframes anticon-spin-once-anim { 100% { transform: rotate(360deg); } }
     .my-gpa-editable:hover { background: #e6f7ff !important; border-radius: 3px; }
-    /* \u6210\u7EE9\u683C\u91CC\u90A3\u4E00\u679A GPA \u76D2\u5B50\uFF1A\u53EA\u5728"\u8FD9\u4E00\u683C\u88AB\u6A21\u62DF\u8FC7"\u65F6\u8DDF\u7740\u53D8\u9ED1\uFF08\u5E73\u65F6\u4FDD\u6301\u7070\u8272\u6B21\u8981\u5C42\u7EA7\uFF09\u3002
-       \u7528\u7C7B + !important \u8986\u76D6\u5185\u8054\u7684 color \u2014\u2014 \u4E09\u5904 GPA \u76D2\u5B50\u7684**\u5185\u8054\u6837\u5F0F**\u5FC5\u987B\u9010\u9879\u76F8\u540C\uFF0C
-       \u6240\u4EE5\u989C\u8272\u5DEE\u5F02\u53EA\u80FD\u8D70\u6837\u5F0F\u8868\u3002 */
+    /* \u6210\u7EE9\u683C GPA \u76D2\u5B50\uFF1A\u53EA\u5728\u88AB\u6A21\u62DF\u8FC7\u7684\u683C\u53D8\u9ED1\uFF0C\u7528\u7C7B\u8986\u76D6\u5185\u8054\u989C\u8272 */
     .ant-table-tbody [data-ints-sim].ints-gpa-strong { color: rgba(0, 0, 0, 0.88) !important; }
-    /* \u8868\u5934\u4E0B\u65B9\u7684\u5217 GPA\uFF1A\u5B57\u53F7/\u7070\u5EA6\u4E0E\u6210\u7EE9\u683C\u90A3\u4E00\u679A\u5B8C\u5168\u4E00\u81F4\uFF0C\u5185\u5BB9\u7531 th \u7684 data-ints-cgpa \u5C5E\u6027\u7ED9\u51FA */
+    /* \u8868\u5934\u5217 GPA\uFF1A\u5B57\u53F7/\u7070\u5EA6\u4E0E\u6210\u7EE9\u683C\u7684 GPA \u4E00\u81F4\uFF0C\u5185\u5BB9\u6765\u81EA th \u7684 data-ints-cgpa */
     .ant-table-thead th[data-ints-cgpa]::after {
         content: attr(data-ints-cgpa);
         display: block;
@@ -590,30 +583,12 @@
         font-weight: normal;
         white-space: nowrap;
     }
-    /* ====================== \u6CE8\u5165\u5C42 z-index \u5951\u7EA6 ======================
-       \u7AD9\u70B9\u81EA\u5DF1\u7528\u7684\u662F antd-vue 1.5\uFF0C\u5B83\u7684\u6D6E\u5C42 z-index \u662F\uFF1Amodal 1000 / message 1010 /
-       popover 1030 / dropdown 1050 / tooltip 1060\u3002**\u5B66\u6821\u81EA\u5DF1\u7684\u6D6E\u5C42\u6C38\u8FDC\u4F18\u5148** \u2014\u2014
-       \u6211\u4EEC\u6240\u6709\u5E38\u9A7B\u6CE8\u5165\u5143\u7D20\u90FD\u5FC5\u987B\u4F4E\u4E8E 1000\uFF0C\u5426\u5219\u4F1A\u628A\u7AD9\u70B9\u81EA\u5DF1\u7684\u60AC\u6D6E\u6587\u672C\u6846\u76D6\u4F4F
-       \uFF08\u4EFB\u52A1\u540D / \u79D1\u76EE\u540D\u7684 antd Tooltip \u662F 1060\uFF09\u3002
-       \u672C\u63D2\u4EF6\u5185\u90E8\u5C42\u6B21\uFF08\u7531\u4F4E\u5230\u9AD8\uFF09\uFF1A
-         20   \u62D6\u62FD\u6295\u653E\u533A\uFF08\u5728\u9875\u9762\u5185\u5BB9\u4E4B\u4E0A\u3001\u6309\u94AE\u4E4B\u4E0B\uFF09
-         30\u201339 \u7A97\u53E3\u5C42\uFF08\u5355\u79D1\u7A97\u53E3 / \u79D1\u76EE\u660E\u7EC6\u7A97\u53E3\uFF1B\u4F4F\u5728 .ant-table-body \u91CC\u3001\u88AB\u5BB9\u5668\u88C1\u5207\uFF09
-         40   DDL \u60AC\u6D6E\u5361\u7247\u5224\u5B9A\u533A\uFF08.intschool-deadline-tooltip-fixed\uFF09
-         41   DDL \u26A0 \u6309\u94AE\uFF08#intschool-deadline-btn\uFF0C\u6BD4\u5224\u5B9A\u533A\u9AD8\u4E00\u70B9\u4FDD\u8BC1\u53EF\u70B9\uFF09
-         50   /points \u6CE8\u5165\u4E0B\u62C9\u83DC\u5355\uFF08#ints-inline-menu-*\uFF09
-         60   /points \u591A\u5E74\u7EA7\u603B\u89C8\u7A97\u53E3\uFF08#ints-overview-view\uFF0C\u76D6\u4F4F\u6211\u4EEC\u81EA\u5DF1\u7684\u6CE8\u5165\u5143\u7D20\uFF09
-         20020 \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF08\u5C45\u4E2D\u6A21\u6001\uFF0C\u4E0D\u53C2\u4E0E\u7A97\u53E3\u5C42\u89C4\u5219\uFF09
-         1060 \u4EFB\u52A1 antd tooltip \u7684\u8865\u5145\u5185\u5C42 / \u865A\u62DF\u4EFB\u52A1\u6D6E\u5C42\uFF08\u77AC\u65F6\u3001\u8DDF\u968F\u60AC\u505C\uFF0C\u4E0D\u5E38\u9A7B\uFF09 */
-    /* \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF1A\u5916\u89C2\u5168\u90E8\u8D70\u7AD9\u70B9\u81EA\u5DF1\u7684 antd 1.5 \u7C7B\uFF08.ant-modal* / .ant-form-item* / .ant-btn*\uFF09\uFF0C
-       \u8FD9\u91CC\u53EA\u8865\u4E24\u4EF6 antd \u7ED9\u4E0D\u4E86\u7684\u4E8B \u2014\u2014 \u2460 \u538B\u6389 .ant-modal \u81EA\u5E26\u7684 top \u504F\u79FB\u4E0E\u5E95\u90E8\u7559\u767D\uFF08\u5C45\u4E2D\u7531\u6211\u4EEC
-       \u81EA\u5DF1\u7684\u906E\u7F69 flex \u8D1F\u8D23\uFF09\uFF1B\u2461 \u5185\u5BB9\u533A\u9650\u9AD8\uFF08\u8868\u5355\u6BD4 antd \u9ED8\u8BA4\u7684\u786E\u8BA4\u6846\u957F\uFF0C\u4E0D\u7559\u6EDA\u52A8\u6761\u4F1A\u9876\u51FA\u5C4F\u5E55\uFF09\u3002 */
+    /* \u6CE8\u5165\u5C42 z-index\uFF1A\u5E38\u9A7B\u5143\u7D20\u4F4E\u4E8E\u7AD9\u70B9\u6D6E\u5C42\uFF081000+\uFF09\uFF1B\u7A97\u53E3 30\u201339\uFF0CDDL \u5361\u7247 40\u3001\u6309\u94AE 41 */
+    /* \u865A\u62DF\u4EFB\u52A1\u5F39\u7A97\uFF1A\u6CBF\u7528\u7AD9\u70B9 antd \u5916\u89C2\uFF0C\u53EA\u8865\u5C45\u4E2D\u4E0E\u5185\u5BB9\u533A\u9650\u9AD8 */
     .virtual-task-modal .ant-modal { top: 0; padding-bottom: 0; }
     .virtual-task-modal .ant-modal-body { max-height: 68vh; overflow-y: auto; }
     .virtual-task-modal .ant-modal-close { border: 0; background: transparent; cursor: pointer; }
-    /* \u60AC\u6D6E\u63D0\u793A\uFF1A\u767D\u8272\u5361\u7247\u672C\u4F53\u3002**\u5224\u5B9A\u533A\u4E0E\u5361\u7247\u5916\u6846\u5B8C\u5168\u91CD\u5408**\uFF08padding:0\uFF09\u2014\u2014
-       \u9F20\u6807\u79BB\u5F00\u5361\u7247\u5373\u8FDB\u5165 180ms \u9690\u85CF\u5012\u8BA1\u65F6\uFF1B\u6309\u94AE\u2192\u5361\u7247\u4E4B\u95F4\u90A3 8px \u7A7A\u9699\u7531\u8FD9 180ms \u515C\u4F4F
-       \uFF08\u811A\u672C\u5728\u9F20\u6807\u79BB\u5F00\u540E\u5EF6\u8FDF 180ms \u6536\u8D77\uFF09\uFF0C\u6240\u4EE5\u4E0D\u4F1A\u8BEF\u5173\u3002\u5224\u5B9A\u533A\u82E5\u6BD4\u5361\u7247\u5927\u4E00\u5708\uFF0C
-       \u89C6\u89C9\u4E0A\u4F1A\u591A\u51FA\u4E00\u4E2A\u770B\u4E0D\u89C1\u7684\u8FB9\u6846\u3002 */
+    /* DDL \u60AC\u6D6E\u5361\u7247\uFF1A\u5224\u5B9A\u533A\u4E0E\u5361\u7247\u5916\u6846\u91CD\u5408\uFF0C\u9F20\u6807\u79BB\u5F00\u540E\u7559 180ms \u5BBD\u9650 */
     .intschool-deadline-tooltip-fixed {
         position: fixed;
         padding: 0;
@@ -679,7 +654,7 @@
     .ints-ddl-toggle-text { white-space: nowrap; }
     .ints-ddl-full-foot { border-top: 1px solid #f0f0f0; }
     .task-dash-course { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-size: 12px; color: #555; font-weight: 600; padding: 6px 8px 2px; border-bottom: 1px solid #f0f0f0; }
-    /* \u6309\u94AE\u7F6E\u4E8E\u5224\u5B9A\u533A\u4E4B\u4E0A\uFF0C\u4FDD\u8BC1\u6309\u94AE\u59CB\u7EC8\u53EF\u70B9\u51FB\uFF1B\u4F46\u4ECD\u4F4E\u4E8E\u7AD9\u70B9\u81EA\u5DF1\u7684\u6D6E\u5C42\uFF08\u89C1\u4E0A\u65B9\u5C42\u6B21\u5951\u7EA6\uFF09 */
+    /* DDL \u6309\u94AE\u5728\u5224\u5B9A\u533A\u4E4B\u4E0A\u3001\u7AD9\u70B9\u6D6E\u5C42\u4E4B\u4E0B\uFF0C\u4FDD\u8BC1\u53EF\u70B9 */
     #intschool-deadline-btn { position: relative; z-index: 41; }
     .task-dash-row:hover { background: #fafafa; }
     .task-toggle-switch { appearance: none; -webkit-appearance: none; width: 28px; height: 16px; background: #ccc; border-radius: 8px; position: relative; outline: none; cursor: pointer; transition: background 0.2s; margin: 0; flex-shrink: 0; }
@@ -2190,7 +2165,6 @@
       checkedOnce: !!S._deadlineCheckedOnce,
       trigger: S._deadlineCheckTrigger,
       inFlight: !!S._deadlineCheckInFlight,
-      // 这两个字段恒为 false / 0：保留它们只为诊断取值的形状稳定
       fallbackArmed: !1,
       fallbackMs: 0,
       starts: _checkStarts,
@@ -2750,6 +2724,11 @@
   });
 
   // v8.30/courses.js
+  function _finiteNumberOrNull(v) {
+    if (v == null || v === "") return null;
+    let n = Number(v);
+    return isFinite(n) ? n : null;
+  }
   async function getStudentId() {
     if (S.studentIdCache) return S.studentIdCache;
     let data = await apiRequest(BASE_URL + "/student/userInfo");
@@ -2928,8 +2907,8 @@
         }
       let tasks = (item.taskScores || []).filter((t4) => !t4.endDate || getTermFromDate(t4.endDate, t4.term || t4.schoolYearTerm) !== null);
       tasks = tasks.map((t4) => {
-        let entityId = parseInt(t4.entityId || t4.taskStudentId || t4.id, 10);
-        return { entityId, taskStudentId: entityId, id: t4.id || entityId || Math.random(), name: t4.taskName || "\u672A\u547D\u540D", typeName: t4.taskTypeName || "\u5176\u4ED6", score: t4.score != null ? Number(t4.score) : null, topScore: t4.topScore != null ? Number(t4.topScore) : null, endDate: t4.endDate, termRaw: t4.term || t4.schoolYearTerm || null, originalScore: t4.score != null ? Number(t4.score) : null, simulatedScore: t4.score != null ? Number(t4.score) : null, isVirtual: !1 };
+        let entityId = parseInt(t4.entityId || t4.taskStudentId || t4.id, 10), score = _finiteNumberOrNull(t4.score);
+        return { entityId, taskStudentId: entityId, id: t4.id || entityId || Math.random(), name: t4.taskName || "\u672A\u547D\u540D", typeName: t4.taskTypeName || "\u5176\u4ED6", score, topScore: _finiteNumberOrNull(t4.topScore), endDate: t4.endDate, termRaw: t4.term || t4.schoolYearTerm || null, originalScore: score, simulatedScore: score, isVirtual: !1 };
       }), tasks.sort((a, b) => (a.endDate || 0) - (b.endDate || 0));
       for (let t4 of tasks)
         calibrationExcluded(yearKey, t4.entityId) && (t4.excluded = !0);
@@ -4249,7 +4228,6 @@
       // 卡片可能很高：内容区按表格滚动容器的高度限高（超出在窗口内滚动，免得窗口高过容器被裁掉）
       maxBodyHeight: Math.max(160, Math.round(getShellBounds().height - 72)) + "px",
       titleHTML: _detailTitleHTML(course0, filterText),
-      // 类名 subject-detail-modal：样式由样式表统一提供
       className: "subject-detail-modal",
       bodyHTML: '<div class="iw-note">' + t("\u6B63\u5728\u8BA1\u7B97\u2026", "Computing\u2026") + "</div>",
       footerHTML: '<button type="button" data-detail-act="apply" class="ant-btn ant-btn-link" style="color:#1890ff;">' + iconCheck() + "<span>" + t("\u5173\u95ED\u5E76\u5E94\u7528\u6A21\u62DF", "Close & Apply") + "</span></button>",
@@ -4386,6 +4364,11 @@
   });
 
   // v8.30/simulation.js
+  function _finiteNumberOrNull2(v) {
+    if (v == null || v === "") return null;
+    let n = Number(v);
+    return isFinite(n) ? n : null;
+  }
   function recalcPFromTasks(course, term) {
     let tasksForCalc = course.tasks.map((t4) => ({
       score: t4.simulatedScore !== void 0 ? t4.simulatedScore : t4.originalScore,
@@ -4508,18 +4491,18 @@
     for (let newTask of fullTasks) {
       let entityId = parseInt(newTask.entityId, 10);
       if (entityId && String(newTask.type) === "1001" && !existingTaskMap.has(entityId)) {
-        let taskObj = {
+        let taskScore = _finiteNumberOrNull2(newTask.score), taskObj = {
           entityId,
           taskStudentId: entityId,
           id: newTask.entityId,
           name: newTask.name || "\u672A\u547D\u540D",
           typeName: newTask.typeName || "\u5176\u4ED6",
-          score: newTask.score != null ? Number(newTask.score) : null,
-          topScore: newTask.topScore != null ? Number(newTask.topScore) : null,
+          score: taskScore,
+          topScore: _finiteNumberOrNull2(newTask.topScore),
           endDate: newTask.endDate,
           termRaw: newTask.term || null,
-          originalScore: newTask.score != null ? Number(newTask.score) : null,
-          simulatedScore: newTask.score != null ? Number(newTask.score) : null,
+          originalScore: taskScore,
+          simulatedScore: taskScore,
           isVirtual: !1
         };
         course.tasks.push(taskObj), origCourse && origCourse.tasks.push(__spreadProps(__spreadValues({}, taskObj), { excluded: !1 })), addedCount++;
@@ -5147,12 +5130,14 @@
   }
   function _mutationRelevant(m) {
     let target = m.target;
-    if (target && target.nodeType === 1 && target.closest && target.closest(".ant-tooltip"))
+    if (target && target.nodeType === 1 && (target.closest && target.closest(".ant-tooltip") || target.querySelector && target.querySelector(".ant-tooltip")))
       return !0;
     if (m.type !== "childList") return !1;
-    let nodes = m.addedNodes || [];
-    for (let i = 0; i < nodes.length; i++) {
-      let n = nodes[i];
+    let all = [];
+    for (let i = 0; i < (m.addedNodes || []).length; i++) all.push(m.addedNodes[i]);
+    for (let i = 0; i < (m.removedNodes || []).length; i++) all.push(m.removedNodes[i]);
+    for (let i = 0; i < all.length; i++) {
+      let n = all[i];
       if (!(!n || n.nodeType !== 1) && (n.classList && n.classList.contains("ant-tooltip") || n.querySelector && n.querySelector(".ant-tooltip")))
         return !0;
     }
@@ -5188,9 +5173,15 @@
     let titleEl = e.target && e.target.closest ? e.target.closest(".task-title") : null;
     if (!titleEl) return;
     let related = e.relatedTarget;
-    related && titleEl.contains(related) || related && related.closest && related.closest(".ant-tooltip") && _target && related.closest(".ant-tooltip") === _target.tip || (_leaveTimer && clearTimeout(_leaveTimer), _leaveTimer = setTimeout(function() {
-      _leaveTimer = null, _clearAll();
-    }, LEAVE_GRACE_MS));
+    if (!(related && titleEl.contains(related)) && !(related && related.closest && related.closest(".ant-tooltip") && _target && related.closest(".ant-tooltip") === _target.tip)) {
+      if (_hover && _hover.td && _hover.td.getAttribute("data-ints-vtask-id") !== null) {
+        _clearAll();
+        return;
+      }
+      _leaveTimer && clearTimeout(_leaveTimer), _leaveTimer = setTimeout(function() {
+        _leaveTimer = null, _clearAll();
+      }, LEAVE_GRACE_MS);
+    }
   }
   function _onDocOver(e) {
     let tip = e.target && e.target.closest ? e.target.closest(".ant-tooltip") : null;
@@ -6088,7 +6079,10 @@
     return task && typeof task.simulatedScore == "number" ? task.simulatedScore : null;
   }
   function _taskScoreDisplay(score, topScore) {
-    return score === -1 ? t("\u5DF2\u6392\u9664", "Excluded") : typeof score == "number" && typeof topScore == "number" ? score + "/" + topScore : typeof score == "number" ? String(score) : t("\u672A\u8BC4\u5206", "Not graded");
+    return score === -1 ? t("\u5DF2\u6392\u9664", "Excluded") : typeof score == "number" && isFinite(score) && typeof topScore == "number" ? score + "/" + topScore : typeof score == "number" && isFinite(score) ? String(score) : typeof topScore == "number" && isFinite(topScore) && topScore > 0 ? "NG/" + topScore : t("\u672A\u8BC4\u5206", "Not graded");
+  }
+  function _taskNgDisplay(task, siteSpan) {
+    return !task || !siteSpan || task.score !== null && task.score !== void 0 || task.originalScore !== null && task.originalScore !== void 0 || typeof task.topScore != "number" || !isFinite(task.topScore) || task.topScore <= 0 || String(siteSpan.textContent || "").trim().toUpperCase() !== "NG" ? null : "NG/" + task.topScore;
   }
   function _clearTaskImportance(titleEl) {
     titleEl && (titleEl.getAttribute(IMPORTANCE_ATTR) !== null && titleEl.removeAttribute(IMPORTANCE_ATTR), titleEl.style && titleEl.style.getPropertyValue(IMPORTANCE_COLOR_VAR) && titleEl.style.removeProperty(IMPORTANCE_COLOR_VAR));
@@ -6120,14 +6114,28 @@
       let task = course.tasks[ti];
       _paintTaskImportance(titleEl, importance ? importance.get(task.entityId) : null);
       let sim = _taskSimOf(task), orig = typeof task.originalScore == "number" ? task.originalScore : null;
-      if (!(sim !== null && (sim === -1 || orig === null || Math.abs(sim - orig) > 1e-3)))
-        mine && mine.remove(), siteSpan.style.display = "";
-      else {
+      if (sim !== null && (sim === -1 || orig === null || Math.abs(sim - orig) > 1e-3)) {
         siteSpan.style.display = "none";
         let el = mine;
         el || (el = document.createElement("span"), el.setAttribute(TASK_SCORE_ATTR, "1"), siteSpan.insertAdjacentElement("afterend", el));
         let color = sim === -1 || orig !== null && sim < orig ? COLOR_DOWN : COLOR_UP;
         el.style.cssText = "min-height:21px;display:block;color:" + color + ";", el.textContent = _taskScoreDisplay(sim, task.topScore), el.removeAttribute("title");
+      } else {
+        let ngText = _taskNgDisplay(task, siteSpan);
+        if (ngText) {
+          siteSpan.style.display = "none";
+          let el = mine;
+          el || (el = document.createElement("span"), el.setAttribute(TASK_SCORE_ATTR, "1"), siteSpan.insertAdjacentElement("afterend", el));
+          let color = (function() {
+            try {
+              return getComputedStyle(siteSpan).color || "rgba(0,0,0,0.65)";
+            } catch (e) {
+              return "rgba(0,0,0,0.65)";
+            }
+          })();
+          el.style.cssText = "min-height:21px;display:block;color:" + color + ";", el.textContent = ngText, el.removeAttribute("title");
+        } else
+          mine && mine.remove(), siteSpan.style.display = "";
       }
       td.setAttribute("data-ints-task", String(ti)), td.getAttribute("data-ints-taskbound") !== "1" && td.setAttribute("data-ints-taskbound", "1"), td._intsTaskClickBound || (td._intsTaskClickBound = !0, td.style.cursor = "pointer", td.addEventListener("click", guardListener("\u5185\u8054\u4EFB\u52A1\u7F16\u8F91", (e) => {
         let idx = td.getAttribute("data-ints-task");
@@ -7006,7 +7014,6 @@
   function getInlineStats(opts) {
     let headers = _vm && _vm.dynamicHeaders || [], now = opts && opts.now !== void 0 ? opts.now : Date.now();
     return __spreadProps(__spreadValues({}, _stats), {
-      // 展开态决定小数位与列；合成列数与成绩格落点一并给诊断
       colsExpanded: !!_colsExpanded,
       synthCols: headers.filter((h) => h && String(h.customColumnId === void 0 ? "" : h.customColumnId).indexOf(SYNTH_PREFIX) === 0).length,
       schoolCol: _schoolColumnId(),
@@ -7014,7 +7021,6 @@
       // 成绩格跟的是哪个字段（null = 列名认不出、按学年分显示）
       scoreField: _schoolScoreField(),
       colTrace: _colTrace,
-      // 首屏就绪门：等了几毫秒、走的是 idle 还是兜底
       bootGate: _bootGateStats,
       importance: _importanceStats(now)
     });
