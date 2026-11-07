@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.20
+// @version      1.02.21
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -6107,7 +6107,7 @@
   function _taskNgDisplay(task, siteSpan) {
     if (!task || !siteSpan || typeof task.topScore != "number" || !isFinite(task.topScore) || task.topScore <= 0) return null;
     let label = String(siteSpan.textContent || "").trim().toUpperCase();
-    return label !== "NG" && label !== "N/A" && label !== "NA" ? null : label + "/" + task.topScore;
+    return label !== "NG" && label !== "N/A" && label !== "NA" ? null : typeof task.score == "number" && isFinite(task.score) ? task.score + "/" + task.topScore : label + "/" + task.topScore;
   }
   function _clearTaskImportance(titleEl) {
     titleEl && (titleEl.getAttribute(IMPORTANCE_ATTR) !== null && titleEl.removeAttribute(IMPORTANCE_ATTR), titleEl.style && titleEl.style.getPropertyValue(IMPORTANCE_COLOR_VAR) && titleEl.style.removeProperty(IMPORTANCE_COLOR_VAR));
