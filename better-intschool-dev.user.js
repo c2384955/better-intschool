@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.19
+// @version      1.02.20
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -5039,21 +5039,22 @@
     }
     return !0;
   }
-  function _clearTarget() {
-    if (_target) {
+  function _clearTarget(t4) {
+    if (t4)
       try {
-        let inner = _target.inner, tip = _target.tip;
-        _target.extra && _target.extra.parentNode && _target.extra.parentNode.removeChild(_target.extra), inner && (inner.removeAttribute(TIP_ATTR), inner.style.marginTop = ""), tip && (_target.topStyle ? tip.style.top = _target.topStyle : tip.style.removeProperty("top"), _target.marginTopStyle ? tip.style.marginTop = _target.marginTopStyle : tip.style.removeProperty("margin-top"));
+        let inner = t4.inner, tip = t4.tip;
+        t4.extra && t4.extra.parentNode && t4.extra.parentNode.removeChild(t4.extra), inner && (inner.removeAttribute(TIP_ATTR), inner.style.marginTop = ""), tip && (t4.topStyle ? tip.style.top = t4.topStyle : tip.style.removeProperty("top"), t4.marginTopStyle ? tip.style.marginTop = t4.marginTopStyle : tip.style.removeProperty("margin-top"));
       } catch (e) {
       }
-      _target = null;
-    }
+  }
+  function _clearAllTargets() {
+    _targets.slice().forEach(_clearTarget), _targets = [];
   }
   function _removeFloat() {
     _float && _float.parentNode && _float.parentNode.removeChild(_float), _float = null;
   }
   function _clearAll() {
-    _clearTarget(), _removeFloat(), _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null), _hover = null;
+    _clearAllTargets(), _removeFloat(), _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null), _hover = null;
   }
   function _tooltipPlacement(tip) {
     let cls = String(tip && tip.className || "");
@@ -5069,29 +5070,35 @@
     }
     return null;
   }
+  function _targetFor(tip, inner) {
+    for (let i = 0; i < _targets.length; i++)
+      if (_targets[i].tip === tip && _targets[i].inner === inner) return _targets[i];
+    return null;
+  }
   function _patch(tip, inner, text) {
-    if (_target && (_target.inner !== inner || _target.tip !== tip) && _clearTarget(), _target || (_target = {
+    let t4 = _targetFor(tip, inner);
+    if (t4 || (t4 = {
       tip,
       inner,
       extra: null,
       text: "",
       topStyle: tip.style.top || "",
       marginTopStyle: tip.style.marginTop || ""
-    }), _target.extra && _target.extra.parentNode !== inner && (_target.extra = null, _target.text = ""), _target.extra && _target.text === text) return;
+    }, _targets.push(t4)), t4.extra && t4.extra.parentNode !== inner && (t4.extra = null, t4.text = ""), t4.extra && t4.text === text) return;
     let before = tip.getBoundingClientRect().height;
-    if (!_target.extra && before <= 1) return;
-    _target.extra || (_target.extra = document.createElement("div"), _target.extra.className = "ints-task-tip-extra", inner.appendChild(_target.extra)), _target.extra.innerHTML = _floatText(text), inner.setAttribute(TIP_ATTR, "1");
+    if (!t4.extra && before <= 1) return;
+    t4.extra || (t4.extra = document.createElement("div"), t4.extra.className = "ints-task-tip-extra", inner.appendChild(t4.extra)), t4.extra.innerHTML = _floatText(text), inner.setAttribute(TIP_ATTR, "1");
     let delta = tip.getBoundingClientRect().height - before;
     if (delta > 0.5 && _tooltipPlacement(tip) !== "bottom") {
       let topVal = parseFloat(tip.style.top);
       if (!isNaN(topVal))
-        _target.topStyle || (_target.topStyle = topVal + "px"), tip.style.top = topVal - delta + "px";
+        t4.topStyle || (t4.topStyle = topVal + "px"), tip.style.top = topVal - delta + "px";
       else {
         let mtVal = parseFloat(tip.style.marginTop) || 0;
-        _target.marginTopStyle || (_target.marginTopStyle = tip.style.marginTop || ""), tip.style.marginTop = mtVal - delta + "px";
+        t4.marginTopStyle || (t4.marginTopStyle = tip.style.marginTop || ""), tip.style.marginTop = mtVal - delta + "px";
       }
     }
-    _target.text = text;
+    t4.text = text;
   }
   function _floatText(lines) {
     return String(lines || "").split(`
@@ -5100,14 +5107,19 @@
     }).join("");
   }
   function _showVirtual(titleEl, lines) {
-    _clearTarget(), _removeFloat();
+    _removeFloat();
     let name = String(titleEl.textContent || "").trim(), float = document.createElement("div");
     float.className = "ant-tooltip ant-tooltip-placement-topLeft ints-task-tip-float", float.setAttribute(FLOAT_ATTR, "1"), float.innerHTML = '<div class="ant-tooltip-content"><div class="ant-tooltip-arrow"></div><div class="ant-tooltip-inner"><div class="ints-task-tip-name">' + escapeHtml(name) + "</div>" + _floatText(lines) + "</div></div>", document.body.appendChild(float), float.style.display = "block";
     let rect = titleEl.getBoundingClientRect(), w = float.offsetWidth, h = float.offsetHeight, left = rect.left + rect.width / 2 - w / 2, top = rect.top - h - 8, placement = "top";
     top < 8 && (top = rect.bottom + 8, placement = "bottom"), left = Math.max(8, Math.min(left, window.innerWidth - w - 8)), top = Math.max(8, Math.min(top, window.innerHeight - h - 8)), float.style.left = Math.round(left) + "px", float.style.top = Math.round(top) + "px", float.className = "ant-tooltip ant-tooltip-placement-" + placement + "Left ints-task-tip-float", _float = float;
   }
   function _scan() {
-    if (_scanQueued = !1, !_resolve || (_target && !_visible(_target.tip) && _clearTarget(), !_hover)) return;
+    if (_scanQueued = !1, !_resolve) return;
+    for (let i = _targets.length - 1; i >= 0; i--) {
+      let t4 = _targets[i];
+      (!t4.tip || !_visible(t4.tip)) && (_clearTarget(t4), _targets.splice(i, 1));
+    }
+    if (!_hover) return;
     let tips = document.querySelectorAll(".ant-tooltip");
     for (let i = tips.length - 1; i >= 0; i--) {
       let tip = tips[i];
@@ -5152,15 +5164,18 @@
   }
   function _start(titleEl, td, tr) {
     if (!titleEl || !_resolve || titleEl.closest("[data-ints-window]") || titleEl.closest(".ints-win") || _hover && _hover.titleEl === titleEl) return;
-    _clearAll();
+    _removeFloat(), _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null);
     let lines = _resolve(titleEl, td, tr);
-    if (!lines) return;
-    let seq = ++_seq, name = String(titleEl.textContent || "").replace(/\s+/g, " ").trim();
-    if (td && td.getAttribute("data-ints-vtask-id") !== null) {
-      _hover = { titleEl, td, tr, name, lines, seq }, _showVirtual(titleEl, lines);
+    if (!lines) {
+      _hover = null;
       return;
     }
-    _hover = { titleEl, td, tr, name, lines, seq }, _scan();
+    let name = String(titleEl.textContent || "").replace(/\s+/g, " ").trim();
+    if (td && td.getAttribute("data-ints-vtask-id") !== null) {
+      _hover = { titleEl, td, tr, name, lines, virtual: !0 }, _showVirtual(titleEl, lines);
+      return;
+    }
+    _hover = { titleEl, td, tr, name, lines, virtual: !1 }, _scan();
   }
   function _onOver(e) {
     let titleEl = e.target && e.target.closest ? e.target.closest(".task-title") : null;
@@ -5173,8 +5188,14 @@
     let titleEl = e.target && e.target.closest ? e.target.closest(".task-title") : null;
     if (!titleEl) return;
     let related = e.relatedTarget;
-    if (!(related && titleEl.contains(related)) && !(related && related.closest && related.closest(".ant-tooltip") && _target && related.closest(".ant-tooltip") === _target.tip)) {
-      if (_hover && _hover.td && _hover.td.getAttribute("data-ints-vtask-id") !== null) {
+    if (!(related && titleEl.contains(related))) {
+      if (related && related.closest && related.closest(".ant-tooltip")) {
+        let tip = related.closest(".ant-tooltip");
+        if (_targets.some(function(t4) {
+          return t4.tip === tip;
+        })) return;
+      }
+      if (_hover && _hover.virtual) {
         _clearAll();
         return;
       }
@@ -5185,7 +5206,9 @@
   }
   function _onDocOver(e) {
     let tip = e.target && e.target.closest ? e.target.closest(".ant-tooltip") : null;
-    tip && _target && tip === _target.tip && _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null);
+    tip && _targets.some(function(t4) {
+      return t4.tip === tip;
+    }) && _leaveTimer && (clearTimeout(_leaveTimer), _leaveTimer = null);
   }
   function installTaskTip(opts) {
     _resolve = opts && typeof opts.resolve == "function" ? opts.resolve : null, !_installed2 && (_installed2 = !0, document.addEventListener("mouseover", _onOver, !0), document.addEventListener("mouseout", _onOut, !0), document.addEventListener("mouseover", _onDocOver, !0), typeof MutationObserver == "function" && document.body && (_observer = new MutationObserver(_onMutations), _observer.observe(document.body, {
@@ -5199,10 +5222,10 @@
   function stopTaskTip() {
     _installed2 && (document.removeEventListener("mouseover", _onOver, !0), document.removeEventListener("mouseout", _onOut, !0), document.removeEventListener("mouseover", _onDocOver, !0), _installed2 = !1), _observer && (_observer.disconnect(), _observer = null), _scanQueued = !1, _resolve = null, _clearAll();
   }
-  var TIP_ATTR, FLOAT_ATTR, LEAVE_GRACE_MS, _installed2, _resolve, _hover, _seq, _leaveTimer, _target, _float, _observer, _scanQueued, init_task_tip = __esm({
+  var TIP_ATTR, FLOAT_ATTR, LEAVE_GRACE_MS, _installed2, _resolve, _hover, _leaveTimer, _targets, _float, _observer, _scanQueued, init_task_tip = __esm({
     "v8.30/task-tip.js"() {
       init_utils();
-      TIP_ATTR = "data-ints-task-tip", FLOAT_ATTR = "data-ints-task-tip-float", LEAVE_GRACE_MS = 80, _installed2 = !1, _resolve = null, _hover = null, _seq = 0, _leaveTimer = null, _target = null, _float = null, _observer = null, _scanQueued = !1;
+      TIP_ATTR = "data-ints-task-tip", FLOAT_ATTR = "data-ints-task-tip-float", LEAVE_GRACE_MS = 80, _installed2 = !1, _resolve = null, _hover = null, _leaveTimer = null, _targets = [], _float = null, _observer = null, _scanQueued = !1;
     }
   });
 
@@ -6082,7 +6105,9 @@
     return score === -1 ? t("\u5DF2\u6392\u9664", "Excluded") : typeof score == "number" && isFinite(score) && typeof topScore == "number" ? score + "/" + topScore : typeof score == "number" && isFinite(score) ? String(score) : typeof topScore == "number" && isFinite(topScore) && topScore > 0 ? "NG/" + topScore : t("\u672A\u8BC4\u5206", "Not graded");
   }
   function _taskNgDisplay(task, siteSpan) {
-    return !task || !siteSpan || task.score !== null && task.score !== void 0 || task.originalScore !== null && task.originalScore !== void 0 || typeof task.topScore != "number" || !isFinite(task.topScore) || task.topScore <= 0 || String(siteSpan.textContent || "").trim().toUpperCase() !== "NG" ? null : "NG/" + task.topScore;
+    if (!task || !siteSpan || typeof task.topScore != "number" || !isFinite(task.topScore) || task.topScore <= 0) return null;
+    let label = String(siteSpan.textContent || "").trim().toUpperCase();
+    return label !== "NG" && label !== "N/A" && label !== "NA" ? null : label + "/" + task.topScore;
   }
   function _clearTaskImportance(titleEl) {
     titleEl && (titleEl.getAttribute(IMPORTANCE_ATTR) !== null && titleEl.removeAttribute(IMPORTANCE_ATTR), titleEl.style && titleEl.style.getPropertyValue(IMPORTANCE_COLOR_VAR) && titleEl.style.removeProperty(IMPORTANCE_COLOR_VAR));
