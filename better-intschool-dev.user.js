@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Better Intschool
-// @version      1.02.21
+// @version      1.02.22
 // @description  Visualization adaptor, grade  calculator, task manager for shc.intschool.cn · 显示优化 / 成绩计算 / 任务管理
 // @match        https://shc.intschool.cn/*
 // @icon         https://shc.intschool.cn/logo_icon.png
@@ -1626,11 +1626,11 @@
       }
       c.showStar && (c.showStar.s1 || c.showStar.s2) && starredCourses.push(String(c.name || ""));
     }), unmatchedSubjects.length && clues.push("\u672A\u547D\u4E2D\u6743\u91CD\u89C4\u5219\u7684\u5B66\u79D1 " + unmatchedSubjects.length + " \u4E2A: " + unmatchedSubjects.join(" / ")), emptySubjectCourses.length && clues.push("subject \u4E3A\u7A7A\u7684\u8BFE\u7A0B " + emptySubjectCourses.length + " \u95E8\uFF08\u6309\u8BFE\u7A0B\u540D\u5339\u914D\u6743\u91CD\uFF09: " + emptySubjectCourses.join(" / ")), starredCourses.length && clues.push("\u6743\u91CD\u5F02\u5E38\uFF08\u5B66\u6821\u503C\u4E0E\u4F30\u7B97\u4E0D\u4E00\u81F4\uFF09\u7684\u8BFE\u7A0B " + starredCourses.length + " \u95E8: " + starredCourses.join(" / ")), apiSnap && apiSnap.grade && !apiSnap.gradeError) {
-      let items = _arr(apiSnap.grade.gradeBookItems), cols = _arr(apiSnap.grade.customColumns), knownCols = { S1P: 1, S1E: 1, S1F: 1, S2P: 1, S2E: 1, S2F: 1, EOY: 1 }, unknownCols = [];
+      let items = _arr(apiSnap.grade.gradeBookItems), cols = _arr(apiSnap.grade.customColumns), knownCols = { S1P: 1, S1E: 1, S1F: 1, S2P: 1, S2E: 1, S2F: 1, EOY: 1 }, recordCols = [];
       cols.forEach(function(c) {
-        let name = c && c.customColumnName ? String(c.customColumnName).trim() : "";
-        name && !knownCols[name.toUpperCase()] && unknownCols.push(name);
-      }), unknownCols.length && clues.push("customColumns \u91CC\u6709\u8BA4\u4E0D\u51FA\u7684\u5217\u540D " + unknownCols.length + " \u4E2A: " + unknownCols.join(" / "));
+        let name = c && c.customColumnName ? String(c.customColumnName).trim() : "", upper = name ? name.toUpperCase() : "";
+        name && (knownCols[upper] !== 1 || upper === "EOY") && recordCols.push(name);
+      }), recordCols.length && out.push("  \u8BB0\u5F55\u578B\u5217\uFF08\u4E0D\u6A21\u62DF\uFF0C\u4EC5\u9759\u6001 GPA\uFF09: " + recordCols.join(" / "));
       let noCredit = [];
       items.forEach(function(it) {
         try {
@@ -5705,7 +5705,7 @@
   }
   function _schoolColumnId() {
     for (let c of _siteHeaderIds)
-      if (c.id && c.field !== "eoy") return c.id;
+      if (c.id && SIM_FIELDS.indexOf(c.field) >= 0) return c.id;
     return null;
   }
   function _schoolScoreField() {
@@ -5816,7 +5816,7 @@
       _markRowDone(tr), safe("\u5185\u8054\u5C55\u5F00\u5217 GPA", () => _decorateColumnCells(tr, courseIdx));
       return;
     }
-    _markEditorCell(scoreTd);
+    _markEditorCell(scoreTd), scoreTd.querySelector("[data-ints-fwrap],[data-ints-fsim]") && _restoreFieldCell(scoreTd);
     let scoreField = _schoolScoreField(), fieldScore = (g, f) => {
       let v = g ? g[f] : null;
       return typeof v == "number" && !isNaN(v) ? v : null;
@@ -5951,6 +5951,12 @@
       _restoreFieldCell(cell);
     _renderFieldGpa(cell, inner, course, gpaFrom, simmed);
   }
+  function _renderRecordCell(td, courseIdx, th) {
+    if (!td || !th || !S.simCourses || !S.simCourses[courseIdx] || td.querySelector && td.querySelector(".task-title")) return;
+    td.querySelector("[data-ints-origwrap],[data-ints-simscore]") && _restoreScoreCell(td), td.querySelector("[data-ints-fwrap],[data-ints-fsim]") && _restoreFieldCell(td), _clearEditorCell(td), td.getAttribute(INLINE_ATTR) !== null && td.removeAttribute(INLINE_ATTR), td.getAttribute("data-ints-clickable") !== null && td.removeAttribute("data-ints-clickable"), td.style && td.style.cursor === "pointer" && (td.style.cursor = "");
+    let inner = _cellInner(td), score = _cellScoreNum(td), key = _recordColKey(th), vals = _recordColScores.get(key);
+    vals || (vals = /* @__PURE__ */ new Map(), _recordColScores.set(key, vals)), score !== null ? vals.set(courseIdx, score) : vals.delete(courseIdx), _renderFieldGpa(td, inner, S.simCourses[courseIdx], score, !1);
+  }
   function _synthThs() {
     return _synthThCache && _synthThCache.length && _synthThCache[0].isConnected || (_synthThCache = Array.prototype.slice.call(
       document.querySelectorAll(".ant-table-header thead th, .ant-table-thead th")
@@ -5968,9 +5974,20 @@
     }
     return FIELD_BY_LABEL[_thTitle(th)] || null;
   }
+  function _isStructuralTh(th) {
+    let key = String(th && th.getAttribute && th.getAttribute("key") || "");
+    return key === "subject" || key === "courseClass" || key === "flex" ? !0 : key.indexOf("task-") === 0;
+  }
+  function _isRecordTh(th) {
+    return !th || !th.getAttribute || _isStructuralTh(th) ? !1 : !_thFieldOf(th) && !!_thTitle(th);
+  }
+  function _recordColKey(th) {
+    let key = String(th && th.getAttribute && th.getAttribute("key") || "");
+    return key ? "k:" + key : "t:" + _thTitle(th);
+  }
   function _cellScoreNum(td) {
     if (!td) return null;
-    let inner = td.firstElementChild || td;
+    let inner = _cellInner(td) || td;
     for (let n = inner.firstChild; n; n = n.nextSibling) {
       if (n.nodeType !== 3) continue;
       let m = /(\d+(?:\.\d+)?)/.exec(String(n.nodeValue || ""));
@@ -6020,11 +6037,15 @@
     let scoreIdx = _scoreTdIndex(), _tr = { ths: ths.length, scoreIdx, items: [] };
     _colTrace = _tr;
     for (let i = 0; i < ths.length; i++) {
+      let td = tr.children[i];
+      if (!td) continue;
+      if (_isRecordTh(ths[i])) {
+        _renderRecordCell(td, courseIdx, ths[i]), _tr.items.push(i + ":record:" + td0Text(td).slice(0, 12));
+        continue;
+      }
       let f = _thFieldOf(ths[i]);
       if (!f) continue;
-      let isSynth = String(ths[i].getAttribute("key") || "").indexOf(SYNTH_PREFIX) === 0, td = tr.children[i];
-      if (!td) continue;
-      if (!isSynth) {
+      if (!(String(ths[i].getAttribute("key") || "").indexOf(SYNTH_PREFIX) === 0)) {
         if (i === scoreIdx && S.isCurrentYear) {
           _markEditorCell(td), _tr.items.push(i + ":skip-score");
           continue;
@@ -6057,11 +6078,24 @@
       return typeof v == "number" && !isNaN(v) ? v : null;
     });
   }
+  function _recordColumnGpa(key) {
+    let vals = _recordColScores.get(key);
+    if (!vals || !vals.size) return null;
+    let courses = (S.simCourses || []).map((c, i) => ({
+      credit: c.credit,
+      weightBonus: c.weightBonus,
+      score: vals.has(i) ? vals.get(i) : null
+    }));
+    return computeColumnGPASummary(courses, (c) => c.score);
+  }
   function _renderColumnGpa() {
     let ths = _synthThs();
     ths.length && ths.forEach((th) => {
       if (!th.getAttribute || !th.setAttribute) return;
-      let f = _thFieldOf(th), g = f ? _columnGpaOf(f) : null;
+      let g = _isRecordTh(th) ? _recordColumnGpa(_recordColKey(th)) : (function() {
+        let f = _thFieldOf(th);
+        return f ? _columnGpaOf(f) : null;
+      })();
       if (!g) {
         th.getAttribute(COLGPA_ATTR) !== null && th.removeAttribute(COLGPA_ATTR);
         return;
@@ -7037,7 +7071,11 @@
     };
   }
   function getInlineStats(opts) {
-    let headers = _vm && _vm.dynamicHeaders || [], now = opts && opts.now !== void 0 ? opts.now : Date.now();
+    let headers = _vm && _vm.dynamicHeaders || [], now = opts && opts.now !== void 0 ? opts.now : Date.now(), recordCols = _synthThs().filter((th) => _isRecordTh(th)).map((th) => ({
+      key: String(th.getAttribute("key") || ""),
+      name: _thTitle(th),
+      cgpa: th.getAttribute(COLGPA_ATTR) || null
+    }));
     return __spreadProps(__spreadValues({}, _stats), {
       colsExpanded: !!_colsExpanded,
       synthCols: headers.filter((h) => h && String(h.customColumnId === void 0 ? "" : h.customColumnId).indexOf(SYNTH_PREFIX) === 0).length,
@@ -7046,13 +7084,14 @@
       // 成绩格跟的是哪个字段（null = 列名认不出、按学年分显示）
       scoreField: _schoolScoreField(),
       colTrace: _colTrace,
+      recordCols,
       bootGate: _bootGateStats,
       importance: _importanceStats(now)
     });
   }
   function _decorate() {
     if (!_isPointsPage() || !_inlineEnabled() || !S.simCourses || !S.simCourses.length) return;
-    _renderGpa(), _renderToolbar(), safe("\u4EFB\u52A1\u63D0\u793A\u5B89\u88C5", () => installTaskTip({ resolve: _taskTipResolve })), safe("\u5E2E\u52A9\u94FE\u63A5\u5B89\u88C5", () => installCalcHelpLinks()), _synthThCache = null, _structDirty = !1;
+    _renderGpa(), _renderToolbar(), safe("\u4EFB\u52A1\u63D0\u793A\u5B89\u88C5", () => installTaskTip({ resolve: _taskTipResolve })), safe("\u5E2E\u52A9\u94FE\u63A5\u5B89\u88C5", () => installCalcHelpLinks()), _synthThCache = null, _recordColScores = /* @__PURE__ */ new Map(), _structDirty = !1;
     let vm = _findGradeVm();
     vm && (_captureSiteColumns(vm), _colsExpanded && (_captureOriginalIfNeeded(vm), _applyColumns(vm)));
     let rows = _rows(), used = /* @__PURE__ */ new Set(), matched = 0, unmatched = 0;
@@ -7271,7 +7310,7 @@
     if (!_started) return;
     _observer2 && (_observer2.disconnect(), _observer2 = null), _timer && (clearTimeout(_timer), _timer = null), _bootTimer && (clearTimeout(_bootTimer), _bootTimer = null), _popHandler && (window.removeEventListener("popstate", _popHandler), _popHandler = null), _closeInlineWindows(), _closeTaskEditor(), safe("\u4EFB\u52A1\u63D0\u793A\u6E05\u7406", () => stopTaskTip()), safe("\u7A97\u53E3\u62D6\u52A8\u6E05\u7406", () => cancelWindowGesture()), safe("\u5185\u8054\u5217\u8FD8\u539F", () => {
       let vm = _findGradeVm();
-      vm && (_colsExpanded && (_clearSyntheticColumns(vm), _savedHeaders !== null && (vm.dynamicHeaders = _savedHeaders.slice())), _savedHeaders = null, _savedColSig = "", _colsSig = null, _structDirty = !1, _siteHeaderIds = [], _siteColSig = "", _synthThCache = null, _driftCheckedAt = 0, _driftRefreshing = !1);
+      vm && (_colsExpanded && (_clearSyntheticColumns(vm), _savedHeaders !== null && (vm.dynamicHeaders = _savedHeaders.slice())), _savedHeaders = null, _savedColSig = "", _colsSig = null, _structDirty = !1, _siteHeaderIds = [], _siteColSig = "", _synthThCache = null, _recordColScores = /* @__PURE__ */ new Map(), _driftCheckedAt = 0, _driftRefreshing = !1);
     });
     let gpa = document.getElementById(GPA_ID);
     gpa && gpa.remove(), Array.prototype.forEach.call(document.querySelectorAll("[" + COLGPA_ATTR + "]"), (th) => th.removeAttribute(COLGPA_ATTR)), _closeMenus();
@@ -7300,7 +7339,12 @@
       inner.removeAttribute("data-ints-task-tip"), inner.style && (inner.style.marginTop = "");
     }), document.querySelectorAll("[data-ints-task-tip-float]").forEach((el) => el.remove()), document.querySelectorAll("[" + OPEN_EDITOR_ATTR + "]").forEach((td) => {
       td.removeAttribute(OPEN_EDITOR_ATTR), td.style && td.style.cursor === "pointer" && (td.style.cursor = "");
-    }), document.querySelectorAll("[" + ROW_ATTR + "]").forEach((tr) => tr.removeAttribute(ROW_ATTR)), document.querySelectorAll(".ant-table-tbody [data-ints-sim], .ant-table-tbody [data-ints-coldelta]").forEach((el) => el.remove()), document.querySelectorAll("[data-ints-task]").forEach((td) => {
+    }), document.querySelectorAll("[" + ROW_ATTR + "]").forEach((tr) => tr.removeAttribute(ROW_ATTR)), document.querySelectorAll(".ant-table-tbody [data-ints-sim], .ant-table-tbody [data-ints-coldelta]").forEach((el) => el.remove()), document.querySelectorAll("[" + SCORE_WRAP_ATTR + "], [" + FIELD_WRAP_ATTR + "]").forEach((wrap) => {
+      if (wrap.parentNode) {
+        for (; wrap.firstChild; ) wrap.parentNode.insertBefore(wrap.firstChild, wrap);
+        wrap.remove();
+      }
+    }), document.querySelectorAll("[" + SCORE_SIM_ATTR + "], [" + FIELD_BLOCK_ATTR + "]").forEach((el) => el.remove()), document.querySelectorAll("[data-ints-task]").forEach((td) => {
       td.removeAttribute("data-ints-task"), td.removeAttribute("data-ints-taskbound"), td.style.cursor = "", td.removeAttribute("title");
       let b = td.querySelector("[" + TASK_SCORE_ATTR + "]");
       b && b.remove();
@@ -7326,7 +7370,7 @@
     }
     _isPointsPage() ? _start2() : stopPointsInline();
   }
-  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, _siteColSig, _colTrace, _ownHeadersSig, OPEN_EDITOR_ATTR, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, COLGPA_ATTR, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, IMPORTANCE_ATTR, IMPORTANCE_COLOR_VAR, IMPORTANCE_BTN_ID, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, HELP_BTN_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, GPA_DELTA_EPS, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, ANTD_FIRE_PATH, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer2, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
+  var INLINE_ATTR, ROW_ATTR, GPA_ID, DECORATE_DEBOUNCE_MS, _siteHeaderIds, SIM_FIELDS, _siteColSig, _colTrace, _ownHeadersSig, OPEN_EDITOR_ATTR, SCORE_SIM_ATTR, SCORE_WRAP_ATTR, SCORE_DELTA_ATTR, SCORE_DELTA_EPS, FIELD_CELL_SEARCH, SIM_BLUE, COL_DELTA_ATTR, FIELD_WRAP_ATTR, FIELD_BLOCK_ATTR, _synthThCache, _recordColScores, COLGPA_ATTR, TASK_SCORE_ATTR, TASK_INPUT_ATTR, VTASK_ATTR, IMPORTANCE_ATTR, IMPORTANCE_COLOR_VAR, IMPORTANCE_BTN_ID, COLOR_UP, COLOR_DOWN, _taskEditing, VTASK_FALLBACK, IE_KIND, IE_F_IDS, ALL_FIELDS, FIELD_LABEL, FIELD_BY_LABEL, FIELD_ORDER, SYNTH_PREFIX, TOGGLE_ID, TERM_ID, TARGET_TOGGLE_ID, HELP_BTN_ID, _targetStripOpen, COLOR_IDLE, COLOR_ACTIVE, GPA_DELTA_EPS, _vm, _savedHeaders, _colsExpanded, _colsSig, _savedColSig, MENU_CALC_ID, MENU_SHOW_ID, MENU_CALC_TRIGGER_ID, MENU_SHOW_TRIGGER_ID, MENU_PANEL_ATTR, VTASK_BTN_ID, MENU_Z, _openMenu, _menuOutside, _menuEsc, ANTD_FIRE_PATH, CALC_CARD_ID, OVERVIEW_TOGGLE_ID, OVERVIEW_VIEW_ID, CALC_TOGGLE_ID, RESET_ID, CLEAR_CACHE_ID, _calcOpen, _overviewSig, _overviewOutside, ANTD_BAR_CHART_PATH, _overviewOpen, _overviewLoaded, _overviewFailed, OVERVIEW_COUNT_ID, _stats, _loading, DRIFT_CHECK_MS, DRIFT_MAX_REFRESH, _driftCheckedAt, _driftRefreshing, _driftRefreshes, _started, _observer2, _timer, _bootTimer, _popHandler, _lastPageYearText, _bootGateStats, BOOT_GATE_POLL_MS, BOOT_GATE_MAX_MS, BOOT_IDLE_FALLBACK_MS, BOOT_IDLE_TIMEOUT_MS, _structDirty, init_inline_points = __esm({
     "v8.30/inline-points.js"() {
       init_state();
       init_utils();
@@ -7341,13 +7385,13 @@
       init_weight_view();
       init_log();
       INLINE_ATTR = "data-ints-inline", ROW_ATTR = "data-ints-row", GPA_ID = "ints-inline-gpa", DECORATE_DEBOUNCE_MS = 300;
-      _siteHeaderIds = [], _siteColSig = "", _colTrace = null;
+      _siteHeaderIds = [], SIM_FIELDS = ["s1p", "s1e", "s1f", "s2p", "s2e", "s2f"], _siteColSig = "", _colTrace = null;
       _ownHeadersSig = "";
       OPEN_EDITOR_ATTR = "data-ints-open-editor";
       SCORE_SIM_ATTR = "data-ints-simscore", SCORE_WRAP_ATTR = "data-ints-origwrap", SCORE_DELTA_ATTR = "data-ints-scoredelta", SCORE_DELTA_EPS = 5e-3;
       FIELD_CELL_SEARCH = [0, -1, 1];
       SIM_BLUE = "#1890ff", COL_DELTA_ATTR = "data-ints-coldelta", FIELD_WRAP_ATTR = "data-ints-fwrap", FIELD_BLOCK_ATTR = "data-ints-fsim";
-      _synthThCache = null;
+      _synthThCache = null, _recordColScores = /* @__PURE__ */ new Map();
       COLGPA_ATTR = "data-ints-cgpa";
       TASK_SCORE_ATTR = "data-ints-taskscore", TASK_INPUT_ATTR = "data-ints-taskinput", VTASK_ATTR = "data-ints-vtask-id", IMPORTANCE_ATTR = "data-ints-importance", IMPORTANCE_COLOR_VAR = "--ints-importance-color", IMPORTANCE_BTN_ID = "ints-inline-importance-btn", COLOR_UP = "#52c41a", COLOR_DOWN = "#d4380d";
       _taskEditing = null;
